@@ -34,7 +34,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build verify image (context = repo root)
-        run: docker build -t blastcontain-verify:test -f verify/Containerfile .
+        # Build with podman: the scenario tests invoke podman, which has its own
+        # image store and can't see docker-built images (it would try to pull).
+        run: podman build -t blastcontain-verify:test -f verify/Containerfile .
 
       - name: Start MCP + API test services
         working-directory: verify/tests/integration
