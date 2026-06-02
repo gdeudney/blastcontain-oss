@@ -1,0 +1,45 @@
+# blastcontain-drill configuration example
+# Copy to ./blastcontain-drill.yaml at the root of your project.
+
+agent_id: my-agent
+environment: staging     # dev | uat | staging | prod
+
+# ── Cage ──────────────────────────────────────────────────────────────────────
+cage: inprocess          # inprocess | podman
+#  inprocess: drives a real model through an agent loop on the host
+#  podman:    deny-all-egress container running a non-LLM stub agent
+
+# ── Target model (in-cage agent) ──────────────────────────────────────────────
+# Any OpenAI-compatible endpoint. LM Studio defaults to http://localhost:1234/v1.
+target_base_url: http://localhost:1234/v1
+target_model:    qwen/qwen3.6-27b
+
+# ── Scoring ───────────────────────────────────────────────────────────────────
+judge_base_url:  http://localhost:1234/v1   # defaults to target_base_url
+judge_model:     qwen/qwen3.6-27b           # LLM-as-judge for the content plane
+guard_model:     qwen3guard-gen-8b          # Qwen3Guard classifier, if served (optional)
+
+# ── Black-box mode (alternative to cage) ──────────────────────────────────────
+# Attack an already-running agent over HTTP instead of spawning one in a cage.
+# agent_url: http://agent:8080
+
+# ── Corpus ────────────────────────────────────────────────────────────────────
+corpus: latest           # pin a version, e.g. "v2026.06", for reproducible runs
+scenarios:               # omit for all categories
+  - prompt_injection_direct
+  - prompt_injection_indirect
+  - data_exfiltration
+  - jailbreak
+  - tool_misuse
+  - mcp_hijack
+
+# Local Charter — its permitted_tools define which tool calls count as "forbidden".
+# charter: ./charter.yaml
+
+# ── Output ────────────────────────────────────────────────────────────────────
+output: ./reports/drill.json    # signed DrillReport
+report: ./reports/drill.md      # Markdown report
+
+# ── Server integration (omit for local-only mode) ─────────────────────────────
+blastcontain_url: ""            # or set $BLASTCONTAIN_URL
+dry_run: false

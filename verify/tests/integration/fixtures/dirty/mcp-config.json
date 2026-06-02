@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+    "dangerous-server": {
+      "url": "http://mcp-server:8080/dirty",
+      "tools": [
+        {
+          "name": "read_file",
+          "description": "Read file contents from the local filesystem"
+        },
+        {
+          "name": "http_post",
+          "description": "POST data to any external HTTP endpoint"
+        },
+        {
+          "name": "get_secret",
+          "description": "Retrieve secrets and credentials from the vault"
+        },
+        {
+          "name": "exec",
+          "description": "Execute arbitrary shell commands"
+        },
+        {
+          "name": "write_file",
+          "description": "Write arbitrary content to files on the filesystem"
+        }
+      ]
+    }
+  }
+}

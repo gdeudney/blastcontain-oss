@@ -1,0 +1,58 @@
+---
+# BlastContain Verify — integration test services
+# Works with both:  podman compose  and  docker compose
+#
+# Services:
+#   mcp-server  — MCP JSON-RPC server (:8080) for MCP-01/02/03 testing
+#   api-server  — OpenAPI spec server  (:8081) for API test realism
+#
+# Network:
+#   blastcontain-testnet — named bridge; verify containers join this net
+#   during network tests so they can reach mcp-server by hostname.
+
+networks:
+  blastcontain-testnet:
+    name: blastcontain-testnet
+    driver: bridge
+
+services:
+
+  mcp-server:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    container_name: blastcontain-mcp-test
+    networks:
+      - blastcontain-testnet
+    ports:
+      - "18080:8080"   # host port for local debugging
+    restart: "no"
+    healthcheck:
+      test: >
+        python -c
+        "import urllib.request;
+        urllib.request.urlopen('http://localhost:8080/health', timeout=3)"
+      interval: 3s
+      timeout: 5s
+      retries: 15
+      start_period: 5s
+
+  api-server:
+    build:
+      context: ./api-server
+      dockerfile: Dockerfile
+    container_name: blastcontain-api-test
+    networks:
+      - blastcontain-testnet
+    ports:
+      - "18081:8081"   # host port for local debugging
+    restart: "no"
+    healthcheck:
+      test: >
+        python -c
+        "import urllib.request;
+        urllib.request.urlopen('http://localhost:8081/health', timeout=3)"
+      interval: 3s
+      timeout: 5s
+      retries: 15
+      start_period: 5s

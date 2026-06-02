@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "description": "Retrieve current weather conditions for a given city from the internal weather API",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "city":    { "type": "string", "description": "City name" },
+            "country": { "type": "string", "description": "ISO 3166-1 country code" }
+          },
+          "required": ["city"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_knowledge_base",
+        "description": "Search the internal knowledge base for relevant documents",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query":  { "type": "string" },
+            "top_k":  { "type": "integer", "default": 5 }
+          },
+          "required": ["query"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_ticket_status",
+        "description": "Get the status of a support ticket by ID",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "ticket_id": { "type": "string" }
+          },
+          "required": ["ticket_id"]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+# BlastContain Verify — hardened container image
+#
+# Production build (assumes blastcontain-core is published to PyPI):
+#   podman build -t blastcontain-verify:0.3.0 .
+#
+# Dev build (sibling blastcontain-core/ source, before PyPI publish):
+#   podman build -t blastcontain-verify:0.3.0 -f verify/Containerfile ..
+#   (run from blastcontain-oss/ — context is the parent dir containing both
+#    core/ and verify/. The Containerfile auto-detects and installs core
+#    from local source when present.)
+#
+# Run (scan a local project):
+#   podman run --rm \
+#     --read-only --cap-drop ALL --security-opt no-new-privileges \
+#     --network none --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+#     -v /path/to/agent:/scan:ro -v /path/to/reports:/reports:rw \
+#     blastcontain-verify:0.3.0 \
+#     --agent-id my-agent --env prod \
+#     --search-path /scan --report /reports/report.md \
+#     --output /reports/audit.json --sarif /reports/scan.sarif
+
+# ── Stage 1: build ─────────────────────────────────────────────────────────────
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+# Copy verify source (always required). If core/ exists in the build context,
+# it gets copied too — the install step prefers local core when present.
+COPY verify/pyproject.toml verify/README.md ./
+COPY verify/blastcontain_verify/ ./blastcontain_verify/
+
+# Optional: local core source. Build context = parent dir for dev builds.
+# COPY with a wildcard fails if the source doesn't exist, so we use a
+# two-step approach: copy a small marker first (always succeeds), then
+# attempt the core copy conditionally inside RUN.
+COPY core* /build/core_optional/
+
+# Install.
+#
+# Dev path: if local core source is present, build it to a wheel first
+# and tell pip to use it via --find-links. This avoids pip's PyPI resolver
+# failing for a package that hasn't been published yet.
+#
+# Prod path: when core/ is absent (build context = verify/ only), pip
+# resolves blastcontain-core from PyPI normally.
+RUN if [ -d /build/core_optional ] && [ -f /build/core_optional/pyproject.toml ]; then \
+        echo "Building blastcontain-core wheel from local source"; \
+        pip install --no-cache-dir build && \
+        python -m build --wheel /build/core_optional --outdir /build/wheels; \
+    fi && \
+    FIND_LINKS_ARG="" && \
+    if [ -d /build/wheels ]; then FIND_LINKS_ARG="--find-links /build/wheels"; fi && \
+    pip install --no-cache-dir --ignore-installed --prefix=/install $FIND_LINKS_ARG ".[full]" && \
+    PYTHONPATH=/install/lib/python3.12/site-packages \
+    python -m spacy download en_core_web_lg --target /install/lib/python3.12/site-packages || \
+    PYTHONPATH=/install/lib/python3.12/site-packages \
+    python -m spacy download en_core_web_sm --target /install/lib/python3.12/site-packages || true
+
+# ── Stage 2: runtime ───────────────────────────────────────────────────────────
+FROM python:3.12-slim AS runtime
+
+# Non-root user with no home directory and no login shell
+RUN useradd --system --no-create-home --shell /sbin/nologin --uid 10001 verify
+
+# Copy installed packages from builder
+COPY --from=builder /install /usr/local
+
+# Drop any setuid binaries — verify never needs them
+RUN find / -perm /4000 -type f 2>/dev/null | xargs chmod u-s 2>/dev/null || true
+
+USER verify
+
+LABEL org.opencontainers.image.title="blastcontain-verify" \
+      org.opencontainers.image.description="Pre-deployment compliance scanner for AI agents" \
+      org.opencontainers.image.version="0.3.0" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.source="https://github.com/blastcontain/verify"
+
+ENTRYPOINT ["blastcontain-verify"]
+CMD ["--help"]

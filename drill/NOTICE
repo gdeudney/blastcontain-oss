@@ -1,0 +1,14 @@
+BlastContain Drill
+Copyright 2026 BlastContain Contributors
+
+This product includes software developed by BlastContain Contributors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+see the LICENSE file in this directory or
+http://www.apache.org/licenses/LICENSE-2.0
+
+Drill orchestrates over third-party red-team software when it is present
+(used-if-present, never required): AI-Infra-Guard (Apache-2.0), DeepEval
+(Apache-2.0), and guardrail models such as Qwen3Guard. These are integrated
+at runtime via the availability-flag pattern; they are not vendored here.
+Record their provenance and licenses in your own deployment's AIBOM.

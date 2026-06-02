@@ -1,0 +1,17 @@
+# Deliberately insecure — triggers TLS-01 and CRED-03
+services:
+  api_endpoint: http://api.example.com/v2
+  webhook_url: http://hooks.company-internal.net/events
+  metrics_url: http://telemetry.service.io/ingest
+
+permissions:
+  roles:
+    - "*"
+  scopes: "*"
+  allowed_methods:
+    - "*"
+
+database:
+  host: postgres.internal
+  port: 5432
+  sslmode: disable

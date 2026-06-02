@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Detect which packages a change touches. A change to core/** flags the tools
+  # too, because verify and drill depend on core.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      core: ${{ steps.filter.outputs.core }}
+      verify: ${{ steps.filter.outputs.verify }}
+      drill: ${{ steps.filter.outputs.drill }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            core:
+              - 'core/**'
+            verify:
+              - 'verify/**'
+              - 'core/**'
+            drill:
+              - 'drill/**'
+              - 'core/**'
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check core verify drill
+
+  import-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Forbid closed-source platform imports
+        run: |
+          set -e
+          if grep -REn \
+            "from blastcontain\.(platform|enterprise)|import blastcontain\.(platform|enterprise)" \
+            --include="*.py" verify/blastcontain_verify drill/blastcontain_drill; then
+            echo "ERROR: an OSS package imports from a closed-source package."
+            echo "Move shared code into blastcontain-core (Apache 2.0) instead."
+            exit 1
+          fi
+          if grep -REn "blastcontain[_-](platform|enterprise)" verify/pyproject.toml drill/pyproject.toml; then
+            echo "ERROR: an OSS package declares a closed-source dependency."
+            exit 1
+          fi
+          echo "Import policy check passed."
+
+  core:
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e "./core[dev]"
+      - run: pytest
+        working-directory: core
+
+  verify:
+    needs: changes
+    if: ${{ needs.changes.outputs.verify == 'true' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e "./core"
+      - run: pip install -e "./verify[dev]"
+      - run: pytest
+        working-directory: verify
+
+  drill:
+    needs: changes
+    if: ${{ needs.changes.outputs.drill == 'true' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e "./core"
+      - run: pip install -e "./drill[dev]"
+      - run: pytest -m "not live and not podman"
+        working-directory: drill

@@ -1,0 +1,85 @@
+name: Integration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "core/**"
+      - "verify/**"
+      - "drill/**"
+      - ".github/workflows/integration.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "core/**"
+      - "verify/**"
+      - "drill/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-container:
+    name: Verify hardened-container integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build verify image (context = repo root)
+        run: docker build -t blastcontain-verify:test -f verify/Containerfile .
+
+      - name: Start MCP + API test services
+        working-directory: verify/tests/integration
+        run: |
+          docker compose -f compose.yml up -d --build
+          timeout 90 bash -c 'until curl -sf http://localhost:18080/health; do sleep 2; done'
+          timeout 90 bash -c 'until curl -sf http://localhost:18081/health; do sleep 2; done'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test deps
+        working-directory: verify/tests/integration
+        run: pip install -r requirements.txt
+
+      - name: FAIL + PASS scenario tests
+        working-directory: verify/tests/integration
+        env:
+          SKIP_COMPOSE: "1"
+        run: |
+          python -m pytest test_fail.py -v --timeout=120 --tb=short
+          python -m pytest test_pass.py -v --timeout=120 --tb=short
+
+      - name: Upload compose logs on failure
+        if: failure()
+        working-directory: verify/tests/integration
+        run: docker compose -f compose.yml logs > /tmp/compose-logs.txt 2>&1 || true
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: verify-compose-logs
+          path: /tmp/compose-logs.txt
+
+      - name: Stop services
+        if: always()
+        working-directory: verify/tests/integration
+        run: docker compose -f compose.yml down --volumes
+
+  drill-podman:
+    name: Drill cage containment (podman)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e "./core"
+      - run: pip install -e "./drill[dev]"
+      - name: Podman cage-containment tests
+        working-directory: drill
+        run: pytest tests/integration -m podman -v

@@ -1,0 +1,88 @@
+BlastContain Verify — Third-Party Software Notices
+
+This product depends on third-party packages distributed under their own
+licenses. The packages below are not vendored into this source tree; they
+are installed at `pip install` time and ship their license metadata in
+their own wheel `METADATA`.
+
+────────────────────────────────────────────────────────────────────────
+blastcontain-core (Apache-2.0)
+https://github.com/blastcontain/core
+
+────────────────────────────────────────────────────────────────────────
+click (BSD-3-Clause)
+https://github.com/pallets/click
+
+────────────────────────────────────────────────────────────────────────
+httpx (BSD-3-Clause)
+https://github.com/encode/httpx
+
+────────────────────────────────────────────────────────────────────────
+pyyaml (MIT)
+https://github.com/yaml/pyyaml
+
+────────────────────────────────────────────────────────────────────────
+Optional augmentation dependencies (installed with `[full]`):
+
+agent-governance-toolkit (MIT)
+https://pypi.org/project/agent-governance-toolkit/
+Copyright (c) the respective contributors
+
+  Permission is hereby granted, free of charge, to any person obtaining
+  a copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to
+  the following conditions:
+
+  The above copyright notice and this permission notice shall be
+  included in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+────────────────────────────────────────────────────────────────────────
+cisco-ai-mcp-scanner (MIT)
+https://pypi.org/project/cisco-ai-mcp-scanner/
+Copyright (c) Cisco Systems, Inc.
+
+  Permission is hereby granted, free of charge, to any person obtaining
+  a copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to
+  the following conditions:
+
+  The above copyright notice and this permission notice shall be
+  included in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+  OR IMPLIED.
+
+────────────────────────────────────────────────────────────────────────
+cisco-ai-skill-scanner (MIT)
+https://pypi.org/project/cisco-ai-skill-scanner/
+Copyright (c) Cisco Systems, Inc.
+
+  (same MIT terms as cisco-ai-mcp-scanner above)
+
+────────────────────────────────────────────────────────────────────────
+presidio-analyzer (MIT)
+presidio-anonymizer (MIT)
+https://github.com/microsoft/presidio
+Copyright (c) Microsoft Corporation
+
+  (standard MIT terms)
+
+────────────────────────────────────────────────────────────────────────
+
+If any of the licenses or copyrights above are incomplete or outdated,
+please file an issue at https://github.com/blastcontain/verify/issues
+and we will correct the record.

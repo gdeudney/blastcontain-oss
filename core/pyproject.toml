@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "blastcontain-core"
+version = "0.2.0"
+description = "Shared types, Charter schema, signing, and SARIF emit for BlastContain tools"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+authors = [{ name = "BlastContain Contributors" }]
+keywords = ["ai-safety", "agent-security", "compliance", "sarif", "mit-ai-risk"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "cryptography>=42.0",   # Ed25519 audit packet signing
+    "pyyaml>=6.0",          # Charter YAML loader
+]
+
+[project.urls]
+Homepage      = "https://github.com/blastcontain/core"
+Repository    = "https://github.com/blastcontain/core"
+Issues        = "https://github.com/blastcontain/core/issues"
+Documentation = "https://github.com/blastcontain/core/blob/main/README.md"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["blastcontain_core"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"

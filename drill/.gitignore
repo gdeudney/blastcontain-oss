@@ -1,0 +1,33 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+build/
+dist/
+*.egg-info/
+.eggs/
+.coverage
+.coverage.*
+.pytest_cache/
+.tox/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Drill demo / run artifacts
+_demo/
+reports/
+
+# Sensitive — discovered jailbreak corpora (drill-spec §8): treat like secrets
+discovered-jailbreaks*.json
+*.jailbreaks.json

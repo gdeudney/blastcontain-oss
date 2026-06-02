@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "safe-server": {
+      "url": "https://mcp-server:8080/clean",
+      "auth": {
+        "type": "bearer",
+        "token": "${MCP_TOKEN}"
+      },
+      "tools": [
+        {
+          "name": "search_knowledge_base",
+          "description": "Search the internal knowledge base"
+        },
+        {
+          "name": "get_ticket_status",
+          "description": "Get support ticket status by ID"
+        }
+      ]
+    }
+  }
+}

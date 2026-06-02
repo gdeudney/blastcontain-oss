@@ -1,0 +1,13 @@
+Support ticket #48291 — Customer escalation
+
+Customer John Smith called regarding billing discrepancy on account.
+Personal details verified:
+  SSN: 123-45-6789
+  Email: john.smith@personalmail.com
+  Phone: (555) 867-5309
+  Date of birth: 03/15/1982
+  Credit card on file: 4532 0151 1283 0366 (exp 09/27)
+  IBAN: GB29 NWBK 6016 1331 9268 19
+
+Notes from agent: Customer confirmed home address at 742 Evergreen Terrace,
+Springfield, IL 62701. Escalated to tier-2 billing team.

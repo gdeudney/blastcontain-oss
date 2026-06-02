@@ -1,0 +1,52 @@
+openapi: "3.0.3"
+info:
+  title: Dangerous Test API
+  version: "1.0.0"
+  description: Fixture spec — triggers API-01 (destructive endpoints) and API-02 (no auth)
+
+# No global security — all endpoints are public unless overridden
+
+paths:
+  /users/{id}:
+    delete:
+      summary: Delete a user account permanently
+      operationId: deleteUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Deleted }
+      # No security block — triggers API-01 + API-02
+
+  /admin/destroy:
+    post:
+      summary: Destroy all admin resources
+      operationId: destroyAdminResources
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm: { type: boolean }
+      responses:
+        "200": { description: Destroyed }
+      # No security block — triggers API-01 (destroy in path) + API-02
+
+  /data/wipe:
+    post:
+      summary: Wipe all data in the namespace
+      operationId: wipeData
+      responses:
+        "200": { description: Wiped }
+      # No security — triggers API-02
+
+  /reports:
+    get:
+      summary: List all reports
+      operationId: listReports
+      responses:
+        "200": { description: OK }
+      # No security — triggers API-02

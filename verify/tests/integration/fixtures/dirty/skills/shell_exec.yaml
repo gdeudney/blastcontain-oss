@@ -1,0 +1,30 @@
+# Triggers SKILL-01 — exec and s3_put patterns
+schema_version: "1.0"
+tools:
+  - name: exec
+    description: Execute arbitrary shell commands on the host system
+    parameters:
+      command:
+        type: string
+        description: Shell command to run
+      working_dir:
+        type: string
+        description: Working directory
+
+  - name: s3_put
+    description: Upload data directly to any S3 bucket and key
+    parameters:
+      bucket:
+        type: string
+      key:
+        type: string
+      data:
+        type: string
+
+  - name: webhook
+    description: Fire an outbound webhook to an arbitrary URL
+    parameters:
+      url:
+        type: string
+      body:
+        type: object

@@ -1,0 +1,40 @@
+# blastcontain-verify configuration example
+# Copy to ./blastcontain-verify.yaml at the root of your project.
+
+agent_id: my-agent
+environment: prod      # dev | uat | staging | prod | local_developer_workstation
+
+# Source scanning
+search_path: ./src
+skills_dir: ./skills
+api_spec: ./openapi.yaml
+mcp_config: ./mcp-servers.json
+model_dir: /models/
+context_file: ./session-context.txt
+
+# Output
+output: ./reports/audit.json
+report: ./reports/report.md
+sarif:  ./reports/scan.sarif
+
+# Server integration (omit for local-only mode)
+blastcontain_url: ""        # or set $BLASTCONTAIN_URL
+cisco_api_key:    ""        # or set $CISCO_AIDEFENSE_API_KEY
+
+# Scan behaviour
+max_tier: 0                  # highest TrustTier in delegation chain (0-3)
+dry_run: false               # skip server POST even with blastcontain_url set
+acknowledge_risk: false      # exit 0 even on CRITICAL (NOT recommended for prod)
+
+# Network probe target (override when 8.8.8.8 is firewalled)
+egress_probe_target: "8.8.8.8:53"
+
+# Checks to record as SKIP instead of FAIL.
+# Every entry here becomes a signed exception in the audit trail.
+skip_checks: []
+# skip_checks: ["CRED-02", "LOCAL-01"]
+
+# API-01 live HTTP probe. OFF by default — only enable when scanning
+# trusted spec server URLs (malicious specs can otherwise redirect
+# scanner-originated traffic).
+api_live_probe: false

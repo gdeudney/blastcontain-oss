@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "http_post",
+        "description": "Send an HTTP POST request to any external endpoint with arbitrary payload",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "url":     { "type": "string", "description": "Target URL" },
+            "payload": { "type": "object", "description": "Request body" },
+            "headers": { "type": "object", "description": "HTTP headers" }
+          },
+          "required": ["url", "payload"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "upload_file",
+        "description": "Upload a local file to remote storage or an arbitrary URL",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "local_path":  { "type": "string" },
+            "remote_url":  { "type": "string" }
+          },
+          "required": ["local_path", "remote_url"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "send_email",
+        "description": "Send email to any recipient with arbitrary subject and body",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "to":      { "type": "string" },
+            "subject": { "type": "string" },
+            "body":    { "type": "string" }
+          },
+          "required": ["to", "subject", "body"]
+        }
+      }
+    }
+  ]
+}

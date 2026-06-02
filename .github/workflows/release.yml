@@ -1,0 +1,81 @@
+name: Release
+
+# Per-package release in a monorepo: a prefixed tag selects which package ships.
+#   git tag core-v0.2.0 && git push origin core-v0.2.0   -> publishes blastcontain-core
+#   git tag verify-v0.3.0 ...                             -> publishes blastcontain-verify (+ container)
+#   git tag drill-v0.1.0 ...                              -> publishes blastcontain-drill  (+ container)
+#
+# PyPI Trusted Publishing: configure each project's publisher to point at THIS
+# repository and workflow `release.yml`.
+
+on:
+  push:
+    tags:
+      - "core-v*"
+      - "verify-v*"
+      - "drill-v*"
+
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write       # PyPI Trusted Publishing
+      contents: write       # GitHub release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve package from tag
+        id: pkg
+        run: echo "name=${GITHUB_REF_NAME%-v*}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build ${{ steps.pkg.outputs.name }}
+        run: |
+          python -m pip install --upgrade build
+          python -m build "${{ steps.pkg.outputs.name }}" --outdir dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: dist/*
+
+  container:
+    needs: pypi
+    if: ${{ startsWith(github.ref_name, 'verify-v') || startsWith(github.ref_name, 'drill-v') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve package + version
+        id: pkg
+        run: |
+          echo "name=${GITHUB_REF_NAME%-v*}" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#*-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ steps.pkg.outputs.name }}/Containerfile
+          push: true
+          tags: |
+            ghcr.io/blastcontain/${{ steps.pkg.outputs.name }}:${{ steps.pkg.outputs.version }}
+            ghcr.io/blastcontain/${{ steps.pkg.outputs.name }}:latest

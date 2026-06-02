@@ -1,0 +1,26 @@
+# BlastContain OSS — monorepo workspace root.
+#
+# This repo holds the Apache-2.0 packages: core/ (shared library), verify/, and
+# drill/ (and discovery/, later). Each is built and published independently;
+# this file ties them together for development and shared tooling. It is NOT
+# itself a published package (no [project] / [build-system] on purpose).
+#
+# Dev setup:
+#   pip install -e ./core -e "./verify[dev]" -e "./drill[dev]"
+#   # or, with uv:  uv sync
+#
+# Release: push a per-package tag — core-vX.Y.Z / verify-vX.Y.Z / drill-vX.Y.Z —
+# and .github/workflows/release.yml builds + publishes that one package.
+
+[tool.uv.workspace]
+members = ["core", "verify", "drill"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["**/tests/integration/fixtures", "**/_demo"]
+
+[tool.ruff.lint]
+# Pyflakes + the pycodestyle error subset — matches each package's prior default.
+# Tighten (e.g. add "I" for import sorting) once the tree is uniformly clean.
+select = ["E4", "E7", "E9", "F"]
