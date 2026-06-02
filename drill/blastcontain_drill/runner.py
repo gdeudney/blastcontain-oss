@@ -148,6 +148,7 @@ def run_drill(cfg: DrillConfig) -> DrillReport:
         limit=cfg.limit,
         enable_aig=cfg.enable_aig,
         enable_operators=cfg.enable_operators,
+        enable_jbb=cfg.enable_jbb,
     )
     scorers, scorer_flags = build_scorers(cfg)
 

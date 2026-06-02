@@ -86,6 +86,7 @@ class AttackSource(ABC):
 
     name: str = "attack-source"
     layer: str = "replay"
+    revision: str = ""   # pinned version/commit for this source; recorded as name@revision
 
     @abstractmethod
     def is_available(self) -> bool:

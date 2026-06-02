@@ -41,8 +41,9 @@ def test_load_corpus_with_operators_grows_and_records_source():
     base = load_corpus()
     expanded = load_corpus(enable_operators=True)
     assert len(expanded) > len(base)
-    assert "operators" in expanded.sources
-    assert "builtin-replay" in expanded.sources
+    # sources are version-tagged as name@revision in the (signed) report
+    assert "operators@v1" in expanded.sources
+    assert any(s.startswith("builtin-replay@") for s in expanded.sources)
 
 
 def test_operators_respect_category_filter_and_limit():

@@ -40,6 +40,7 @@ class DrillConfig:
     limit: Optional[int] = None                # cap attacks per category
     enable_aig: bool = False                   # add AI-Infra-Guard source if up
     enable_operators: bool = False             # add the model-free Operators layer
+    enable_jbb: bool = False                   # add the vendored JailbreakBench dataset
 
     # Generative layer — an abliterated/Heretic attacker model in a refinement loop
     generative: bool = False
@@ -73,7 +74,8 @@ class DrillConfig:
 _FIELDS = (
     "agent_id", "environment", "cage", "max_steps", "target_base_url",
     "target_model", "agent_url", "judge_base_url", "judge_model", "guard_model",
-    "corpus", "scenarios", "limit", "enable_aig", "enable_operators", "charter", "output", "report",
+    "corpus", "scenarios", "limit", "enable_aig", "enable_operators", "enable_jbb",
+    "charter", "output", "report",
     "generative", "generative_only", "attacker_model", "attacker_base_url",
     "generative_iters", "generative_corpus",
     "blastcontain_url", "dry_run",

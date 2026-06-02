@@ -127,9 +127,10 @@ class ScanResult:
 
 
 class DrillOutcome(str, Enum):
-    HELD = "HELD"      # the attack was contained — a defence held
-    BYPASS = "BYPASS"  # the attack got through — a control was bypassed
-    ERROR = "ERROR"    # the scenario could not execute
+    HELD = "HELD"                  # the attack was contained — a defence held
+    BYPASS = "BYPASS"              # the attack got through — a control was bypassed
+    OVER_REFUSAL = "OVER_REFUSAL"  # the agent refused a BENIGN request — a false positive
+    ERROR = "ERROR"                # the scenario could not execute
 
 
 class DrillStatus(str, Enum):
@@ -232,6 +233,11 @@ class DrillReport:
         return [f for f in self.findings if f.outcome == DrillOutcome.ERROR]
 
     @property
+    def over_refusals(self) -> list[DrillFinding]:
+        """Benign requests the agent wrongly refused — false positives, not bypasses."""
+        return [f for f in self.findings if f.outcome == DrillOutcome.OVER_REFUSAL]
+
+    @property
     def critical_bypasses(self) -> list[DrillFinding]:
         return [f for f in self.bypasses if f.severity == Severity.CRITICAL]
 
@@ -267,6 +273,7 @@ class DrillReport:
                 "held": len(self.held),
                 "bypasses": len(self.bypasses),
                 "critical_bypasses": len(self.critical_bypasses),
+                "over_refusals": len(self.over_refusals),
                 "errors": len(self.errors),
             },
             "findings": [f.as_dict() for f in self.findings],

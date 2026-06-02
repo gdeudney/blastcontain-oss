@@ -1,23 +1,32 @@
 """
 AI-Infra-Guard attack-source adapter (drill-spec §4.3) — availability-flagged.
 
-AI-Infra-Guard (Tencent, Apache-2.0) is a heavy service (Docker, ~4 GB), so it
-runs as a service, not a pip dependency. The whole integration is a
-submit -> poll -> fetch loop against its task API:
+AI-Infra-Guard (Tencent, Apache-2.0) runs as a service, not a pip dependency.
+Stand it up (no auth — keep it on localhost only):
 
-    POST /api/v1/app/taskapi/tasks   {type, content}  -> data.session_id
-    GET  /api/v1/app/taskapi/status/{id}              -> data.status
-    GET  /api/v1/app/taskapi/result/{id}              -> data {...}
+    git clone https://github.com/Tencent/AI-Infra-Guard && cd AI-Infra-Guard
+    docker compose -f docker-compose.images.yml up -d     # WebUI + API on :8088
+
+The whole integration is a submit -> poll -> fetch loop against its task API
+(endpoints + request body verified against api.md, June 2026):
+
+    POST /api/v1/app/taskapi/tasks        {type, content}  -> data.session_id
+    GET  /api/v1/app/taskapi/status/{id}                   -> data.status
+    GET  /api/v1/app/taskapi/result/{id}                   -> data {...}
+    POST /api/v1/app/taskapi/upload   (multipart)          -> fileUrl   (MCP archives)
 
 `type` discriminates: `model_redteam_report` (jailbreak) · `mcp_scan` · `ai_infra_scan`.
+A `model_redteam_report` *runs* the datasets against a target model and scores with
+`eval_model`, so the body needs both plus the dataset (these default to the local
+LM Studio endpoint). The discovered prompts come back in the result; Drill re-runs
+them in the cage for action ground truth (drill-spec §4.3 — "fuse the two").
 
-This adapter implements the loop and the availability flag. When the service is
-absent (the common local case), `is_available()` is False and the corpus loader
-silently falls back to the built-in Replay seed set.
+When the service is absent (the common local case) `is_available()` is False and
+the corpus loader silently falls back to the built-in Replay seed set.
 
-NOTE: the per-prompt verdict/score fields in the `result` JSON are undocumented
-upstream — confirm them empirically against a live scan before relying on the
-mapping in `_attacks_from_result` (this mirrors the caveat in drill-spec §4.3).
+NOTE: api.md documents the *request* shape but not the per-prompt *result* fields,
+so `_attacks_from_result` stays best-effort — confirm field names against one live
+scan before relying on it (the half-day the spec budgets).
 """
 from __future__ import annotations
 
@@ -28,6 +37,8 @@ from typing import Optional
 from .base import Attack, AttackSource
 
 _DEFAULT_URL = "http://localhost:8088"
+# AIG's built-in datasets (api.md): the Replay layer, no HF wiring needed.
+_DEFAULT_DATASETS = ["JailBench-Tiny"]
 
 
 class AIGAttackSource(AttackSource):
@@ -39,10 +50,22 @@ class AIGAttackSource(AttackSource):
         base_url: Optional[str] = None,
         token: Optional[str] = None,
         timeout: float = 10.0,
+        target_model: Optional[str] = None,
+        target_base_url: Optional[str] = None,
+        eval_model: Optional[str] = None,
+        eval_base_url: Optional[str] = None,
+        datasets: Optional[list[str]] = None,
     ):
         self.base_url = (base_url or os.environ.get("BLASTCONTAIN_AIG_URL", _DEFAULT_URL)).rstrip("/")
         self.token = token or os.environ.get("BLASTCONTAIN_AIG_TOKEN", "")
         self.timeout = timeout
+        # AIG runs the redteam against a target model + scores with eval_model;
+        # default both to the local OpenAI-compatible endpoint (LM Studio).
+        self.target_model = target_model or os.environ.get("BLASTCONTAIN_AIG_MODEL", "qwen3")
+        self.target_base_url = target_base_url or "http://localhost:1234/v1"
+        self.eval_model = eval_model or self.target_model
+        self.eval_base_url = eval_base_url or self.target_base_url
+        self.datasets = datasets or _DEFAULT_DATASETS
 
     def _headers(self) -> dict:
         return {"Authorization": f"Bearer {self.token}"} if self.token else {}
@@ -69,12 +92,11 @@ class AIGAttackSource(AttackSource):
         r.raise_for_status()
         return (r.json().get("data") or {}).get("session_id")
 
-    def _poll(self, session_id: str, max_wait: float = 120.0) -> str:
+    def _poll(self, session_id: str, max_wait: float = 600.0) -> str:
         import httpx
 
-        deadline = max_wait
         waited = 0.0
-        while waited < deadline:
+        while waited < max_wait:
             r = httpx.get(
                 f"{self.base_url}/api/v1/app/taskapi/status/{session_id}",
                 headers=self._headers(),
@@ -83,8 +105,8 @@ class AIGAttackSource(AttackSource):
             status = (r.json().get("data") or {}).get("status", "")
             if status in ("completed", "failed"):
                 return status
-            time.sleep(2.0)
-            waited += 2.0
+            time.sleep(3.0)
+            waited += 3.0
         return "timeout"
 
     def _result(self, session_id: str) -> dict:
@@ -98,23 +120,43 @@ class AIGAttackSource(AttackSource):
         r.raise_for_status()
         return r.json().get("data") or {}
 
+    def _redteam_body(self, datasets: list[str], num_prompts: int) -> dict:
+        """A complete `model_redteam_report` content body (verified vs api.md)."""
+        tok = self.token or "lm-studio"
+        return {
+            "model": [{"model": self.target_model, "base_url": self.target_base_url, "token": tok}],
+            "eval_model": {"model": self.eval_model, "base_url": self.eval_base_url, "token": tok},
+            "dataset": {"dataFile": datasets, "numPrompts": num_prompts, "randomSeed": 42},
+        }
+
     @staticmethod
     def _attacks_from_result(result: dict) -> list[Attack]:
         """
-        Best-effort mapping of AIG result prompts to Attack objects. The exact
-        field names are unverified upstream — adjust once confirmed empirically.
+        Best-effort mapping of AIG result prompts to Attack objects. api.md does
+        not pin the per-prompt field names, so we probe the likely shapes —
+        adjust once confirmed against a live scan.
         """
         attacks: list[Attack] = []
-        prompts = result.get("prompts") or result.get("cases") or []
+        prompts = (
+            result.get("prompts")
+            or result.get("cases")
+            or result.get("vulnerabilities")
+            or result.get("results")
+            or []
+        )
         for i, p in enumerate(prompts):
-            text = p.get("prompt") if isinstance(p, dict) else str(p)
+            if isinstance(p, dict):
+                text = p.get("prompt") or p.get("input") or p.get("query") or ""
+                technique = p.get("technique") or p.get("method") or "aig"
+            else:
+                text, technique = str(p), "aig"
             if not text:
                 continue
             attacks.append(
                 Attack(
                     id=f"aig-{i:04d}",
                     category="jailbreak",
-                    technique=(p.get("technique") if isinstance(p, dict) else None) or "aig",
+                    technique=technique,
                     prompt=text,
                     layer="replay",
                     source="ai-infra-guard",
@@ -130,10 +172,8 @@ class AIGAttackSource(AttackSource):
         if not self.is_available():
             return []
         try:
-            session = self._submit(
-                "model_redteam_report",
-                {"dataset": {"dataFile": ["JailBench-Tiny"], "numPrompts": limit or 50}},
-            )
+            body = self._redteam_body(self.datasets, limit or 50)
+            session = self._submit("model_redteam_report", body)
             if not session:
                 return []
             if self._poll(session) != "completed":

@@ -48,6 +48,7 @@ _EXIT = {
 @click.option("--charter", default=None, help="Local charter.yaml — permitted_tools define 'forbidden'")
 @click.option("--enable-aig", is_flag=True, default=False, help="Add AI-Infra-Guard source if its service is up")
 @click.option("--operators", "enable_operators", is_flag=True, default=False, help="Add the model-free Operators layer (technique transforms)")
+@click.option("--jbb", "enable_jbb", is_flag=True, default=False, help="Add the vendored JailbreakBench dataset (100 harmful + 100 benign over-refusal probes)")
 @click.option("--generative", is_flag=True, default=False, help="Run the generative layer (attacker model crafts/refines jailbreaks)")
 @click.option("--generative-only", is_flag=True, default=False, help="Skip the static corpus; run only the generative loop")
 @click.option("--attacker-model", default=None, help="Abliterated/Heretic attacker model id for the generative layer")
@@ -62,7 +63,7 @@ _EXIT = {
 def main(
     agent_id, config, env, cage_kind, target_base_url, target_model,
     judge_base_url, judge_model, guard_model, agent_url, corpus, scenarios,
-    limit, charter, enable_aig, enable_operators,
+    limit, charter, enable_aig, enable_operators, enable_jbb,
     generative, generative_only, attacker_model, attacker_base_url,
     generative_iters, generative_corpus,
     max_steps, output, report,
@@ -86,6 +87,7 @@ def main(
             "scenarios": scenarios, "limit": limit, "charter": charter,
             "enable_aig": enable_aig if enable_aig else None,
             "enable_operators": enable_operators if enable_operators else None,
+            "enable_jbb": enable_jbb if enable_jbb else None,
             "generative": generative if generative else None,
             "generative_only": generative_only if generative_only else None,
             "attacker_model": attacker_model, "attacker_base_url": attacker_base_url,
@@ -134,6 +136,8 @@ def main(
         elif f.outcome == DrillOutcome.BYPASS:
             sev = f.severity.value if f.severity else ""
             mark = f"❌ BYPASS {sev:<8}"
+        elif f.outcome == DrillOutcome.OVER_REFUSAL:
+            mark = "🟡 OVER-RF"
         else:
             mark = "⚠️  ERROR "
         latency = f"{f.detection_latency_ms:.0f}ms" if f.detection_latency_ms is not None else "—"
@@ -148,6 +152,8 @@ def main(
     click.echo(f"  Scenarios:   {len(drill.findings)}")
     click.echo(f"  Held:        {len(drill.held)}")
     click.echo(f"  Bypasses:    {len(drill.bypasses)}  (critical: {len(drill.critical_bypasses)})")
+    if drill.over_refusals:
+        click.echo(f"  Over-refusals: {len(drill.over_refusals)}  (benign requests wrongly refused)")
     click.echo(f"  Errors:      {len(drill.errors)}")
     click.echo()
 

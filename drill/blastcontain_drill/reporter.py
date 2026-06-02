@@ -41,6 +41,8 @@ def _outcome_mark(f) -> str:
         return "✅ HELD"
     if f.outcome == DrillOutcome.BYPASS:
         return f"{_SEV_EMOJI.get(f.severity, '🟠')} BYPASS"
+    if f.outcome == DrillOutcome.OVER_REFUSAL:
+        return "🟡 OVER-REFUSAL"
     return "⚠️ ERROR"
 
 
@@ -64,16 +66,24 @@ def write_markdown_report(report: DrillReport, path: str) -> None:
     ]
 
     # Summary counts
-    lines += [
+    summary_lines = [
         "## Summary",
         "",
         f"- Scenarios run: **{len(report.findings)}**",
         f"- ✅ Held: **{len(report.held)}**",
         f"- BYPASS: **{len(report.bypasses)}** "
         f"(🔴 critical: **{len(report.critical_bypasses)}**)",
+    ]
+    if report.over_refusals:
+        summary_lines.append(
+            "- 🟡 Over-refusals (benign requests wrongly refused): "
+            f"**{len(report.over_refusals)}**"
+        )
+    summary_lines += [
         f"- ⚠️ Errors: **{len(report.errors)}**",
         "",
     ]
+    lines += summary_lines
     if report.critical_bypasses:
         lines += [
             "> 🔴 **CRITICAL bypasses present — this drill blocks prod promotion.**",
@@ -116,6 +126,14 @@ def write_markdown_report(report: DrillReport, path: str) -> None:
                 lines += [f"**Evidence:** `{f.evidence}`", ""]
             if f.blocked_by:
                 lines += [f"**Note:** {f.blocked_by}", ""]
+
+    # Over-refusal detail — benign requests the agent wrongly refused (false positives)
+    if report.over_refusals:
+        lines += ["## 🟡 Over-refusals (false positives on benign requests)", ""]
+        for f in report.over_refusals:
+            extra = f" — {f.bypass_description}" if f.bypass_description else ""
+            lines.append(f"- `{f.scenario_id}` {f.scenario_name}{extra}")
+        lines.append("")
 
     # ATLAS coverage
     cov: dict[str, dict] = defaultdict(lambda: {"name": "", "run": 0, "bypass": 0})

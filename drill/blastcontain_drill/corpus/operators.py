@@ -86,6 +86,7 @@ class OperatorsSource(AttackSource):
 
     name = "operators"
     layer = "operators"
+    revision = "v1"
 
     def __init__(self, seeds: Optional[list[Attack]] = None, operators: Optional[list[str]] = None):
         self.seeds = seeds if seeds is not None else _SEED

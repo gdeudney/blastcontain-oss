@@ -77,6 +77,10 @@ class ChatClient:
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            # Ask reasoning models (Qwen3 etc.) to skip extended thinking so the
+            # answer lands in `content` instead of burning the whole token budget
+            # on `reasoning_content`. Harmlessly ignored by non-reasoning models.
+            "chat_template_kwargs": {"enable_thinking": False},
         }
         if stop:
             payload["stop"] = stop
