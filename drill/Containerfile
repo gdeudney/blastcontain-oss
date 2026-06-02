@@ -67,7 +67,7 @@ LABEL org.opencontainers.image.title="blastcontain-drill" \
       org.opencontainers.image.description="Adversarial red-team scanner for AI agents" \
       org.opencontainers.image.version="0.1.0" \
       org.opencontainers.image.licenses="Apache-2.0" \
-      org.opencontainers.image.source="https://github.com/blastcontain/drill"
+      org.opencontainers.image.source="https://github.com/gdeudney/blastcontain-oss"
 
 ENTRYPOINT ["blastcontain-drill"]
 CMD ["--help"]

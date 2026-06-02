@@ -77,5 +77,5 @@ jobs:
           file: ${{ steps.pkg.outputs.name }}/Containerfile
           push: true
           tags: |
-            ghcr.io/blastcontain/${{ steps.pkg.outputs.name }}:${{ steps.pkg.outputs.version }}
-            ghcr.io/blastcontain/${{ steps.pkg.outputs.name }}:latest
+            ghcr.io/gdeudney/blastcontain-${{ steps.pkg.outputs.name }}:${{ steps.pkg.outputs.version }}
+            ghcr.io/gdeudney/blastcontain-${{ steps.pkg.outputs.name }}:latest

@@ -74,7 +74,7 @@ LABEL org.opencontainers.image.title="blastcontain-verify" \
       org.opencontainers.image.description="Pre-deployment compliance scanner for AI agents" \
       org.opencontainers.image.version="0.3.0" \
       org.opencontainers.image.licenses="Apache-2.0" \
-      org.opencontainers.image.source="https://github.com/blastcontain/verify"
+      org.opencontainers.image.source="https://github.com/gdeudney/blastcontain-oss"
 
 ENTRYPOINT ["blastcontain-verify"]
 CMD ["--help"]
