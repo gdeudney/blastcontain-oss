@@ -14,10 +14,16 @@ on:
       - "core/**"
       - "verify/**"
       - "drill/**"
+      - ".github/workflows/integration.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+# Opt JS actions into the Node 24 runtime — Node 20 is deprecated (forced 2026-06-02,
+# removed from runners 2026-09-16). Version-agnostic; avoids guessing action majors.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   verify-container:
@@ -49,6 +55,9 @@ jobs:
         working-directory: verify/tests/integration
         env:
           SKIP_COMPOSE: "1"
+          # Use the image built above; conftest otherwise defaults to :0.1.0, which
+          # isn't built, so podman tries to pull it and every check fails (exit 125).
+          VERIFY_IMAGE: blastcontain-verify:test
         run: |
           python -m pytest test_fail.py -v --timeout=120 --tb=short
           python -m pytest test_pass.py -v --timeout=120 --tb=short
