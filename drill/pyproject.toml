@@ -58,6 +58,9 @@ blastcontain-drill = "blastcontain_drill.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["blastcontain_drill"]
+# Scout proposals (corpus/contrib/**) are inert staging drafts, not product code —
+# never ship them in the wheel. They are ratified into corpus/ proper by a human.
+exclude = ["blastcontain_drill/corpus/contrib/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit"]
