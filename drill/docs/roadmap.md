@@ -87,8 +87,13 @@ engine, ARES, ViolentUTF, Inspect) that duplicate Drill's runner.
   behaviors (`--jbb`); new `DrillOutcome.OVER_REFUSAL` + benign-aware scorers (judge branches its
   prompt, guards abstain); live-validated — qwen3-30b over-refused 4/4 borderline-benign prompts.
 - **#22** PyRIT/DeepTeam converter operators.
-- **#23** WildGuard scorer (needs the gated 7B in LM Studio).
+- **#23** WildGuard scorer — ✅ **DONE (2026-06-02)**: `scoring/wildguard.py`; native refusal + harm
+  axes retire the Qwen3Guard real-roles hack and score benign over-refusal natively (no abstaining).
+  Unit-tested; gated model (`allenai/wildguard`) not downloaded, so not live-validated yet.
 - **#24** G-Eval judge.
+- **Model-sweep harness** — ✅ **DONE (2026-06-02)**: `blastcontain_drill/sweep.py`
+  (`python -m blastcontain_drill.sweep`) runs Drill per `--target-model` with a fixed judge/guard →
+  signed per-model reports + a risk-ranked leaderboard (md+json); live-validated on a 2-model sweep.
 - Next-tier (above) + the `modelaudit`→Verify hand-off.
 
 ## 6. Other open threads

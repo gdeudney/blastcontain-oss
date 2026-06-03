@@ -7,10 +7,11 @@ from .granite import GraniteGuardianScorer
 from .guard import Qwen3GuardScorer
 from .heuristic import HeuristicContentScorer
 from .judge import LLMJudge
+from .wildguard import WildGuardScorer
 
 __all__ = [
     "Scorer", "HeuristicContentScorer", "LLMJudge",
-    "Qwen3GuardScorer", "GraniteGuardianScorer", "make_guard_scorer",
+    "Qwen3GuardScorer", "GraniteGuardianScorer", "WildGuardScorer", "make_guard_scorer",
     "combine", "score_content",
 ]
 
@@ -22,6 +23,8 @@ def make_guard_scorer(backend, model_id: str) -> Scorer:
     Qwen3Guard for unrecognised ids.
     """
     low = (model_id or "").lower()
+    if "wildguard" in low:
+        return WildGuardScorer(backend, model_id)
     if "granite" in low and "guardian" in low:
         return GraniteGuardianScorer(backend, model_id)
     return Qwen3GuardScorer(backend, model_id)

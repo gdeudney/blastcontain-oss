@@ -162,7 +162,9 @@ def run_drill(cfg: DrillConfig) -> DrillReport:
         scorers=scorer_flags,
         judge_model=cfg.effective_judge_model() if scorer_flags.get("llm-judge") else None,
         guard_model=cfg.guard_model if (
-            scorer_flags.get("qwen3guard") or scorer_flags.get("granite-guardian")
+            scorer_flags.get("qwen3guard")
+            or scorer_flags.get("granite-guardian")
+            or scorer_flags.get("wildguard")
         ) else None,
     )
 
