@@ -142,11 +142,26 @@ def run_drill(cfg: DrillConfig) -> DrillReport:
     from .llm import ChatClient
 
     permitted = _load_permitted_tools(cfg.charter)
+    extra_sources = []
+    if cfg.enable_aig:
+        # Live AIG: red-team the SAME model under test (not a hardcoded default) and
+        # score with the judge model; the service URL/token come from the environment
+        # (BLASTCONTAIN_AIG_URL / BLASTCONTAIN_AIG_TOKEN).
+        from .corpus import AIGAttackSource
+
+        extra_sources.append(
+            AIGAttackSource(
+                target_model=cfg.target_model,
+                target_base_url=cfg.target_base_url,
+                eval_model=cfg.effective_judge_model(),
+                eval_base_url=cfg.effective_judge_base_url(),
+            )
+        )
     corpus = load_corpus(
         version=cfg.corpus,
         categories=cfg.scenarios or None,
         limit=cfg.limit,
-        enable_aig=cfg.enable_aig,
+        extra_sources=extra_sources or None,
         enable_operators=cfg.enable_operators,
         enable_jbb=cfg.enable_jbb,
     )

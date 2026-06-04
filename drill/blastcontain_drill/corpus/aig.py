@@ -6,6 +6,7 @@ Stand it up (no auth — keep it on localhost only):
 
     git clone https://github.com/Tencent/AI-Infra-Guard && cd AI-Infra-Guard
     docker compose -f docker-compose.images.yml up -d     # WebUI + API on :8088
+    # No Docker (Podman-only box)? podman-compose -f docker-compose.images.yml up -d
 
 The whole integration is a submit -> poll -> fetch loop against its task API
 (endpoints + request body verified against api.md, June 2026):
@@ -24,9 +25,10 @@ them in the cage for action ground truth (drill-spec §4.3 — "fuse the two").
 When the service is absent (the common local case) `is_available()` is False and
 the corpus loader silently falls back to the built-in Replay seed set.
 
-NOTE: api.md documents the *request* shape but not the per-prompt *result* fields,
-so `_attacks_from_result` stays best-effort — confirm field names against one live
-scan before relying on it (the half-day the spec budgets).
+NOTE: api.md documents the *request* shape but not the per-prompt *result* fields —
+those are served at runtime at http://localhost:8088/docs/index.html. So
+`_attacks_from_result` probes the likely container keys + field names (unit-fixtured);
+confirm them against one live scan before relying on it (the half-day the spec budgets).
 """
 from __future__ import annotations
 
@@ -132,24 +134,47 @@ class AIGAttackSource(AttackSource):
     @staticmethod
     def _attacks_from_result(result: dict) -> list[Attack]:
         """
-        Best-effort mapping of AIG result prompts to Attack objects. api.md does
-        not pin the per-prompt field names, so we probe the likely shapes —
-        adjust once confirmed against a live scan.
+        Map an AIG redteam result to Attack objects. api.md pins the *request* but
+        not the per-prompt *result* fields (served at :8088/docs at runtime), so we
+        probe the likely container keys + field names and recurse one level. The unit
+        fixtures pin the current mapping; confirm against one live scan.
         """
+        # Locate the list of per-prompt cases — AIG nests it differently by task/version.
+        case_keys = ("prompts", "cases", "results", "vulnerabilities", "items", "details")
+        cases: list = []
+        for key in case_keys:                             # top-level list
+            v = result.get(key)
+            if isinstance(v, list) and v:
+                cases = v
+                break
+        if not cases:                                     # one level under any wrapper (report/data/…)
+            for v in result.values():
+                if not isinstance(v, dict):
+                    continue
+                for k2 in case_keys:
+                    if isinstance(v.get(k2), list) and v[k2]:
+                        cases = v[k2]
+                        break
+                if cases:
+                    break
+
         attacks: list[Attack] = []
-        prompts = (
-            result.get("prompts")
-            or result.get("cases")
-            or result.get("vulnerabilities")
-            or result.get("results")
-            or []
-        )
-        for i, p in enumerate(prompts):
+        for i, p in enumerate(cases):
             if isinstance(p, dict):
-                text = p.get("prompt") or p.get("input") or p.get("query") or ""
-                technique = p.get("technique") or p.get("method") or "aig"
+                text = (
+                    p.get("prompt") or p.get("input") or p.get("query")
+                    or p.get("attack") or p.get("question") or p.get("content") or ""
+                )
+                technique = str(
+                    p.get("technique") or p.get("method") or p.get("type")
+                    or p.get("category") or "aig"
+                )[:48]
+                jb = p.get("success", p.get("jailbreak", p.get("is_jailbreak", p.get("passed"))))
+                if jb is True or str(jb).strip().lower() in ("true", "yes", "1", "success"):
+                    technique = f"{technique}+jailbroke"   # high-signal: it broke the eval target
             else:
                 text, technique = str(p), "aig"
+            text = (text or "").strip()
             if not text:
                 continue
             attacks.append(
