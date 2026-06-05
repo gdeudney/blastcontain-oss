@@ -18,9 +18,10 @@ The whole integration is a submit -> poll -> fetch loop against its task API
 
 `type` discriminates: `model_redteam_report` (jailbreak) · `mcp_scan` · `ai_infra_scan`.
 A `model_redteam_report` *runs* the datasets against a target model and scores with
-`eval_model`, so the body needs both plus the dataset (these default to the local
-LM Studio endpoint). The discovered prompts come back in the result; Drill re-runs
-them in the cage for action ground truth (drill-spec §4.3 — "fuse the two").
+`eval_model`, so the body needs both plus the dataset (the model URL defaults to the
+container->host gateway — see the agent-networking note below). The discovered prompts
+come back in the result; Drill re-runs them in the cage for action ground truth
+(drill-spec §4.3 — "fuse the two").
 
 When the service is absent (the common local case) `is_available()` is False and
 the corpus loader silently falls back to the built-in Replay seed set.
@@ -29,6 +30,18 @@ NOTE: api.md documents the *request* shape but not the per-prompt *result* field
 those are served at runtime at http://localhost:8088/docs/index.html. So
 `_attacks_from_result` probes the likely container keys + field names (unit-fixtured);
 confirm them against one live scan before relying on it (the half-day the spec budgets).
+
+NOTE (agent networking): AIG executes the redteam in a privileged **agent** container
+(separate from the :8088 webserver), and *that container* makes the model calls — so the
+model `base_url` must be reachable FROM THE AGENT'S CONTAINER, not from the host. It
+defaults to the container->host gateway `http://host.containers.internal:1234/v1`
+(override with BLASTCONTAIN_AIG_MODEL_URL), the host model server must bind 0.0.0.0
+(`lms server start --bind 0.0.0.0`), and the host firewall must allow inbound on that
+port (Windows: `New-NetFirewallRule -DisplayName LMStudio -Direction Inbound
+-LocalPort 1234 -Protocol TCP -Action Allow`). This is a *different* address than where
+Drill's own cage reaches the model (the host's localhost) — only the model *name* is
+shared. Confirmed live (2026-06): with no route to the model, a scan goes
+status `doing` -> `error` with an empty result.
 """
 from __future__ import annotations
 
@@ -61,10 +74,16 @@ class AIGAttackSource(AttackSource):
         self.base_url = (base_url or os.environ.get("BLASTCONTAIN_AIG_URL", _DEFAULT_URL)).rstrip("/")
         self.token = token or os.environ.get("BLASTCONTAIN_AIG_TOKEN", "")
         self.timeout = timeout
-        # AIG runs the redteam against a target model + scores with eval_model;
-        # default both to the local OpenAI-compatible endpoint (LM Studio).
+        # AIG runs the redteam against a target model + scores with eval_model. The model
+        # URL must be reachable from AIG's *agent container*, so it defaults to the
+        # container->host gateway (NOT Drill's localhost) — override via
+        # BLASTCONTAIN_AIG_MODEL_URL. Only the model *name* is shared with Drill.
         self.target_model = target_model or os.environ.get("BLASTCONTAIN_AIG_MODEL", "qwen3")
-        self.target_base_url = target_base_url or "http://localhost:1234/v1"
+        self.target_base_url = (
+            target_base_url
+            or os.environ.get("BLASTCONTAIN_AIG_MODEL_URL")
+            or "http://host.containers.internal:1234/v1"
+        )
         self.eval_model = eval_model or self.target_model
         self.eval_base_url = eval_base_url or self.target_base_url
         self.datasets = datasets or _DEFAULT_DATASETS
@@ -94,6 +113,11 @@ class AIGAttackSource(AttackSource):
         r.raise_for_status()
         return (r.json().get("data") or {}).get("session_id")
 
+    # Status values confirmed against the live service (2026-06): "doing" = running,
+    # "error" = terminal failure; success is "completed"/"done". Treat anything not
+    # clearly running as terminal, else an errored scan polls until max_wait.
+    _RUNNING_STATES = ("doing", "running", "pending", "queued", "processing", "")
+
     def _poll(self, session_id: str, max_wait: float = 600.0) -> str:
         import httpx
 
@@ -105,8 +129,8 @@ class AIGAttackSource(AttackSource):
                 timeout=self.timeout,
             )
             status = (r.json().get("data") or {}).get("status", "")
-            if status in ("completed", "failed"):
-                return status
+            if status not in self._RUNNING_STATES:
+                return status                 # terminal: completed / done / error / failed / …
             time.sleep(3.0)
             waited += 3.0
         return "timeout"
@@ -201,8 +225,9 @@ class AIGAttackSource(AttackSource):
             session = self._submit("model_redteam_report", body)
             if not session:
                 return []
-            if self._poll(session) != "completed":
-                return []
+            status = self._poll(session)
+            if status == "timeout" or "error" in status.lower() or "fail" in status.lower():
+                return []                     # accept completed/done/success; reject error/fail
             return self._attacks_from_result(self._result(session))
         except Exception:
             return []

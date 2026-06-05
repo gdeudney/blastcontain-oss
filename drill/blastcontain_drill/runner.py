@@ -144,17 +144,17 @@ def run_drill(cfg: DrillConfig) -> DrillReport:
     permitted = _load_permitted_tools(cfg.charter)
     extra_sources = []
     if cfg.enable_aig:
-        # Live AIG: red-team the SAME model under test (not a hardcoded default) and
-        # score with the judge model; the service URL/token come from the environment
-        # (BLASTCONTAIN_AIG_URL / BLASTCONTAIN_AIG_TOKEN).
+        # Live AIG: red-team the SAME model under test (by name) + score with the judge.
+        # AIG's agent runs in a container, so it reaches the model at the host-gateway
+        # address (BLASTCONTAIN_AIG_MODEL_URL, default host.containers.internal) — NOT
+        # Drill's localhost cage URL; only the model name is shared. Service URL/token
+        # come from BLASTCONTAIN_AIG_URL / BLASTCONTAIN_AIG_TOKEN.
         from .corpus import AIGAttackSource
 
         extra_sources.append(
             AIGAttackSource(
                 target_model=cfg.target_model,
-                target_base_url=cfg.target_base_url,
                 eval_model=cfg.effective_judge_model(),
-                eval_base_url=cfg.effective_judge_base_url(),
             )
         )
     corpus = load_corpus(
