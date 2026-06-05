@@ -217,13 +217,26 @@ def run_verify(tmp_path):
         # Volume: scan fixtures (read-only)
         args += ["-v", f"{_vol_src(scan_dir)}:/scan:ro,z"]
 
-        # Volume: reports output (writable)
+        # Volume: reports output (writable). Make the host dir world-writable so
+        # the container's non-root scan UID (10001) can create audit.json. In
+        # CI's rootless podman the host tmp_path is owned by the runner UID and
+        # mode-restricted, so uid 10001 otherwise cannot write there — and the
+        # scan crashes on the audit-packet write (OSError). No-op on Windows,
+        # which lacks POSIX modes.
+        try:
+            os.chmod(tmp_path, 0o777)
+        except OSError:
+            pass
         args += ["-v", f"{_vol_src(tmp_path)}:/reports:rw,z"]
 
         # Writable model dir for ENV-03 FAIL
         if writable_model_dir:
             model_tmp = tmp_path / "writable-models"
             model_tmp.mkdir(exist_ok=True)
+            try:
+                os.chmod(model_tmp, 0o777)  # writable by uid 10001 (see /reports note)
+            except OSError:
+                pass
             (model_tmp / "weights.bin").write_bytes(b"\x00" * 64)
             args += ["-v", f"{_vol_src(model_tmp)}:/models:rw,z"]
 

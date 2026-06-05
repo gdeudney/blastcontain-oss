@@ -7,6 +7,13 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 ## [0.3.1] — 2026-06-03
 
 ### Fixed
+- **Hardened-container integration crash.** The scan crashed with an uncaught
+  `OSError` when it could not write the audit packet — e.g. when the `/reports`
+  output volume is not writable by the non-root scan UID (10001), as happens in
+  CI's rootless podman (`OSError: ... '//reports/audit.json'`, propagating out of
+  `main()`). `cli.py` now reports a clear, actionable error and exits 3 (ERROR)
+  instead of a traceback, and the integration conftest makes the mounted output
+  dir writable by the scan UID so the audit packet is written and the suite passes.
 - Hardened-container scan no longer crashes when optional ML dependencies (presidio→`tldextract`, `litellm` via the Cisco scanners, Hugging Face/`onnxruntime`) meet the read-only `$HOME` and `--network none` profile. Their first-use `~/.cache` writes and remote fetches previously raised (`OSError: Read-only file system` / `socket.gaierror`) and, with some unpinned version combinations, aborted the scan. Caches are now redirected to the writable `/tmp` tmpfs and offline mode is forced *before any optional dependency is imported* (`__init__._harden_runtime_env()`, mirrored by `Containerfile` `ENV`). `$HOME` is deliberately left read-only so PERM-01 stays correct.
 - MEM-01 now falls back to its built-in regex PII patterns when Presidio is installed but returns no matches (its network/cache-dependent recognisers degrading offline). Previously a present-but-degraded Presidio could PASS PII-laden context — a false negative.
 - `load_config()` degrades to defaults with a stderr warning on a malformed or unreadable `--config` file (invalid YAML, or a path that is a directory) instead of raising out of `main()`.

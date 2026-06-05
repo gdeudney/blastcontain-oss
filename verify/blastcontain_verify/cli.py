@@ -155,18 +155,31 @@ def main(
     click.echo(f"  Blast rad:  {result.blast_radius_factor:.1f}x (TIER_{result.max_tier})")
     click.echo()
 
-    # ── Write report ───────────────────────────────────────────────────────────
-    if cfg.report:
-        write_markdown_report(result, cfg.report)
-        click.echo(f"  Report:     {cfg.report}")
+    # ── Write report / audit / SARIF ───────────────────────────────────────────
+    # A non-writable output path (e.g. an output volume the hardened scan UID
+    # cannot write to) must fail with a clear, actionable message and an ERROR
+    # exit — never an uncaught traceback.
+    try:
+        if cfg.report:
+            write_markdown_report(result, cfg.report)
+            click.echo(f"  Report:     {cfg.report}")
 
-    if cfg.output:
-        write_audit_packet(result, cfg.output)
-        click.echo(f"  Audit:      {cfg.output}")
+        if cfg.output:
+            write_audit_packet(result, cfg.output)
+            click.echo(f"  Audit:      {cfg.output}")
 
-    if cfg.sarif:
-        write_sarif(result, cfg.sarif)
-        click.echo(f"  SARIF:      {cfg.sarif}")
+        if cfg.sarif:
+            write_sarif(result, cfg.sarif)
+            click.echo(f"  SARIF:      {cfg.sarif}")
+    except OSError as exc:
+        click.echo(
+            f"Error: could not write output file: {exc}. "
+            "Ensure the output directory exists and is writable by the scan user "
+            "(mount it writable, e.g. -v <host-dir>:/reports:rw, and make sure the "
+            "container UID can write to it).",
+            err=True,
+        )
+        sys.exit(3)
 
     # ── Post to Ledger ─────────────────────────────────────────────────────────
     if cfg.blastcontain_url and not cfg.dry_run:
