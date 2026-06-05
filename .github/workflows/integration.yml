@@ -38,10 +38,19 @@ jobs:
         # image store and can't see docker-built images (it would try to pull).
         run: podman build -t blastcontain-verify:test -f verify/Containerfile .
 
-      - name: Start MCP + API test services
+      - name: Start MCP + API test services (podman)
+        # Start the services under podman on a podman network. The scenario
+        # tests run `podman run --network blastcontain-testnet`, and podman
+        # cannot see a docker-compose-created network — that split made the 3
+        # TestNetworkFail probes fail with "network not found". Container names
+        # match the hostnames the tests probe (e.g. ENV-02 -> mcp-server:8080).
         working-directory: verify/tests/integration
         run: |
-          docker compose -f compose.yml up -d --build
+          podman network create blastcontain-testnet
+          podman build -t blastcontain-mcp-test ./mcp-server
+          podman build -t blastcontain-api-test ./api-server
+          podman run -d --name mcp-server --network blastcontain-testnet -p 18080:8080 blastcontain-mcp-test
+          podman run -d --name api-server --network blastcontain-testnet -p 18081:8081 blastcontain-api-test
           timeout 90 bash -c 'until curl -sf http://localhost:18080/health; do sleep 2; done'
           timeout 90 bash -c 'until curl -sf http://localhost:18081/health; do sleep 2; done'
 
@@ -64,21 +73,23 @@ jobs:
           python -m pytest test_fail.py -v --timeout=120 --tb=short
           python -m pytest test_pass.py -v --timeout=120 --tb=short
 
-      - name: Upload compose logs on failure
+      - name: Upload service logs on failure
         if: failure()
-        working-directory: verify/tests/integration
-        run: docker compose -f compose.yml logs > /tmp/compose-logs.txt 2>&1 || true
+        run: |
+          podman logs mcp-server  > /tmp/service-logs.txt 2>&1 || true
+          podman logs api-server >> /tmp/service-logs.txt 2>&1 || true
 
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: verify-compose-logs
-          path: /tmp/compose-logs.txt
+          name: verify-service-logs
+          path: /tmp/service-logs.txt
 
       - name: Stop services
         if: always()
-        working-directory: verify/tests/integration
-        run: docker compose -f compose.yml down --volumes
+        run: |
+          podman rm -f mcp-server api-server || true
+          podman network rm blastcontain-testnet || true
 
   drill-podman:
     name: Drill cage containment (podman)
