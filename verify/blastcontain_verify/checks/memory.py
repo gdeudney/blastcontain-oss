@@ -42,19 +42,35 @@ _PII_PATTERNS: list[tuple[str, str]] = [
 ]
 
 
-def _scan_text_for_pii(text: str) -> list[str]:
-    """Return list of PII type labels found in text."""
+def _regex_pii(text: str) -> list[str]:
+    """Return PII type labels found by the built-in regex patterns."""
     found: list[str] = []
-
-    if PRESIDIO_AVAILABLE:
-        results = presidio_analyze(text)
-        found = list({r.entity_type for r in results})
-    else:
-        for pattern, label in _PII_PATTERNS:
-            if re.search(pattern, text):
-                found.append(label)
-
+    for pattern, label in _PII_PATTERNS:
+        if re.search(pattern, text):
+            found.append(label)
     return found
+
+
+def _scan_text_for_pii(text: str) -> tuple[list[str], str]:
+    """Return (PII type labels, human-readable scanner label).
+
+    Presidio is preferred when available, but it can silently degrade inside a
+    hardened/offline container (e.g. its URL recogniser needs a network/cache
+    the container denies, leaving ``presidio_analyze`` returning ``[]``).
+    Whenever Presidio yields nothing we fall back to the built-in regex
+    patterns so obvious PII (SSN, credit card, email) is still caught — the
+    check degrades, it never goes blind.
+    """
+    if PRESIDIO_AVAILABLE:
+        labels = list({r.entity_type for r in presidio_analyze(text)})
+        if labels:
+            return labels, "Presidio"
+        fallback = _regex_pii(text)
+        if fallback:
+            return fallback, "pattern matching (Presidio returned no matches)"
+        return [], "Presidio"
+
+    return _regex_pii(text), "pattern matching (Presidio not installed)"
 
 
 def check_mem01_pii_in_context(context_file: Optional[str]) -> tuple[list[InfraFinding], str]:
@@ -71,11 +87,9 @@ def check_mem01_pii_in_context(context_file: Optional[str]) -> tuple[list[InfraF
     except Exception:
         return [], "SKIP"
 
-    pii_types = _scan_text_for_pii(text)
+    pii_types, scanner_label = _scan_text_for_pii(text)
     if not pii_types:
         return [], "PASS"
-
-    scanner_label = "Presidio" if PRESIDIO_AVAILABLE else "pattern matching (Presidio not installed)"
 
     return [_finding(
         check_id="MEM-01",

@@ -6,6 +6,7 @@ Merges blastcontain-verify.yaml with CLI flags. CLI flags always win.
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -79,15 +80,29 @@ def load_config(
             yaml_path = Path(candidate)
             break
 
-    # Load YAML if present
+    # Load YAML if present. A malformed or unreadable config file must degrade
+    # to defaults with a warning, not crash the scan — consistent with how
+    # api.py / skills.py treat unparseable inputs, and with Verify's promise to
+    # fail safe in the hardened container (where load_config runs unguarded
+    # before any check).
     if yaml_path:
         try:
             import yaml  # type: ignore
-            with open(yaml_path) as f:
-                data = yaml.safe_load(f) or {}
-            _apply_dict(cfg, data)
         except ImportError:
-            pass  # PyYAML not installed — continue with defaults
+            yaml = None  # PyYAML not installed — silently continue with defaults
+        if yaml is not None:
+            try:
+                with open(yaml_path) as f:
+                    data = yaml.safe_load(f) or {}
+                _apply_dict(cfg, data)
+            except Exception as exc:
+                # Malformed YAML, an unreadable file, or a path that turned out
+                # to be a directory — fall back to defaults rather than aborting.
+                print(
+                    f"Warning: could not load config file '{yaml_path}': {exc}. "
+                    "Continuing with defaults.",
+                    file=sys.stderr,
+                )
 
     # Apply CLI overrides (None values skipped)
     if cli_overrides:

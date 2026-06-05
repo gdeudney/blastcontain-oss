@@ -42,6 +42,20 @@ class TestLoadConfig:
         assert cfg.agent_id == "yaml-agent"
         assert cfg.environment == "prod"  # CLI wins
 
+    def test_malformed_yaml_degrades_to_defaults(self, tmp_path, capsys):
+        """A malformed config file degrades to defaults with a warning, not a crash."""
+        config_file = tmp_path / "blastcontain-verify.yaml"
+        config_file.write_text("agent_id: [1, 2, 3\nenvironment: : :\n")  # invalid YAML
+        cfg = load_config(config_file=str(config_file))
+        assert cfg.environment == "staging"  # defaults preserved, no exception
+        assert cfg.agent_id == ""
+        assert "could not load config file" in capsys.readouterr().err
+
+    def test_config_path_directory_degrades_to_defaults(self, tmp_path):
+        """A --config path that is actually a directory degrades, not crashes."""
+        cfg = load_config(config_file=str(tmp_path))  # a directory, exists() is True
+        assert cfg.environment == "staging"
+
     def test_effective_skills_dir_fallback(self):
         cfg = VerifyConfig(agent_id="a", environment="prod", search_path="./src")
         assert cfg.effective_skills_dir() == "./src"

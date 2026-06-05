@@ -15,10 +15,14 @@ from __future__ import annotations
 #                       call to presidio_analyze() to avoid the multi-second
 #                       model load on every invocation, including runs that
 #                       never touch MEM-01.
+# Optional dependencies are imported defensively. We catch SystemExit as well
+# as Exception: these are heavy, unpinned ML libraries, and a bad version can
+# abort its own import (e.g. sys.exit() on a failed model/native-lib probe) —
+# which must downgrade the augmentation to "unavailable", never crash Verify.
 try:
     from presidio_analyzer import AnalyzerEngine as _AnalyzerEngine  # type: ignore
     PRESIDIO_INSTALLED = True
-except Exception:
+except (Exception, SystemExit):
     _AnalyzerEngine = None  # type: ignore
     PRESIDIO_INSTALLED = False
 
@@ -42,7 +46,7 @@ def _ensure_presidio_engine():
     try:
         _presidio_engine = _AnalyzerEngine()
         PRESIDIO_AVAILABLE = True
-    except Exception:
+    except (Exception, SystemExit):
         _presidio_engine = None
         PRESIDIO_AVAILABLE = False
     return _presidio_engine
@@ -55,7 +59,7 @@ def presidio_analyze(text: str, language: str = "en") -> list:
         return []
     try:
         return engine.analyze(text=text, language=language)
-    except Exception:
+    except (Exception, SystemExit):
         return []
 
 
@@ -67,7 +71,7 @@ try:
     CISCO_MCP_AVAILABLE = True
     _mcp_config_cls = _McpConfig
     _mcp_scanner_cls = _McpScanner
-except Exception:
+except (Exception, SystemExit):
     CISCO_MCP_AVAILABLE = False
     AnalyzerEnum = None       # type: ignore
     _mcp_config_cls = None
@@ -87,7 +91,7 @@ try:
     from skill_scanner import SkillScanner as _SkillScanner  # type: ignore
     CISCO_SKILL_AVAILABLE = True
     _skill_scanner_cls = _SkillScanner
-except Exception:
+except (Exception, SystemExit):
     CISCO_SKILL_AVAILABLE = False
     _skill_scanner_cls = None
 
@@ -103,7 +107,7 @@ def get_skill_scanner():
 try:
     from agent_compliance import PromptDefenseEvaluator, SupplyChainGuard  # type: ignore  # noqa: F401
     AGT_AVAILABLE = True
-except Exception:
+except (Exception, SystemExit):
     AGT_AVAILABLE = False
     PromptDefenseEvaluator = None # type: ignore
     SupplyChainGuard = None       # type: ignore
