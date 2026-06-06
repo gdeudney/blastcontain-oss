@@ -1,0 +1,52 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly — re-audit the pinned dependencies so newly-disclosed CVEs are
+    # caught even when no code changes.
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Opt JS actions into the Node 24 runtime — Node 20 is deprecated.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  pip-audit:
+    name: Dependency audit (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit
+      # Audit the exact pinned dependency set baked into the verify image.
+      # --no-deps audits the locked versions as-is (no re-resolution). Fails the
+      # build if any pinned package has a known vulnerability — bump the pin in
+      # verify/constraints-full.txt to the fix version.
+      - name: Audit pinned image dependencies
+        run: pip-audit --no-deps -r verify/constraints-full.txt
+
+  bandit:
+    name: SAST (bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install bandit
+      # Fail on MEDIUM+ findings. Intentional patterns (e.g. the DISK-02 /tmp
+      # probe) are annotated in-source with `# nosec <id>`. Lower-severity
+      # defensive try/except blocks are visible in a full `bandit -r` run but do
+      # not gate CI.
+      - name: Static analysis of the verify package
+        run: bandit -r verify/blastcontain_verify --severity-level medium

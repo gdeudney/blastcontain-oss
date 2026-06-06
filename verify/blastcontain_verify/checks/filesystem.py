@@ -74,7 +74,7 @@ def check_disk02_container_rootfs(environment: str) -> tuple[list[InfraFinding],
     if _is_workstation_env(environment):
         return [], "SKIP"  # DISK-01 covers workstations
 
-    if _canary_writable("/tmp"):
+    if _canary_writable("/tmp"):  # nosec B108 — intentional: DISK-02 probes whether /tmp is writable
         # /tmp being writable is expected — check a more sensitive location
         if _canary_writable("/var") or _canary_writable("/usr"):
             return [_finding(

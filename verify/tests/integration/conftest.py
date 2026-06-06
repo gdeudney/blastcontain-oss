@@ -308,6 +308,13 @@ def status(result: dict) -> str:
     return _packet(result).get("status", "")
 
 
+def augmentation(result: dict) -> dict:
+    """Augmentation availability flags recorded in the packet (presidio, cisco_mcp,
+    cisco_skill, agt). Lets tests adapt to whether an optional scanner is installed
+    in the image under test — e.g. the Cisco scanners are opt-in (not in [full])."""
+    return _packet(result).get("augmentation", {})
+
+
 def findings_for(result: dict, check_id: str) -> list[dict]:
     """Return all findings for a specific check ID."""
     return [f for f in _packet(result).get("findings", []) if f["check_id"] == check_id]

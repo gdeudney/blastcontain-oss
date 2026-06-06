@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import pytest
 from conftest import (
+    augmentation,
     failed_checks,
     passed_checks,
     skipped_checks,
@@ -291,9 +292,11 @@ class TestIndividualPassGapFill:
 
 class TestSkill02Coverage:
     """
-    SKILL-02 (Cisco AI Skill Scanner) — tested only when the scanner
-    is installed. The augmentation banner confirms it is active in the
-    container image built with [full] extras.
+    SKILL-02 (Cisco AI Skill Scanner). The Cisco scanners are OPT-IN — they are
+    NOT in [full] (they pull litellm + CVE-bearing pins; see SECURITY.md), so the
+    default CVE-clean image does not include them and SKILL-02 SKIPs. These tests
+    read the packet's `augmentation` flags and adapt to whichever image is under
+    test (cisco-free default, or one built with the [cisco] extra).
     """
 
     def test_skill02_skips_when_no_claude_skills(self, run_verify):
@@ -308,20 +311,28 @@ class TestSkill02Coverage:
         result = run_verify("clean", extra_args=["--skills-dir", "//scan/src"])
         assert "SKILL-02" in skipped_checks(result)
 
-    def test_skill02_fires_or_passes_on_dirty_skills(self, run_verify):
+    def test_skill02_runs_or_skips_cleanly_on_dirty_skills(self, run_verify):
         """
-        SKILL-02 FAIL or PASS: Cisco scanner runs on dirty skills.
-        We don't assert a specific outcome because Cisco scanner heuristics
-        vary. We assert it does NOT SKIP (i.e., the scanner ran).
+        SKILL-02 on a non-empty skills dir. If cisco-ai-skill-scanner is
+        installed (image built with [cisco]) it runs — FAIL or PASS, heuristics
+        vary — so it must NOT SKIP. If it is not installed (the default CVE-clean
+        image) it must SKIP cleanly with the enable hint. A crash or silent
+        absence is the failure mode we guard against.
         """
         result = run_verify(
             "dirty",
             extra_args=["--skills-dir", "//scan/skills"],
         )
-        assert "SKILL-02" not in skipped_checks(result), (
-            "SKILL-02 SKIPped unexpectedly on a non-empty skills dir with "
-            "cisco-ai-skill-scanner installed."
-        )
+        if augmentation(result).get("cisco_skill"):
+            assert "SKILL-02" not in skipped_checks(result), (
+                "cisco-ai-skill-scanner is installed but SKILL-02 SKIPped on a "
+                "non-empty skills dir."
+            )
+        else:
+            assert "SKILL-02" in skipped_checks(result), (
+                "SKILL-02 should SKIP when cisco-ai-skill-scanner is not installed "
+                "(the default CVE-clean image)."
+            )
 
     def test_skill02_passes_on_clean_skills(self, run_verify):
         """SKILL-02 PASS: safe tool definitions should be assessed as safe."""

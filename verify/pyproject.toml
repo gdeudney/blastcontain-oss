@@ -41,17 +41,25 @@ Issues        = "https://github.com/blastcontain/verify/issues"
 Documentation = "https://github.com/blastcontain/verify/blob/main/docs/spec.md"
 
 [project.optional-dependencies]
-full = [
+# Secure-by-default: [full] is the CVE-clean augmentation set (Presidio + AGT).
+# The Cisco AI Defense scanners are NOT in [full] — they transitively pull
+# `litellm`, which exact-pins vulnerable `aiohttp` / `python-dotenv`
+# (CVE-2026-34993, -47265, -40217, -28684) with no fix available upstream
+# (every cisco-ai-mcp-scanner release pins litellm==1.83.7). Opt in with the
+# [cisco] extra to enable SKILL-02 + the Cisco MCP-01 backend and accept that
+# trade-off. See SECURITY.md.
+full  = [
     "presidio-analyzer>=2.2",
     "presidio-anonymizer>=2.2",
     "agent-governance-toolkit",
-    "cisco-ai-mcp-scanner",
-    "cisco-ai-skill-scanner",
 ]
 pii   = ["presidio-analyzer>=2.2", "presidio-anonymizer>=2.2"]
 agt   = ["agent-governance-toolkit"]
+
+# Cisco AI Defense scanners — OPT-IN ONLY (pull litellm + CVE-bearing pins).
 mcp   = ["cisco-ai-mcp-scanner"]
 skill = ["cisco-ai-skill-scanner"]
+cisco = ["cisco-ai-mcp-scanner", "cisco-ai-skill-scanner"]
 
 dev = [
     "pytest>=8.0",

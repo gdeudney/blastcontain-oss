@@ -133,7 +133,10 @@ def check_skill02_cisco_scan(skills_dir: Optional[str]) -> tuple[list[InfraFindi
         return [], "SKIP", "--skills-dir not provided"
 
     if not CISCO_SKILL_AVAILABLE:
-        return [], "SKIP", "cisco-ai-skill-scanner not installed"
+        return [], "SKIP", (
+            "cisco-ai-skill-scanner not installed — enable with: "
+            "pip install 'blastcontain-verify[cisco]' (opt-in; pulls litellm, see SECURITY.md)"
+        )
 
     scanner = get_skill_scanner()
     if scanner is None:

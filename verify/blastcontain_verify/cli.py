@@ -105,7 +105,10 @@ def main(
         click.echo(f"  Augmentation active:   {', '.join(active)}")
     if inactive:
         click.echo(f"  Not installed:         {', '.join(inactive)}")
-        click.echo("  Full coverage:         pip install \"blastcontain-verify[full]\"")
+        if any(k in inactive for k in ("presidio", "agt")):
+            click.echo('  Enable PII / AGT:      pip install "blastcontain-verify[full]"')
+        if any(k in inactive for k in ("cisco_mcp", "cisco_skill")):
+            click.echo('  Enable Cisco (opt-in): pip install "blastcontain-verify[cisco]"  (pulls litellm; see SECURITY.md)')
     click.echo()
 
     # ── Run scan ───────────────────────────────────────────────────────────────

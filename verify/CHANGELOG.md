@@ -19,7 +19,11 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 - `load_config()` degrades to defaults with a stderr warning on a malformed or unreadable `--config` file (invalid YAML, or a path that is a directory) instead of raising out of `main()`.
 
 ### Changed
+- **`[full]` no longer bundles the Cisco scanners — secure by default.** `[full]` is now the CVE-clean augmentation set (Presidio + AGT), and the official image ships it. The Cisco AI Defense scanners (`cisco-ai-skill-scanner` → SKILL-02, `cisco-ai-mcp-scanner` → MCP-01 backend) are **opt-in** via a new `[cisco]` extra (or `[mcp]`/`[skill]`), because they transitively pull `litellm` and its CVE-bearing `aiohttp`/`python-dotenv` pins with no upstream fix. When absent, SKILL-02 / MCP-01 SKIP with a hint on how to enable them. See SECURITY.md.
 - Optional-dependency import guards in `augmentation.py` also catch `SystemExit`, so an ML library that aborts its own import downgrades the augmentation instead of crashing Verify.
+
+### Security
+- The default install and container image are now free of known-vulnerable dependencies (verified by `pip-audit` against `constraints-full.txt`). Added a `Security` CI workflow: `pip-audit` on the pinned image dependencies + `bandit` SAST on the package, gated on PRs and run weekly. SECURITY.md documents the opt-in Cisco scanners' known CVEs and the hardened-runtime mitigation.
 
 ## [0.3.0] — 2026-05-26
 
