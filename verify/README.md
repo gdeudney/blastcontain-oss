@@ -28,7 +28,7 @@ blastcontain-verify --agent-id my-agent --env prod --search-path ./src
 
 Every check is mapped to the [MIT AI Risk Repository](https://airisk.mit.edu/) taxonomy.
 
-> **Two checks are conditional:** SKILL-02 (Cisco AI Skill Scanner) needs the opt-in `[cisco]` extra — see [Augmentation](#augmentation); MCP-01 (unapproved tools) is planned and currently SKIPs — see [Charter integration](#charter-integration-planned). The rest run out of the box.
+> **Two checks are conditional:** SKILL-02 (Cisco AI Skill Scanner) needs the opt-in `[cisco]` extra — see [Augmentation](#augmentation); MCP-01 (unapproved tools) is not yet implemented and currently SKIPs. The rest run out of the box.
 
 ## Container (recommended)
 
@@ -105,32 +105,6 @@ pip install "blastcontain-verify[full,cisco]"     # + SKILL-02 & Cisco MCP (opt-
 ```
 
 Without the relevant extra, the dependent check SKIPs with a hint on how to enable it.
-
-## Charter integration (planned)
-
-MCP-01 (unapproved-tool detection) compares an agent's MCP tools against an
-allowlist of `permitted_tools` declared in a **Charter**. Charter enforcement is
-**not yet wired into the CLI** — there is no `--charter` flag today, so MCP-01
-currently **SKIPs** (`permitted_tools=None` → all tools treated as unreviewed).
-MCP-02 (missing auth) and MCP-03 (dangerous tool combinations) run today from
-`--mcp-config` and need no Charter.
-
-The Charter schema already lives in `blastcontain-core` (`blastcontain_core.charter`):
-
-```yaml
-agent_id: my-agent
-environment: prod
-version: "1.0"
-trust_tier: 1
-permitted_tools:
-  - search_knowledge_base
-  - get_ticket_status
-```
-
-When the wiring lands, `permitted_tools` will be sourced from the Charter and
-MCP-01 will fire on tools outside the allowlist. For multi-tenant Charter
-storage, versioning, and approval workflow, see the
-[BlastContain Platform](https://blastcontain.io).
 
 ## Suppressing findings — `.blastcontainignore`
 
