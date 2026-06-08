@@ -13,7 +13,7 @@
 # and .github/workflows/release.yml builds + publishes that one package.
 
 [tool.uv.workspace]
-members = ["core", "verify", "drill", "tools/scout"]
+members = ["core", "verify", "drill", "guard", "tools/scout"]
 
 [tool.ruff]
 line-length = 100

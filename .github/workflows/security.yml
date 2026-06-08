@@ -42,6 +42,9 @@ jobs:
       - name: Audit scout pinned runtime closure
         run: pip-audit --no-deps -r tools/scout/constraints.txt
 
+      - name: Audit guard pinned runtime closure (core + guard)
+        run: pip-audit --no-deps -r guard/constraints.txt
+
   bandit:
     name: SAST (bandit)
     runs-on: ubuntu-latest
@@ -62,5 +65,6 @@ jobs:
           core/blastcontain_core
           verify/blastcontain_verify
           drill/blastcontain_drill
+          guard/blastcontain_guard
           tools/scout/blastcontain_scout
           --severity-level medium

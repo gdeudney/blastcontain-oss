@@ -1,0 +1,11 @@
+# Mode 2 — Guard + AGT (two fronts). Guard decides in-process; AGT backs it
+# out-of-process and can only TIGHTEN the verdict.
+# Run:  python examples/demo_agt_server.py        (in another terminal)
+#       python examples/agent.py examples/mode-guard-agt.yaml
+agent_id: invoice-bot
+environment: prod
+policy: examples/policy.yaml
+agt:
+  enabled: true
+  mode: dual                          # AGT backs native; stricter wins
+  endpoint: http://127.0.0.1:8700/evaluate

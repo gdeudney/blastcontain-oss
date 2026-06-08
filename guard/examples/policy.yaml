@@ -1,0 +1,51 @@
+# BlastContain Guard — a local, open policy (the OSS wedge).
+#
+# This is a governance.toolkit/v1 ruleset: the *same format a Charter compiles
+# to*, hand-authored. Guard enforces it in-process at the tool-call boundary.
+# Graduate to a Platform-issued signed Charter later without changing the
+# enforcement — only the source changes.
+#
+#   blastcontain-guard lint examples/policy.yaml
+#   blastcontain-guard simulate -p examples/policy.yaml --tool delete_invoice --action-type delete
+#
+# First matching rule wins; otherwise default_action. Deny-by-default.
+
+apiVersion: governance.toolkit/v1
+name: invoice-bot-prod
+agent_id: invoice-bot
+environment: prod
+autonomy_mode: interactive
+default_action: deny
+
+rules:
+  # ── mandatory Standards — hard deny, central Exception only (the honesty line)
+  - name: block-exfiltration
+    condition: "action.type == 'send' and not tool_name in ['send_customer_receipt']"
+    action: deny
+    approvers: [central]
+    concern: block-exfiltration
+
+  - name: no-shell
+    condition: "action.type == 'exec'"
+    action: deny
+    approvers: [central]
+    concern: no-dangerous-code-exec
+
+  # ── self-owned asks — the present user may allow once / always / deny
+  - name: confirm-destructive
+    condition: "action.type in ['delete', 'drop', 'truncate']"
+    action: require_approval
+    approvers: [self]
+    concern: no-prod-data-mutation
+
+  - name: confirm-receipt-sends
+    condition: "tool_name == 'send_customer_receipt'"
+    action: require_approval
+    approvers: [self]
+    concern: no-pii-egress
+
+  # ── the read-only working set runs freely
+  - name: allow-read-tools
+    condition: "tool_name in ['query_invoice', 'list_invoices', 'get_customer']"
+    action: allow
+    concern: approved-tools-only
