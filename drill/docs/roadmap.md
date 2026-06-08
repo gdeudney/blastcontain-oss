@@ -86,7 +86,11 @@ engine, ARES, ViolentUTF, Inspect) that duplicate Drill's runner.
 - **#21** JailbreakBench dataset + over-refusal — ✅ **DONE (2026-06-02)**: vendored 100+100 MIT
   behaviors (`--jbb`); new `DrillOutcome.OVER_REFUSAL` + benign-aware scorers (judge branches its
   prompt, guards abstain); live-validated — qwen3-30b over-refused 4/4 borderline-benign prompts.
-- **#22** PyRIT/DeepTeam converter operators.
+- **#22** PyRIT/DeepTeam converter operators — ✅ **DONE (2026-06-07)**: 10 pure-stdlib `str→str`
+  converters into `OperatorsSource._OPERATORS` (7→17) — ROT13 · Caesar · Atbash · Morse · binary ·
+  URL-encode (decode-and-comply) + char-space · zero-width · homoglyph (filter-evasion). Reimplemented
+  (public-domain algorithms; no PyRIT/DeepTeam dependency, no service, no networking); source bumped
+  `operators@v2`; round-trip + AST-label regression tests (83 drill unit).
 - **#23** WildGuard scorer — ✅ **DONE (2026-06-02)**: `scoring/wildguard.py`; native refusal + harm
   axes retire the Qwen3Guard real-roles hack and score benign over-refusal natively (no abstaining).
   Unit-tested; gated model (`allenai/wildguard`) not downloaded, so not live-validated yet.
