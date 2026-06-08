@@ -254,7 +254,16 @@ capabilities sit on top cheaply. (Good smell test for whether the abstractions a
 4. The action plane is the moat — should we invest in **richer cage fixtures** (real MCP servers,
    multi-step tool chains) over more content scorers?
 
-## Proposed evolution — Rubric-on-Attack scoring (decouple the judge)
+## Rubric-on-Attack scoring (decouple the judge) — ✅ BUILT (2026-06-07, with #24 G-Eval)
+
+> Shipped as designed below, with two decisions worth recording: (1) the scorer-contract
+> field is **`matched`** (the rubric's adverse condition held → `rubric.on_match`), which
+> makes `combine` axis-agnostic; (2) the heuristic declares **`axes={"harm","refusal"}`**
+> (not just `refusal`) so it stays the no-model harm fallback — behaviour-equivalent, with
+> the existing test suite as the net. `expected_refusal` is **kept** as the field that
+> drives `default_rubric` (phase-6 "drop it" deferred — the factory is non-breaking). The
+> payoff is proven by `test_freeform_rubric_routes_to_judge_only`: a new judging mode is
+> just a freeform rubric, with zero scorer/combine edits. The design rationale follows.
 
 **Problem.** `expected_refusal` is read in **five** places — `judge.py`, `guard.py`, `granite.py`,
 `wildguard.py`, `combine.py` — each branching on "is this harmful or benign?". The scorers and the

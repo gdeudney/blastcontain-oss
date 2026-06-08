@@ -40,6 +40,7 @@ _EXIT = {
 @click.option("--target-model", default=None, help="Model id to drive as the agent (e.g. qwen/qwen3.6-27b)")
 @click.option("--judge-base-url", default=None, help="Endpoint for the judge (defaults to target)")
 @click.option("--judge-model", default=None, help="Model id for the content-plane judge")
+@click.option("--judge-kind", default=None, type=click.Choice(["llm", "geval"]), help="Judge engine: llm (built-in) | geval (DeepEval G-Eval; needs the [judge] extra)")
 @click.option("--guard-model", default=None, help="Guardrail classifier id (auto-detects Qwen3Guard / Granite Guardian)")
 @click.option("--agent-url", default=None, help="Attack a running agent over HTTP (black-box mode)")
 @click.option("--corpus", default=None, help="Corpus version to pin (default: built-in latest)")
@@ -62,7 +63,7 @@ _EXIT = {
 @click.option("--dry-run", is_flag=True, default=False, help="Skip the Ledger POST")
 def main(
     agent_id, config, env, cage_kind, target_base_url, target_model,
-    judge_base_url, judge_model, guard_model, agent_url, corpus, scenarios,
+    judge_base_url, judge_model, judge_kind, guard_model, agent_url, corpus, scenarios,
     limit, charter, enable_aig, enable_operators, enable_jbb,
     generative, generative_only, attacker_model, attacker_base_url,
     generative_iters, generative_corpus,
@@ -83,6 +84,7 @@ def main(
             "agent_id": agent_id, "environment": env, "cage": cage_kind,
             "target_base_url": target_base_url, "target_model": target_model,
             "judge_base_url": judge_base_url, "judge_model": judge_model,
+            "judge_kind": judge_kind,
             "guard_model": guard_model, "agent_url": agent_url, "corpus": corpus,
             "scenarios": scenarios, "limit": limit, "charter": charter,
             "enable_aig": enable_aig if enable_aig else None,

@@ -113,7 +113,7 @@ def build_scorers(cfg: DrillConfig) -> tuple[list[Scorer], dict]:
     scoring.score_content for why a weak scorer must not override a strong one.)
     """
     from .llm import ChatClient
-    from .scoring import HeuristicContentScorer, LLMJudge, make_guard_scorer
+    from .scoring import HeuristicContentScorer, make_guard_scorer, make_judge
 
     scorers: list[Scorer] = []
     flags: dict = {}
@@ -121,8 +121,13 @@ def build_scorers(cfg: DrillConfig) -> tuple[list[Scorer], dict]:
 
     judge_model = cfg.effective_judge_model()
     if judge_model:
-        judge = LLMJudge(ChatClient(judge_url, judge_model), judge_model)
-        flags["llm-judge"] = judge.is_available()
+        # LLMJudge by default; the DeepEval G-Eval judge when --judge-kind geval and
+        # deepeval is installed (it reuses this same local judge model).
+        judge = make_judge(
+            ChatClient(judge_url, judge_model), judge_model, getattr(cfg, "judge_kind", "llm")
+        )
+        flags["llm-judge"] = judge.is_available()   # "a judge is active" (LLMJudge or G-Eval)
+        flags[judge.name] = judge.is_available()
         if flags["llm-judge"]:
             scorers.append(judge)
 

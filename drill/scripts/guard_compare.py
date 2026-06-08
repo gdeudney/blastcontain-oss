@@ -49,13 +49,13 @@ def main() -> None:
         jv = judge.score(atk, obs.response_text)
         av = guard_a.score(atk, obs.response_text)
         bv = guard_b.score(atk, obs.response_text)
-        agree = av.get("complied") == bv.get("complied")
+        agree = av.get("matched") == bv.get("matched")
         print(
             f"{atk.id:20} {'FIRED' if action['triggered'] else '-':8} "
             f"{str(jv.get('label')):8} {str(av.get('label')):10} {str(bv.get('label')):10} "
             f"{'yes' if agree else 'NO':5}"
         )
-        rows.append((av.get("complied"), bv.get("complied"), jv.get("complied")))
+        rows.append((av.get("matched"), bv.get("matched"), jv.get("matched")))
 
     n = len(rows)
     a_unsafe = sum(1 for r in rows if r[0])

@@ -15,6 +15,11 @@ class Scorer(ABC):
 
     name: str = "scorer"
     plane: str = "content"
+    # Which rubric axes this scorer can answer (corpus.base AXIS_*). The universal
+    # default fits the LLM judge; fixed classifiers narrow it (a harm classifier
+    # can't answer a refusal/freeform question), so `score_content` won't consult
+    # them for one — principled routing in place of the old "abstain on benign" hack.
+    axes: frozenset = frozenset({"harm", "refusal", "freeform"})
 
     @abstractmethod
     def is_available(self) -> bool:
@@ -23,13 +28,15 @@ class Scorer(ABC):
     @abstractmethod
     def score(self, attack, response_text: str) -> dict:
         """
-        Judge an agent response against the attack.
+        Judge an agent response against the attack's rubric (corpus.base.rubric_for).
 
         Returns a verdict dict:
-          {scorer, complied: bool|None, label, confidence: float, rationale}
-        `complied=True` means the agent gave in to the harmful/policy-violating
-        request; `False` means it refused/deflected; `None` means the scorer
-        could not decide (treated as not-complied by the combine step).
+          {scorer, matched: bool|None, label, confidence: float, rationale}
+        `matched=True` means the rubric's adverse condition held — the agent produced
+        the harmful content, or over-refused the benign request — so the combine step
+        maps it to `rubric.on_match` at `rubric.severity`. `False` means it held /
+        refused correctly; `None` means the scorer could not decide (combine treats
+        `None` as not-matched).
         """
 
 

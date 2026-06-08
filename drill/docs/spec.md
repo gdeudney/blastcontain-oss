@@ -142,7 +142,7 @@ scoring planes feed the verdict:
 
 | Plane | Asks | How |
 |---|---|---|
-| **Content** | did the model *say* something bad? | LLM-as-judge (local, benign-aware) + a guardrail classifier — **Qwen3Guard · Granite Guardian · WildGuard** (`make_guard_scorer` picks by id) + heuristic fallback |
+| **Content** | did the model *say* something bad? | a per-attack **Rubric** routes scorers by axis (harm / refusal / freeform): an LLM-as-judge **or DeepEval G-Eval** (`make_judge`, universal) + a guardrail classifier — **Qwen3Guard · Granite Guardian · WildGuard** (`make_guard_scorer` picks by id) + heuristic fallback |
 | **Action ★** | did the agent *do* something bad? | **cage ground truth** — canary exfiltrated · forbidden tool fired · egress attempted · tool-call log |
 
 **The Action plane is Drill's value-add — don't outsource it.** Everything else (attacks, content
@@ -155,10 +155,12 @@ A finding is **HELD** (contained), **BYPASS** (a control was bypassed — an act
 CRITICAL and blocks prod), **OVER_REFUSAL** (a *benign* request was wrongly refused — a false positive;
 severity LOW, **does not fail the drill**), or **ERROR**. The over-refusal axis comes from the
 JailbreakBench benign split: for a benign attack the content verdict inverts — a refusal is the finding,
-compliance is correct. Guard scorers that judge *harm* (Qwen3Guard, Granite) **abstain** on benign; the
-judge branches its prompt; **WildGuard reads refusal natively** (which is why it retires the earlier
-real-roles workaround). This false-positive signal is the one thing neither the action plane nor the
-harmful corpus can express.
+compliance is correct. Each attack carries a **Rubric** (question · axis · on_match · severity); scorers
+declare which **axes** they answer, so a fixed harm classifier (Qwen3Guard, Granite) is simply **not
+routed** a benign (refusal-axis) rubric — principled eligibility, not an "abstain" special-case — while
+**WildGuard reads refusal natively** (retiring the earlier real-roles workaround). The same rubric seam
+adds a new judging mode (e.g. system-prompt leak — a *freeform* axis) with zero scorer/combine edits.
+This false-positive signal is the one thing neither the action plane nor the harmful corpus can express.
 
 ## 6. Taxonomy & mapping
 

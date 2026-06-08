@@ -32,6 +32,7 @@ class DrillConfig:
     # Scoring
     judge_base_url: Optional[str] = None       # defaults to target_base_url
     judge_model: Optional[str] = None          # defaults to target_model
+    judge_kind: str = "llm"                     # "llm" | "geval" (DeepEval G-Eval; needs [judge])
     guard_model: Optional[str] = None          # e.g. qwen3guard-gen-8b (optional)
 
     # Corpus
@@ -73,7 +74,7 @@ class DrillConfig:
 
 _FIELDS = (
     "agent_id", "environment", "cage", "max_steps", "target_base_url",
-    "target_model", "agent_url", "judge_base_url", "judge_model", "guard_model",
+    "target_model", "agent_url", "judge_base_url", "judge_model", "judge_kind", "guard_model",
     "corpus", "scenarios", "limit", "enable_aig", "enable_operators", "enable_jbb",
     "charter", "output", "report",
     "generative", "generative_only", "attacker_model", "attacker_base_url",

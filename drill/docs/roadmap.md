@@ -94,7 +94,14 @@ engine, ARES, ViolentUTF, Inspect) that duplicate Drill's runner.
 - **#23** WildGuard scorer — ✅ **DONE (2026-06-02)**: `scoring/wildguard.py`; native refusal + harm
   axes retire the Qwen3Guard real-roles hack and score benign over-refusal natively (no abstaining).
   Unit-tested; gated model (`allenai/wildguard`) not downloaded, so not live-validated yet.
-- **#24** G-Eval judge.
+- **#24** G-Eval judge — ✅ **DONE (2026-06-07)**: bundled with the **Rubric-on-Attack refactor**
+  (design.md). Each Attack carries a `Rubric{question, axis, on_match, severity}`; scorers declare
+  `axes` and `score_content` routes by eligibility (`scoring/base.py` + `__init__.py`), retiring the
+  `expected_refusal` branch in judge/guard/granite/wildguard/combine (5 → 0) and the guards-abstain hack.
+  Scorer contract is now `matched` → `rubric.on_match`. New `scoring/geval.py` `GEvalJudge` (DeepEval
+  G-Eval; reuses Drill's local judge model via a wrapped `DeepEvalBaseLLM`, availability-flagged + fully
+  defensive) selected by `make_judge` / `--judge-kind geval`. Behaviour-equivalent (test suite is the
+  net) + a freeform-routing test proves a 3rd judging mode needs zero scorer/combine edits. 90 drill unit.
 - **Model-sweep harness** — ✅ **DONE (2026-06-02)**: `blastcontain_drill/sweep.py`
   (`python -m blastcontain_drill.sweep`) runs Drill per `--target-model` with a fixed judge/guard →
   signed per-model reports + a risk-ranked leaderboard (md+json); live-validated on a 2-model sweep.
