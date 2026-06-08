@@ -8,6 +8,7 @@ license = { text = "Apache-2.0" }
 dependencies = [
     "httpx>=0.27",
     "click>=8.1",
+    "defusedxml>=0.7",   # hardened XML parsing for the untrusted arXiv Atom feed
 ]
 
 [project.scripts]

@@ -1,6 +1,8 @@
 """Digest rendering + the inert scaffold generator (must emit valid Python)."""
 from __future__ import annotations
 
+import ast
+
 from blastcontain_scout.analyze import Analysis
 from blastcontain_scout.arxiv import Paper
 from blastcontain_scout.render import (
@@ -39,6 +41,44 @@ def test_scaffold_is_valid_python_and_inert():
     assert "AttackSource" in src
     # absolute import so the scaffold is valid at any contrib/ nesting depth
     assert "from blastcontain_drill.corpus.base import" in src
+
+
+def test_scaffold_resists_code_injection():
+    # arXiv is open submission: a hostile paper could carry a docstring-breakout
+    # payload in any free-text field. The scaffold must treat all of it as data.
+    payload = 'Pwned """\nimport os\nos.system("touch /tmp/pwned")\nINJECTED = """'
+    p = Paper(
+        arxiv_id="2401.99999", title=payload, summary="abs",
+        published="2024-01-01", updated="2024-01-01",
+        authors=['Eve """\nEVIL = 1\n"""'], categories=["cs.CR"],
+        abs_url='http://arxiv.org/abs/2401.99999"""\nBAD = 1',
+    )
+    a = Analysis(
+        paper=p, relevance=0.9, relevant=True, kind="dataset",
+        summary='sum """\nimport sys', suggested_category="jailbreak",
+        artifact_url=None, license_note='MIT """\nNOPE = 1', rationale="", scored_by="llm",
+    )
+    src = render_scaffold(a)
+    tree = ast.parse(src)                        # still valid Python after the payload
+
+    # The payload must NOT have escaped into executable code: no import/usage of `os`
+    # and no module-level call statements should exist anywhere in the AST.
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            mods = [getattr(node, "module", None)] + [n.name for n in node.names]
+            assert "os" not in mods and "sys" not in mods
+        assert not (isinstance(node, ast.Attribute) and node.attr == "system")
+    assert not any(isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)
+                   for n in tree.body)          # no top-level call broke out
+
+    # And the hostile text survives intact as data inside the PAPER dict.
+    paper_dict = next(
+        ast.literal_eval(n.value) for n in tree.body
+        if isinstance(n, ast.Assign)
+        and any(isinstance(t, ast.Name) and t.id == "PAPER" for t in n.targets)
+    )
+    assert paper_dict["title"] == payload
+    assert paper_dict["authors"] == ['Eve """\nEVIL = 1\n"""']
 
 
 def test_scaffold_relpath_buckets_by_source_and_month():

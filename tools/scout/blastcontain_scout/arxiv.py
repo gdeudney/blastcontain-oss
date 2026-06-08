@@ -8,8 +8,13 @@ split out so it is unit-testable against a fixture without network access.
 """
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
+# Parse with defusedxml, not the stdlib ElementTree: the feed is untrusted network
+# input, and defused fromstring() forbids entity/external-entity expansion (billion
+# laughs / XXE) while returning standard Element objects, so the rest of the parser
+# is unchanged.
+import defusedxml.ElementTree as ET
 from dataclasses import dataclass, field
+from defusedxml.common import DefusedXmlException
 from typing import Optional
 
 API_URL = "https://export.arxiv.org/api/query"
@@ -81,7 +86,9 @@ def parse_feed(xml_text: str) -> list[Paper]:
     """Parse an arXiv Atom feed into Paper records."""
     try:
         root = ET.fromstring(xml_text)
-    except ET.ParseError:
+    except (ET.ParseError, DefusedXmlException):
+        # Malformed XML, or a feed that trips defusedxml's entity/DTD guards — treat
+        # as "no papers" so one bad/hostile response doesn't crash an unattended run.
         return []
     papers: list[Paper] = []
     for entry in root.findall(f"{_ATOM}entry"):

@@ -9,6 +9,7 @@ live attacks — and the reviewer ratifies by implementing `dataset()`.
 """
 from __future__ import annotations
 
+import json
 import re
 
 from .analyze import Analysis
@@ -47,21 +48,31 @@ def scaffold_relpath(analysis: Analysis, source: str = "arxiv") -> str:
 def render_scaffold(analysis: Analysis) -> str:
     """A valid-but-inert AttackSource scaffold citing the paper."""
     p = analysis.paper
-    s = slug(p.arxiv_id)
+    s = slug(p.arxiv_id)                       # sanitized to [0-9a-z_]
     cls = "Contrib" + "".join(part.title() for part in s.split("_") if part)
-    authors = ", ".join(p.authors[:4]) + ("…" if len(p.authors) > 4 else "")
+    name = s.replace("_", "-")
+    # Every paper-derived field is UNTRUSTED — arXiv is open submission, and the
+    # summary/license come from an LLM fed that text. Emit them as one JSON-encoded
+    # literal instead of interpolating into the source: json.dumps escapes quotes,
+    # backslashes, and newlines, so a title like `x""" import os …` is inert data,
+    # not code that breaks out of the docstring into this generated module.
+    paper = {
+        "title": p.title,
+        "arxiv_id": p.arxiv_id,
+        "abs_url": p.abs_url or "",
+        "authors": list(p.authors),
+        "category": analysis.suggested_category,
+        "kind": analysis.kind,
+        "artifact_url": analysis.artifact_url or "",
+        "license": analysis.license_note,
+        "summary": analysis.summary,
+    }
+    meta = json.dumps(paper, indent=4, ensure_ascii=False)
     return f'''"""
 CANDIDATE attack source — proposed by blastcontain-scout, NOT yet ratified.
 
-Paper:    {p.title}
-arXiv:    {p.arxiv_id}  ({p.abs_url})
-Authors:  {authors}
-Category: {analysis.suggested_category}
-Kind:     {analysis.kind}
-Artifact: {analysis.artifact_url or "(none found — check the paper)"}
-License:  {analysis.license_note}
-
-Summary:  {analysis.summary}
+Paper metadata is in the PAPER dict below — JSON-encoded, so untrusted arXiv text
+is inert data and never code. A readable citation is in the matching digest.
 
 ⚠️  INERT until ratified. `is_available()` returns False, so `load_corpus` skips
 this source. To ratify: (1) verify the license permits vendoring (Apache/MIT/BSD;
@@ -77,11 +88,14 @@ from typing import Optional
 # contrib/ (e.g. contrib/arxiv/2026-06/) — relative-import depth would otherwise break.
 from blastcontain_drill.corpus.base import GOAL_CONTENT, Attack, AttackSource
 
+# Untrusted, arXiv-derived metadata — a JSON literal, not interpolated code.
+PAPER = {meta}
+
 
 class {cls}Source(AttackSource):
-    name = "{s.replace('_', '-')}"
+    name = {json.dumps(name)}
     layer = "replay"
-    revision = "{p.arxiv_id}"   # TODO: pin to the dataset commit once vendored
+    revision = PAPER["arxiv_id"]   # TODO: pin to the dataset commit once vendored
 
     def is_available(self) -> bool:
         return False  # TODO: flip once the data is vendored and the license verified
@@ -92,9 +106,9 @@ class {cls}Source(AttackSource):
         limit: Optional[int] = None,
     ) -> list[Attack]:
         # TODO: load attacks from the paper's released artifact, e.g.:
-        #   Attack(id="{s}-0", category="{analysis.suggested_category}",
-        #          prompt="…", technique="{p.arxiv_id}", goal=GOAL_CONTENT,
-        #          expected_refusal=True, source="{s.replace('_', '-')}")
+        #   Attack(id=PAPER["arxiv_id"] + "-0", category=PAPER["category"],
+        #          prompt="...", technique=PAPER["arxiv_id"], goal=GOAL_CONTENT,
+        #          expected_refusal=True, source=self.name)
         return []
 '''
 

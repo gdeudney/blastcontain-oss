@@ -48,6 +48,20 @@ def test_parse_feed_handles_garbage():
     assert parse_feed("not xml") == []
 
 
+def test_parse_feed_rejects_xxe_entities():
+    # The arXiv feed is untrusted network input. defusedxml must refuse to expand
+    # an external-entity (XXE) payload, and parse_feed must degrade to "no papers"
+    # rather than read the file or crash the run.
+    xxe = (
+        '<?xml version="1.0"?>\n'
+        '<!DOCTYPE feed [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>\n'
+        '<feed xmlns="http://www.w3.org/2005/Atom">\n'
+        "  <entry><id>http://arxiv.org/abs/1</id><title>&xxe;</title></entry>\n"
+        "</feed>"
+    )
+    assert parse_feed(xxe) == []
+
+
 def test_build_query_has_categories_and_terms():
     q = build_query()
     assert "cat:cs.CR" in q
