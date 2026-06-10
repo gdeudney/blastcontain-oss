@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
+from ..contract import CheckContext, CheckGroupResult
 from ..models import InfraFinding, Severity
 from ..constants import MIT_RISK_MAP, CODE_SKIP_DIRS
 from ..ignore import load_ignore_patterns, is_ignored
@@ -98,7 +99,8 @@ def check_tls01_plaintext_endpoints(search_path: str) -> tuple[list[InfraFinding
     )], "FAIL"
 
 
-def run(search_path: str = ".", **_) -> tuple[list[InfraFinding], list[str], list[dict]]:
+def run(ctx: CheckContext) -> CheckGroupResult:
+    search_path = ctx.cfg.search_path
     findings: list[InfraFinding] = []
     passed: list[str] = []
     skipped: list[dict] = []
@@ -109,4 +111,4 @@ def run(search_path: str = ".", **_) -> tuple[list[InfraFinding], list[str], lis
     else:
         findings.extend(result_findings)
 
-    return findings, passed, skipped
+    return CheckGroupResult(findings=findings, passed=passed, skipped=skipped)

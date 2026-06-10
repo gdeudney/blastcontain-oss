@@ -15,18 +15,14 @@ investment; the generic checks get delegated or explicitly demoted to
 
 ## Sequencing at a glance
 
-| Phase | Items | Theme | Target release |
+| Phase | Items | Theme | Status / target |
 |---|---|---|---|
-| 0 — Quick wins | 6 (drift tests), 5 (signing honesty), 7 (augmentation policy) | Days of work, all verify-scoped, no design risk | 0.3.x |
-| 1 — Moat, part 1 | 2a (Charter → MCP-01) | Small, high-value: the schema already exists | 0.4.0 |
-| 2 — Foundation | 3 (registry + typed contract + plugins) | Enables 1, 2b, 4 without doing them twice | 0.4.0 |
+| 0 — Quick wins | 6 (drift tests), 5 (signing honesty), 7 (augmentation policy) | Days of work, all verify-scoped, no design risk | ✅ shipped (0.3.x) |
+| 1 — Moat, part 1 | 2a (Charter → MCP-01) | Small, high-value: the schema already exists | **DEFERRED** — blocked on the platform UI/server that issues Charters; revisit when they exist |
+| 2 — Foundation | 3 (registry + typed contract + plugins) | Enables 2b, 4, 5 without doing them twice | 0.4.0 |
 | 3 — Policy | 4 (per-environment verdict policy) | Depends on 3 for clean wiring; recorded in the packet | 0.4.0 |
-| 4 — Moat, part 2 | 2b (blast-radius model), 2c (tier wiring) | Needs a short design spec first | 0.5.0 |
+| 4 — Moat, part 2 | 2b (blast-radius model), 2c (tier wiring) | Needs a short design spec first. Without Charter, `--max-tier` stays the explicit authority input (charter-derived tier lands with Phase 1) | 0.5.0 |
 | 5 — Delegation | 1 (best-of-breed engines for generic checks) | Built on the registry + augmentation pattern | 0.5.0 |
-
-Phases 1 and 2 can run in parallel — Charter wiring is additive to
-`mcp.run()`'s existing `permitted_tools` parameter and does not need the
-registry refactor.
 
 ---
 

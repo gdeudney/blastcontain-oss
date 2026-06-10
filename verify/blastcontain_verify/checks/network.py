@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from ..contract import CheckContext, CheckGroupResult
 from ..models import InfraFinding, Severity
 from ..constants import MIT_RISK_MAP
 
@@ -152,11 +153,11 @@ def check_net02_external_listeners() -> tuple[list[InfraFinding], str]:
     )], "FAIL"
 
 
-def run(**kwargs) -> tuple[list[InfraFinding], list[str], list[dict]]:
+def run(ctx: CheckContext) -> CheckGroupResult:
     findings: list[InfraFinding] = []
     passed: list[str] = []
     skipped: list[dict] = []
-    probe_target = kwargs.get("egress_probe_target", "8.8.8.8:53")
+    probe_target = ctx.cfg.egress_probe_target
 
     checks = [
         ("NET-01", check_net01_dns_egress,         [probe_target]),
@@ -172,4 +173,4 @@ def run(**kwargs) -> tuple[list[InfraFinding], list[str], list[dict]]:
         else:
             findings.extend(result_findings)
 
-    return findings, passed, skipped
+    return CheckGroupResult(findings=findings, passed=passed, skipped=skipped)

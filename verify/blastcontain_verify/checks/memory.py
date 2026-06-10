@@ -17,6 +17,7 @@ from ..constants import (
     MIT_RISK_MAP, GENERIC_NAMESPACES, VECTOR_DB_ENV_INDICATORS,
 )
 from ..augmentation import presidio_analyze, PRESIDIO_AVAILABLE
+from ..contract import CheckContext, CheckGroupResult
 
 
 def _finding(check_id: str, finding_type: str, severity: Severity,
@@ -191,11 +192,11 @@ def check_mem05_pii_exfil_path(
     )], "FAIL"
 
 
-def run(
-    context_file: Optional[str] = None,
-    env02_fired: bool = False,
-    **_,
-) -> tuple[list[InfraFinding], list[str], list[dict]]:
+def run(ctx: CheckContext) -> CheckGroupResult:
+    context_file = ctx.cfg.context_file
+    # MEM-05 composite: the environment group runs first (registry order) and
+    # its ENV-02 finding, if any, is recorded in the shared scan state.
+    env02_fired = "ENV-02" in ctx.state.fired
     findings: list[InfraFinding] = []
     passed: list[str] = []
     skipped: list[dict] = []
@@ -232,4 +233,4 @@ def run(
     else:
         findings.extend(mem05_findings)
 
-    return findings, passed, skipped
+    return CheckGroupResult(findings=findings, passed=passed, skipped=skipped)

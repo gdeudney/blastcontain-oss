@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from ..contract import CheckContext, CheckGroupResult
 from ..models import InfraFinding, Severity
 from ..constants import MIT_RISK_MAP
 
@@ -157,12 +158,13 @@ def check_env03_model_weights_writable(model_dir: str) -> tuple[list[InfraFindin
     )], "FAIL"
 
 
-def run(model_dir: str = "/models", **kwargs) -> tuple[list[InfraFinding], list[str], list[dict]]:
+def run(ctx: CheckContext) -> CheckGroupResult:
+    model_dir = ctx.cfg.model_dir
     findings: list[InfraFinding] = []
     passed: list[str] = []
     skipped: list[dict] = []
 
-    probe_target = kwargs.get("egress_probe_target", "8.8.8.8:53")
+    probe_target = ctx.cfg.egress_probe_target
     checks = [
         ("ENV-01", check_env01_kernel_isolation, []),
         ("ENV-02", check_env02_egress_restriction, [probe_target]),
@@ -178,4 +180,4 @@ def run(model_dir: str = "/models", **kwargs) -> tuple[list[InfraFinding], list[
         else:
             findings.extend(result_findings)
 
-    return findings, passed, skipped
+    return CheckGroupResult(findings=findings, passed=passed, skipped=skipped)

@@ -68,7 +68,7 @@ podman run --rm \
 --acknowledge-risk      Exit 0 even on CRITICAL
 ```
 
-Usage guide & examples: [docs/usage.md](docs/usage.md) · Full spec: [docs/spec.md](docs/spec.md) · Design notes: [docs/architecture.md](docs/architecture.md)
+Usage guide & examples: [docs/usage.md](docs/usage.md) · Full spec: [docs/spec.md](docs/spec.md) · Design notes: [docs/architecture.md](docs/architecture.md) · Custom checks: [docs/plugins.md](docs/plugins.md)
 
 ## GitHub Code Scanning integration
 

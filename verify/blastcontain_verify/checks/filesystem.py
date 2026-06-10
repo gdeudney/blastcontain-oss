@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
+from ..contract import CheckContext, CheckGroupResult
 from ..models import InfraFinding, Severity
 from ..constants import MIT_RISK_MAP
 
@@ -99,7 +100,8 @@ def check_disk02_container_rootfs(environment: str) -> tuple[list[InfraFinding],
     return [], "PASS"
 
 
-def run(environment: str = "staging", **_) -> tuple[list[InfraFinding], list[str], list[dict]]:
+def run(ctx: CheckContext) -> CheckGroupResult:
+    environment = ctx.cfg.environment
     findings: list[InfraFinding] = []
     passed: list[str] = []
     skipped: list[dict] = []
@@ -118,4 +120,4 @@ def run(environment: str = "staging", **_) -> tuple[list[InfraFinding], list[str
         else:
             findings.extend(result_findings)
 
-    return findings, passed, skipped
+    return CheckGroupResult(findings=findings, passed=passed, skipped=skipped)

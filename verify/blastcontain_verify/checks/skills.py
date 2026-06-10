@@ -13,6 +13,7 @@ from typing import Optional
 
 import yaml
 
+from ..contract import CheckContext, CheckGroupResult
 from ..models import InfraFinding, Severity
 from ..constants import MIT_RISK_MAP, EXFIL_SKILL_PATTERNS
 from ..augmentation import CISCO_SKILL_AVAILABLE, get_skill_scanner
@@ -201,10 +202,14 @@ def check_skill02_cisco_scan(skills_dir: Optional[str]) -> tuple[list[InfraFindi
     )], "FAIL", ""
 
 
-def run(
-    skills_dir: Optional[str] = None,
-    **_,
-) -> tuple[list[InfraFinding], list[str], list[dict]]:
+def run(ctx: CheckContext) -> CheckGroupResult:
+    # --skills-dir falls back to --search-path; both absent → SKIP inside the
+    # checks. (This resolution used to live in scanner.py — now owned here.)
+    skills_dir = (
+        ctx.cfg.effective_skills_dir()
+        if (ctx.cfg.skills_dir or ctx.cfg.search_path)
+        else None
+    )
     findings: list[InfraFinding] = []
     passed: list[str] = []
     skipped: list[dict] = []
@@ -223,4 +228,4 @@ def run(
         else:
             findings.extend(result_findings)
 
-    return findings, passed, skipped
+    return CheckGroupResult(findings=findings, passed=passed, skipped=skipped)

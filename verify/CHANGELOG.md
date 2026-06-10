@@ -5,6 +5,10 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 ## [Unreleased]
 
 ### Added
+- **Check plugin system.** Organizations can add their own checks without forking: expose a `CheckGroup` (a `name`, the `provides` check-ID set, and `run(ctx)`) through the `blastcontain_verify.checks` entry point. Plugins run after the built-ins under the same crash quarantine — a broken plugin degrades to a `SCAN-PLUGIN` finding (status ERROR), and check-ID collisions are rejected. See `docs/plugins.md` and `examples/plugin-check/`.
+
+### Changed
+- **Typed check contract (internal).** Check groups now implement `run(ctx: CheckContext) -> CheckGroupResult` (`contract.py`) and are inventoried in an ordered registry (`registry.py`) instead of being hand-called with `**kwargs` from the scanner. Typed config access replaces silently-defaulted kwargs; `ScanState.fired` replaces the ad-hoc `env02_fired` threading for composites. External behavior — CLI, report, audit packet, SARIF — is unchanged.
 - `--require-signing` flag — exit 3 before scanning when no real signing key is configured, so CI attestation pipelines never emit an advisory (default-HMAC-key) packet.
 - Doc-drift tests (`tests/unit/test_doc_consistency.py`) pin the spec's per-check sections and the README's check/category counts to the new canonical inventory `constants.ALL_CHECK_IDS`, and pin pyproject/`__version__`/CHANGELOG coherence (regression guard for the hardcoded `generator_version` bug).
 - `CONTRIBUTING.md` gains the augmentation acceptance checklist (pip-audit-clean tree, no exact-pins of shared libraries, offline/read-only import safety, tree-size budget, graceful degradation) — codifying the litellm/tldextract lessons. The Security workflow now also audits the opt-in `[cisco]` tree weekly, non-gating.
