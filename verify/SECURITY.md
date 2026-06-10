@@ -44,6 +44,18 @@ We treat the following as bugs (open a public issue):
 | 0.2.x | security fixes only until 2026-12-31 |
 | < 0.2 | not supported |
 
+## Audit packet signing — what the default actually proves
+
+Without a configured key, packets are HMAC-signed with the built-in
+`local-verify-default` key and carry `signature.advisory: true`. Because that
+key is public knowledge, an advisory signature proves **integrity only** — the
+payload hasn't changed since signing — and provides **no attestation of who
+produced it**. Treat advisory packets as unattested. For attestation, configure
+an Ed25519 key (`BLASTCONTAIN_SIGNING_KEY_PATH`) and manage it like any other
+production secret; use `--require-signing` in pipelines that must never emit an
+advisory packet. Key management is deliberately out of scope for the OSS tool —
+the signature is only as trustworthy as your key handling.
+
 ## Optional Cisco scanners — known dependency CVEs
 
 `blastcontain-verify` is **secure-by-default**: the standard install

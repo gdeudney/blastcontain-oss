@@ -4,6 +4,9 @@ All notable changes to `blastcontain-core` are documented here. Format based on 
 
 ## [Unreleased]
 
+### Added
+- `signing.sign_packet` marks packets signed with the built-in default HMAC key with `advisory: true` in the signature block — machine-readable "integrity-only, not attestation," so downstream gates (Ledger, CI) can refuse unattested packets without parsing the stderr warning. Additive field; absent on Ed25519 and real-key HMAC signatures. No schema bump (the 1.1 signature block tolerates additive fields by contract).
+
 ## [0.2.0] — 2026-06-01
 
 Adds the shared Drill (adversarial red-team) types and the AI-native taxonomy,

@@ -130,6 +130,13 @@ assert verify_packet(packet)
 
 Ed25519 packets carry their public key inline — verification needs nothing else. HMAC packets require `BLASTCONTAIN_SIGNING_KEY` in the environment.
 
+**Be clear about what the default signature means:** with no key configured,
+packets are signed with a built-in key and marked `"advisory": true` — that
+proves *integrity* (the packet wasn't modified), **not attestation** (anyone
+can produce one). Attestation requires an Ed25519 key you manage. CI pipelines
+that must never emit an advisory packet should pass `--require-signing`, which
+exits 3 before scanning if no real key is configured.
+
 ## License
 
 [Apache 2.0](LICENSE). See [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).

@@ -127,6 +127,8 @@ def sign_packet(payload: dict, signed_at: str, key_id: Optional[str] = None) -> 
         # ed25519 only:
         "public_key": "<base64 of 32-byte raw key>",
         "public_key_encoding": "base64-raw",
+        # default-HMAC-key only (additive field):
+        "advisory": true,   # integrity-only — key is public knowledge, not attestation
       }
     """
     payload_bytes = canonical_bytes(payload)
@@ -148,7 +150,8 @@ def sign_packet(payload: dict, signed_at: str, key_id: Optional[str] = None) -> 
 
     # HMAC fallback
     sign_key_raw = os.environ.get("BLASTCONTAIN_SIGNING_KEY", "local-verify-default")
-    if sign_key_raw == "local-verify-default":
+    advisory = sign_key_raw == "local-verify-default"
+    if advisory:
         print(
             "Warning: signing audit packet with default HMAC key "
             "'local-verify-default'. Signatures are advisory only and cannot "
@@ -156,7 +159,7 @@ def sign_packet(payload: dict, signed_at: str, key_id: Optional[str] = None) -> 
             "a PEM-encoded Ed25519 key for production attestation.",
             file=sys.stderr,
         )
-    return {
+    sig = {
         "algorithm":      "sha256-hmac",
         "key_id":         sign_key_id,
         "value":          hmac.new(sign_key_raw.encode(), payload_bytes, hashlib.sha256).hexdigest(),
@@ -164,6 +167,13 @@ def sign_packet(payload: dict, signed_at: str, key_id: Optional[str] = None) -> 
         "canonical":      "json-sort-keys-tight",
         "signed_at":      signed_at,
     }
+    if advisory:
+        # Machine-readable honesty: the default key is shared knowledge, so this
+        # signature proves integrity, not provenance. Downstream tooling (the
+        # Ledger, CI gates) can refuse advisory packets mechanically instead of
+        # parsing a stderr warning. Absent on Ed25519 and real-key HMAC packets.
+        sig["advisory"] = True
+    return sig
 
 
 def verify_packet(packet: dict, public_key_b64: Optional[str] = None) -> bool:

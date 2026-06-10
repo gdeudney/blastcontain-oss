@@ -4,6 +4,14 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 
 ## [Unreleased]
 
+### Added
+- `--require-signing` flag — exit 3 before scanning when no real signing key is configured, so CI attestation pipelines never emit an advisory (default-HMAC-key) packet.
+- Doc-drift tests (`tests/unit/test_doc_consistency.py`) pin the spec's per-check sections and the README's check/category counts to the new canonical inventory `constants.ALL_CHECK_IDS`, and pin pyproject/`__version__`/CHANGELOG coherence (regression guard for the hardcoded `generator_version` bug).
+- `CONTRIBUTING.md` gains the augmentation acceptance checklist (pip-audit-clean tree, no exact-pins of shared libraries, offline/read-only import safety, tree-size budget, graceful degradation) — codifying the litellm/tldextract lessons. The Security workflow now also audits the opt-in `[cisco]` tree weekly, non-gating.
+
+### Changed
+- Audit packets signed with the built-in default HMAC key now carry `signature.advisory: true` (additive field from `blastcontain-core`) — integrity-only signatures are machine-distinguishable from attestation. README/SECURITY.md state the distinction plainly.
+
 ## [0.3.1] — 2026-06-03
 
 ### Fixed

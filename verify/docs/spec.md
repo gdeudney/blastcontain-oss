@@ -769,10 +769,20 @@ This produces a deterministic byte string that any verifier in any language can 
     "value": "<64-char hex>",
     "value_encoding": "hex",
     "canonical": "json-sort-keys-tight",
-    "signed_at": "<iso8601>"
+    "signed_at": "<iso8601>",
+    "advisory": true
   }
 }
 ```
+
+`advisory: true` is an **additive** signature-block field present only when the
+packet was signed with the built-in default key (`local-verify-default`). The
+default key is public knowledge, so such a signature proves *integrity*
+(payload unmodified since signing) but **not provenance** — anyone can produce
+one. Downstream tooling should treat advisory packets as unattested; CI
+pipelines that must never emit one can pass `--require-signing`, which exits 3
+before scanning when no real key source is configured. Packets signed with
+Ed25519 or a real HMAC key omit the field.
 
 ### 7.5 Generating a key
 
@@ -987,5 +997,8 @@ result = guard.verify(model_path)
 | Hardened-container offline hardening | The optional `[full]` deps (presidio→`tldextract`, `litellm` via the Cisco scanners, Hugging Face/`onnxruntime`) attempt `~/.cache` writes and remote fetches on first use. In the hardened run profile (`--read-only`, no writable `$HOME` at `/home/verify`, `--network none`) those raise (`OSError: Read-only file system` / `socket.gaierror`); with some unpinned version combinations the failure escapes a check and aborts the scan (traceback, no audit packet). `blastcontain_verify/__init__.py::_harden_runtime_env()` — mirrored by `Containerfile` `ENV` — runs *before any optional dep is imported* and redirects every cache to the writable `/tmp` tmpfs (`TLDEXTRACT_CACHE`, `XDG_CACHE_HOME`, `HF_HOME`, `MPLCONFIGDIR`; base is writability-probed) and forces offline (`HF_HUB_OFFLINE`, `TRANSFORMERS_OFFLINE`, `LITELLM_LOCAL_MODEL_COST_MAP`). `$HOME` is deliberately **not** redirected — a writable home would make PERM-01 (persistence-locations-writable) fire on the hardened container. The four optional-dep import guards in `augmentation.py` also catch `SystemExit` (not just `Exception`), so an ML library that aborts its own import downgrades the augmentation instead of killing Verify. |
 | MEM-01 offline regex fallback | When Presidio is installed but its analysis returns nothing — e.g. its network/cache-dependent recognisers degrade offline — `_scan_text_for_pii` falls back to the built-in regex patterns. Previously the regex ran only when Presidio was entirely absent, so a present-but-degraded Presidio could PASS PII-laden context (a false negative). The finding's scanner label records which path produced the hit. |
 | Malformed config degrades | A present-but-unparseable `--config` file (invalid YAML, or a path that resolves to a directory) logs a stderr warning and falls back to defaults instead of raising out of `load_config()` → `main()`. Matches how `api.py` / `skills.py` treat unparseable inputs and keeps Verify fail-safe. A *non-existent* `--config` path was already a no-op via the `.exists()` guard. |
+| Advisory signatures are machine-readable | Packets signed with the default HMAC key carry `signature.advisory: true` (additive field, no schema bump — three packages share the 1.1 writer) so the Ledger and CI gates can refuse unattested packets mechanically instead of parsing a stderr warning. `--require-signing` fails fast (exit 3, before scanning) when no real key is configured. See §7.4. |
+| Augmentation acceptance checklist | Every candidate augmentation must pass the checklist in [CONTRIBUTING.md](../CONTRIBUTING.md#adding-an-augmentation) (pip-audit-clean tree, no exact-pins of shared libs, offline/read-only import safety, tree-size budget, graceful degradation) before landing in any extra. CVE-bearing packages that clear the other gates go in opt-in extras only, with accepted CVEs documented in SECURITY.md; the Security workflow audits opt-in trees weekly, non-gating. Codifies the litellm/tldextract lessons. |
+| Doc-drift tests | `tests/unit/test_doc_consistency.py` pins prose facts to code: spec.md §5 sections ↔ `constants.ALL_CHECK_IDS` (the canonical inventory), the README check/category counts, pyproject ↔ `__version__` ↔ CHANGELOG, and the generator_version regression. Duplicated facts rot silently otherwise — the hardcoded generator_version bug was this failure mode. |
 | Cisco scanners are opt-in | The Cisco AI Defense scanners (`cisco-ai-mcp-scanner` → MCP-01 backend, `cisco-ai-skill-scanner` → SKILL-02) are **excluded from `[full]`** and installed only via `[cisco]` / `[mcp]` / `[skill]`. They transitively pull `litellm`, which exact-pins vulnerable `aiohttp` / `python-dotenv` (CVE-2026-34993, -47265, -40217, -28684) with no fixable combination (`cisco-ai-mcp-scanner` pins `litellm==1.83.7`; `litellm` pins the vulnerable transitive versions even in its patched release). `[full]` and the official image are therefore **CVE-clean by default** (enforced by `pip-audit` in the Security workflow); SKILL-02 and the Cisco MCP-01 backend SKIP with an enable hint when the extra is absent. See SECURITY.md. |
 | Output write is fail-safe | The `--report` / `--output` / `--sarif` writes in `cli.py` are wrapped: a non-writable output path prints a clear, actionable error and exits 3 (ERROR) rather than raising an uncaught `OSError`. This was the actual cause of the red "Verify hardened-container integration" job — the non-root scan UID (10001) could not write the host-mounted `/reports` volume in CI's rootless podman, so every output-writing scan crashed on the audit-packet write (after the scan and signing had succeeded). The integration conftest now `chmod`s the mounted `/reports` (and writable `/models`) so uid 10001 can write them. |

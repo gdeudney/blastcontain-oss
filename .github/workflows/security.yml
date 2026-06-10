@@ -45,6 +45,31 @@ jobs:
       - name: Audit guard pinned runtime closure (core + guard)
         run: pip-audit --no-deps -r guard/constraints.txt
 
+  # Opt-in extras carry documented, accepted CVEs (see verify/SECURITY.md), so
+  # this job is NON-GATING — it exists to make *new* CVEs in those trees
+  # visible weekly instead of surprising an opt-in user. Gating lives above on
+  # the CVE-clean default sets only.
+  pip-audit-optin:
+    name: Dependency audit — opt-in extras (non-gating)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve verify[full,cisco] and audit the environment
+        run: |
+          python -m venv .optin
+          . .optin/bin/activate
+          pip install -q ./core "./verify[full,cisco]" pip-audit
+          pip-audit 2>&1 | tee optin-extras-audit.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: optin-extras-audit
+          path: optin-extras-audit.txt
+
   bandit:
     name: SAST (bandit)
     runs-on: ubuntu-latest
