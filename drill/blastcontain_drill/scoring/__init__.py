@@ -67,14 +67,17 @@ def score_content(scorers: list[Scorer], attack, response_text: str):
     axis = rubric_for(attack).axis
     verdicts = []
     for s in scorers:
+        if axis not in getattr(s, "axes", _ALL_AXES):
+            continue                      # not an error — principled axis routing
         try:
-            if axis not in getattr(s, "axes", _ALL_AXES):
-                continue
             if not s.is_available():
                 continue
             verdicts.append(s.score(attack, response_text))
-        except Exception:
-            continue
+        except Exception as exc:  # a crashing scorer becomes a visible error, not a silent drop
+            verdicts.append({
+                "scorer": getattr(s, "name", "scorer"), "matched": None,
+                "label": "error", "rationale": f"scorer crashed: {exc}"[:200],
+            })
     if not verdicts:
         return None, []
     for verdict in verdicts:

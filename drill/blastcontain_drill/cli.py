@@ -38,6 +38,7 @@ _EXIT = {
 @click.option("--cage", "cage_kind", default=None, help="inprocess | podman")
 @click.option("--target-base-url", default=None, help="OpenAI-compatible endpoint for the in-cage agent")
 @click.option("--target-model", default=None, help="Model id to drive as the agent (e.g. qwen/qwen3.6-27b)")
+@click.option("--target-temperature", default=None, type=float, help="Target sampling temperature (recorded in the report; default 0.4)")
 @click.option("--judge-base-url", default=None, help="Endpoint for the judge (defaults to target)")
 @click.option("--judge-model", default=None, help="Model id for the content-plane judge")
 @click.option("--judge-kind", default=None, type=click.Choice(["llm", "geval"]), help="Judge engine: llm (built-in) | geval (DeepEval G-Eval; needs the [judge] extra)")
@@ -50,6 +51,7 @@ _EXIT = {
 @click.option("--enable-aig", is_flag=True, default=False, help="Add AI-Infra-Guard source if its service is up")
 @click.option("--operators", "enable_operators", is_flag=True, default=False, help="Add the model-free Operators layer (technique transforms)")
 @click.option("--jbb", "enable_jbb", is_flag=True, default=False, help="Add the vendored JailbreakBench dataset (100 harmful + 100 benign over-refusal probes)")
+@click.option("--systemcard", "enable_systemcard", is_flag=True, default=False, help="Add the system-card-derived checks (cyber misuse/dual-use, identity & leaked-info honesty, ART injection)")
 @click.option("--generative", is_flag=True, default=False, help="Run the generative layer (attacker model crafts/refines jailbreaks)")
 @click.option("--generative-only", is_flag=True, default=False, help="Skip the static corpus; run only the generative loop")
 @click.option("--attacker-model", default=None, help="Abliterated/Heretic attacker model id for the generative layer")
@@ -62,9 +64,9 @@ _EXIT = {
 @click.option("--blastcontain-url", default=None, help="BlastContain Ledger URL (or $BLASTCONTAIN_URL)")
 @click.option("--dry-run", is_flag=True, default=False, help="Skip the Ledger POST")
 def main(
-    agent_id, config, env, cage_kind, target_base_url, target_model,
+    agent_id, config, env, cage_kind, target_base_url, target_model, target_temperature,
     judge_base_url, judge_model, judge_kind, guard_model, agent_url, corpus, scenarios,
-    limit, charter, enable_aig, enable_operators, enable_jbb,
+    limit, charter, enable_aig, enable_operators, enable_jbb, enable_systemcard,
     generative, generative_only, attacker_model, attacker_base_url,
     generative_iters, generative_corpus,
     max_steps, output, report,
@@ -83,6 +85,7 @@ def main(
         cli_overrides={
             "agent_id": agent_id, "environment": env, "cage": cage_kind,
             "target_base_url": target_base_url, "target_model": target_model,
+            "target_temperature": target_temperature,
             "judge_base_url": judge_base_url, "judge_model": judge_model,
             "judge_kind": judge_kind,
             "guard_model": guard_model, "agent_url": agent_url, "corpus": corpus,
@@ -90,6 +93,7 @@ def main(
             "enable_aig": enable_aig if enable_aig else None,
             "enable_operators": enable_operators if enable_operators else None,
             "enable_jbb": enable_jbb if enable_jbb else None,
+            "enable_systemcard": enable_systemcard if enable_systemcard else None,
             "generative": generative if generative else None,
             "generative_only": generative_only if generative_only else None,
             "attacker_model": attacker_model, "attacker_base_url": attacker_base_url,
@@ -157,6 +161,8 @@ def main(
     if drill.over_refusals:
         click.echo(f"  Over-refusals: {len(drill.over_refusals)}  (benign requests wrongly refused)")
     click.echo(f"  Errors:      {len(drill.errors)}")
+    for w in drill.warnings:
+        click.echo(f"  ⚠ {w}")
     click.echo()
 
     if cfg.report:

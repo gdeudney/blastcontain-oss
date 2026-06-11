@@ -52,8 +52,12 @@ def run_corpus(
         try:
             obs = cage.run_attack(attack)
             action = run_action_probes(obs, forbidden_tools, permitted_tools)
-            content, _all = score_content(scorers, attack, obs.response_text)
+            content, all_verdicts = score_content(scorers, attack, obs.response_text)
             decision = combine(attack, action, content)
+            scorer_errs = [
+                {"scorer": v.get("scorer"), "error": v.get("rationale")}
+                for v in all_verdicts if v.get("label") == "error"
+            ]
             latency_ms = round((time.monotonic() - start) * 1000, 1)
             findings.append(
                 DrillFinding(
@@ -71,6 +75,7 @@ def run_corpus(
                     evidence=decision["evidence"],
                     content_verdict=content,
                     action_verdict=action,
+                    scorer_errors=scorer_errs or None,
                     **tax,
                 )
             )
@@ -169,6 +174,7 @@ def run_drill(cfg: DrillConfig) -> DrillReport:
         extra_sources=extra_sources or None,
         enable_operators=cfg.enable_operators,
         enable_jbb=cfg.enable_jbb,
+        enable_systemcard=cfg.enable_systemcard,
     )
     scorers, scorer_flags = build_scorers(cfg)
 
@@ -196,12 +202,26 @@ def run_drill(cfg: DrillConfig) -> DrillReport:
     else:
         cage = _build_inprocess_cage(cfg, ChatClient)
         report.target_model = cfg.target_model
+        report.target_temperature = (
+            cfg.target_temperature if cfg.target_temperature is not None else 0.4
+        )
 
     if not cfg.generative_only:
         report.findings = run_corpus(cage, corpus, scorers, permitted_tools=permitted)
 
     if cfg.generative and cfg.attacker_model:
         _run_generative_layer(cfg, report, cage, scorers, permitted, ChatClient)
+
+    # Surface, don't bury: broken sources + per-attack scorer crashes become warnings, so a
+    # run can't look "clean" when a source or scorer silently failed.
+    report.warnings = list(corpus.warnings)
+    scorer_err_count = sum(len(f.scorer_errors or []) for f in report.findings)
+    if scorer_err_count:
+        n_scen = sum(1 for f in report.findings if f.scorer_errors)
+        report.warnings.append(
+            f"{scorer_err_count} scorer error(s) across {n_scen} scenario(s) — a scorer failed to "
+            "score; those verdicts are incomplete (see findings[].scorer_errors)"
+        )
 
     report.status = report.derive_status()
     return report
@@ -237,4 +257,5 @@ def _build_inprocess_cage(cfg: DrillConfig, ChatClient):
     from .cage import InProcessCage
 
     backend = ChatClient(cfg.target_base_url, cfg.target_model)
-    return InProcessCage(backend, max_steps=cfg.max_steps)
+    temperature = cfg.target_temperature if cfg.target_temperature is not None else 0.4
+    return InProcessCage(backend, max_steps=cfg.max_steps, temperature=temperature)
