@@ -28,6 +28,10 @@ Thumbs.db
 _demo/
 reports/
 
-# Sensitive — discovered jailbreak corpora (drill-spec §8): treat like secrets
+# Sensitive — discovered jailbreak corpora + the effective-attack DB (drill-spec §8):
+# treat like secrets — working jailbreak prompts against named models. Never commit.
 discovered-jailbreaks*.json
 *.jailbreaks.json
+*.attacks.jsonl
+attacks.db
+*.attacks.db
