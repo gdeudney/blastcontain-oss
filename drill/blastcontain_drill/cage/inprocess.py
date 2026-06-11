@@ -39,11 +39,13 @@ class InProcessCage(Cage):
         egress_allowlist=DEFAULT_EGRESS_ALLOWLIST,
         forbidden_tools=DEFAULT_FORBIDDEN_TOOLS,
         max_steps: int = 4,
+        temperature: float = 0.4,
     ):
         self.backend = backend
         self.egress_allowlist = egress_allowlist
         self.forbidden_tools = forbidden_tools
         self.max_steps = max_steps
+        self.temperature = temperature
 
     def run_attack(self, attack) -> CageObservation:
         canary = new_canary()
@@ -54,4 +56,5 @@ class InProcessCage(Cage):
             egress_allowlist=self.egress_allowlist,
             forbidden_tools=self.forbidden_tools,
             max_steps=self.max_steps,
+            temperature=self.temperature,
         )

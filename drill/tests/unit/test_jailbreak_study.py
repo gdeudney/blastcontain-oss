@@ -88,9 +88,46 @@ def test_effective_records_recovers_static_bypass_prompts():
     report = SimpleNamespace(findings=[finding], target_model="qwen3.6-27b",
                              attacker_model="heretic", judge_model=None, guard_model=None)
     cfg = SimpleNamespace(corpus="latest", scenarios=[], limit=1, enable_operators=False,
-                          enable_jbb=True, agent_id="t", generative_corpus=None)
+                          enable_jbb=True, enable_systemcard=False, agent_id="t",
+                          generative_corpus=None)
     records = _effective_records(cfg, report)
     assert len(records) == 1
     assert records[0]["prompt"] == atk.prompt          # full prompt recovered
     assert records[0]["target_model"] == "qwen3.6-27b"
     assert records[0]["severity"] == "HIGH"
+
+
+def test_wilson_interval_brackets_the_point_estimate():
+    from blastcontain_drill.jailbreak_study import wilson_interval
+
+    lo, hi = wilson_interval(8, 10)                  # p = 0.8
+    assert 0.0 <= lo <= 0.8 <= hi <= 1.0
+    assert wilson_interval(0, 0) == (0.0, 1.0)       # no data -> full interval
+
+
+def test_aggregate_asr_scenario_and_attempt_level():
+    from types import SimpleNamespace
+
+    from blastcontain_core.models import DrillOutcome
+
+    from blastcontain_drill.jailbreak_study import aggregate_asr
+
+    def rep(outcomes):
+        return SimpleNamespace(findings=[
+            SimpleNamespace(attack_id=aid, layer="replay", outcome=o)
+            for aid, o in outcomes.items()
+        ])
+
+    bypass, held = DrillOutcome.BYPASS, DrillOutcome.HELD
+    reports = [
+        rep({"a1": bypass, "a2": held}),   # attempt 1: a1 broke
+        rep({"a1": held, "a2": held}),     # attempt 2: a1 held
+        rep({"a1": held, "a2": held}),     # attempt 3
+    ]
+    a = aggregate_asr("m", reports)
+    assert a["attempts"] == 3 and a["scenarios"] == 2
+    assert a["scenario_bypass"] == 1                 # a1 bypassed in >=1 of 3 tries
+    assert a["scenario_held"] == 1                   # a2 never bypassed
+    assert a["attempt_bypasses"] == 1 and a["attempt_total"] == 6
+    assert a["attempt_asr"] == round(1 / 6, 3)
+    assert a["resistance"] == 0.5                    # 1 held / (1 held + 1 bypass)

@@ -84,6 +84,10 @@ def write_markdown_report(report: DrillReport, path: str) -> None:
         "",
     ]
     lines += summary_lines
+    if report.warnings:
+        lines += ["## ⚠ Warnings", ""]
+        lines += [f"- {w}" for w in report.warnings]
+        lines += [""]
     if report.critical_bypasses:
         lines += [
             "> 🔴 **CRITICAL bypasses present — this drill blocks prod promotion.**",

@@ -25,6 +25,7 @@ class DrillConfig:
     # Target model (the in-cage agent) — any OpenAI-compatible endpoint
     target_base_url: str = "http://localhost:1234/v1"
     target_model: str = ""
+    target_temperature: Optional[float] = None  # cage sampling temp (None -> cage default 0.4)
 
     # Black-box mode — attack an already-running agent over HTTP instead
     agent_url: Optional[str] = None
@@ -42,6 +43,7 @@ class DrillConfig:
     enable_aig: bool = False                   # add AI-Infra-Guard source if up
     enable_operators: bool = False             # add the model-free Operators layer
     enable_jbb: bool = False                   # add the vendored JailbreakBench dataset
+    enable_systemcard: bool = False            # add the system-card-derived agent-safety checks
 
     # Generative layer — an abliterated/Heretic attacker model in a refinement loop
     generative: bool = False
@@ -74,8 +76,10 @@ class DrillConfig:
 
 _FIELDS = (
     "agent_id", "environment", "cage", "max_steps", "target_base_url",
-    "target_model", "agent_url", "judge_base_url", "judge_model", "judge_kind", "guard_model",
+    "target_model", "target_temperature", "agent_url", "judge_base_url", "judge_model",
+    "judge_kind", "guard_model",
     "corpus", "scenarios", "limit", "enable_aig", "enable_operators", "enable_jbb",
+    "enable_systemcard",
     "charter", "output", "report",
     "generative", "generative_only", "attacker_model", "attacker_base_url",
     "generative_iters", "generative_corpus",
