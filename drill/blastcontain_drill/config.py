@@ -44,6 +44,7 @@ class DrillConfig:
     enable_operators: bool = False             # add the model-free Operators layer
     enable_jbb: bool = False                   # add the vendored JailbreakBench dataset
     enable_systemcard: bool = False            # add the system-card-derived agent-safety checks
+    enable_multiturn: bool = False             # add the multi-turn checks (long-context, decomposition)
 
     # Generative layer — an abliterated/Heretic attacker model in a refinement loop
     generative: bool = False
@@ -79,7 +80,7 @@ _FIELDS = (
     "target_model", "target_temperature", "agent_url", "judge_base_url", "judge_model",
     "judge_kind", "guard_model",
     "corpus", "scenarios", "limit", "enable_aig", "enable_operators", "enable_jbb",
-    "enable_systemcard",
+    "enable_systemcard", "enable_multiturn",
     "charter", "output", "report",
     "generative", "generative_only", "attacker_model", "attacker_base_url",
     "generative_iters", "generative_corpus",

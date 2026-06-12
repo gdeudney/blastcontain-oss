@@ -9,7 +9,7 @@ Version 0.2 | 2026-06-03 | Audience: Engineering
 >
 > Companion specs: [guard-spec](BlastContain-guard-spec.md), [data-trust-spec](BlastContain-data-trust-spec.md)
 > (Qwen3Guard), [charter-spec §7.7](BlastContain-charter-spec.md) (behavioural baseline),
-> [roadmap](BlastContain-roadmap.md) (Drill = **P1**). **Status: ✅ built — build-order steps 1–7 done (cage + action probes + 3 corpus layers + two-plane scoring + signed DrillReport + hardened container + guards); plus JailbreakBench / over-refusal scoring, version-pinned sources, WildGuard, and a model-sweep harness (2026-06).**
+> [roadmap](BlastContain-roadmap.md) (Drill = **P1**). **Status: ✅ built — build-order steps 1–7 done (cage + action probes + 3 corpus layers + two-plane scoring + signed DrillReport + hardened container + guards); plus JailbreakBench / over-refusal scoring, version-pinned sources, WildGuard, a model-sweep harness, and a multi-turn harness (2026-06).**
 
 > **Status legend:** ✅ done · 🟡 partial · ⬜ planned · ◇ future
 
@@ -64,7 +64,7 @@ effort:
 
 | Layer | Source | Catches | Cost |
 |---|---|---|---|
-| **Replay** | built-in seed · **JailbreakBench** (100 harmful + 100 benign over-refusal probes; MIT, pinned `@886acc3`) · HF jailbreak datasets · AI-Infra-Guard curated sets | *known* attacks — a **regression suite** (+ over-refusal / false-positive measurement) | cheap, reproducible |
+| **Replay** | built-in seed · **JailbreakBench** (100 harmful + 100 benign over-refusal probes; MIT, pinned `@886acc3`) · **system-card** checks (`--systemcard`) · **multi-turn** (`--multiturn`: long-context reference tracking · decomposition/recompose · multi-turn crescendo) · HF jailbreak datasets · AI-Infra-Guard curated sets | *known* attacks — a **regression suite** (+ over-refusal / false-positive measurement) | cheap, reproducible |
 | **Operators** | model-free `str→str` transforms (PyRIT/DeepTeam-derived) — encoders (base64 · ROT13 · Caesar · Atbash · Morse · binary · URL) · filter-evasion (leetspeak · char-space · zero-width · homoglyph) · framing (many-shot · persona · payload-split · prefix-injection · multilingual); GCG/AutoDAN suffixes on the roadmap | known *methods* on fresh seeds | medium |
 | **Generative** | a **Heretic / abliterated attacker model** (no refusals) | *novel* jailbreaks the corpus has never seen | compute-heavy |
 

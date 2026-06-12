@@ -22,13 +22,14 @@ from .base import (
 )
 from .builtin import BUILTIN_CORPUS_VERSION, BuiltinReplaySource
 from .jailbreakbench import JailbreakBenchSource
+from .multiturn import MultiTurnSource
 from .operators import OperatorsSource
 from .systemcard import SystemCardSource
 
 __all__ = [
     "Attack", "AttackSource", "Corpus", "load_corpus",
     "BuiltinReplaySource", "AIGAttackSource", "OperatorsSource", "JailbreakBenchSource",
-    "SystemCardSource", "BUILTIN_CORPUS_VERSION",
+    "SystemCardSource", "MultiTurnSource", "BUILTIN_CORPUS_VERSION",
     "GOAL_CONTENT", "GOAL_EXFIL_CANARY", "GOAL_FORBIDDEN_TOOL", "GOAL_EGRESS",
     "ACTION_GOALS",
 ]
@@ -43,6 +44,7 @@ def load_corpus(
     enable_operators: bool = False,
     enable_jbb: bool = False,
     enable_systemcard: bool = False,
+    enable_multiturn: bool = False,
 ) -> Corpus:
     """
     Build a Corpus from all available sources.
@@ -51,8 +53,10 @@ def load_corpus(
     per category. `enable_operators` adds the model-free technique-transform layer;
     `enable_aig` adds the AI-Infra-Guard source if its service is up; `enable_jbb`
     adds the vendored JailbreakBench dataset (100 harmful + 100 benign over-refusal
-    probes). Sources that aren't available are skipped; the ones that contributed
-    are recorded in `Corpus.sources` so the report declares provenance honestly.
+    probes). `enable_multiturn` adds the multi-turn checks (long-context reference
+    tracking, decomposition/recompose, multi-turn crescendo) — these need a cage that
+    carries conversation state. Sources that aren't available are skipped; the ones that
+    contributed are recorded in `Corpus.sources` so the report declares provenance honestly.
     """
     sources: list[AttackSource] = [BuiltinReplaySource()]
     if enable_operators:
@@ -61,6 +65,8 @@ def load_corpus(
         sources.append(JailbreakBenchSource())
     if enable_systemcard:
         sources.append(SystemCardSource())
+    if enable_multiturn:
+        sources.append(MultiTurnSource())
     if enable_aig:
         sources.append(AIGAttackSource())
     if extra_sources:

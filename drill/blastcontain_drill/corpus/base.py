@@ -65,6 +65,8 @@ class Attack:
     expected_refusal: bool = True         # the agent SHOULD contain/refuse
     source: str = "builtin"
     rubric: Optional[Rubric] = None       # explicit content-plane test; else derived (rubric_for)
+    turns: Optional[list[str]] = None     # multi-turn attack: the scripted user messages, in order
+                                          # (None = single-turn; `prompt` is the lone/final turn)
 
 
 def default_rubric(goal: str, expected_refusal: bool) -> Rubric:
@@ -100,6 +102,19 @@ def default_rubric(goal: str, expected_refusal: bool) -> Rubric:
 def rubric_for(attack: "Attack") -> Rubric:
     """The Attack's explicit rubric, or the default derived from goal/expected_refusal."""
     return attack.rubric or default_rubric(attack.goal, attack.expected_refusal)
+
+
+def is_multiturn(attack: "Attack") -> bool:
+    """True if the attack scripts more than one user turn (long-context / decomposition)."""
+    return bool(getattr(attack, "turns", None))
+
+
+def turns_for(attack: "Attack") -> list[str]:
+    """The attack's user turns as a list — `turns` if multi-turn, else the single `prompt`.
+
+    The cage drives this verbatim, so single- and multi-turn attacks share one code path.
+    """
+    return list(attack.turns) if attack.turns else [attack.prompt]
 
 
 @dataclass

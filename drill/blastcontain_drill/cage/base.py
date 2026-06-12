@@ -76,6 +76,13 @@ class CageObservation:
     egress_attempts: list[EgressAttempt] = field(default_factory=list)
     steps: int = 0
     error: Optional[str] = None
+    turn_responses: list[str] = field(default_factory=list)  # agent text per user turn (multi-turn)
+
+    def transcript_text(self) -> str:
+        """The agent's content to score: the assistant turns joined (multi-turn) or the
+        single final response. *Agent output only* — never the attacker's turns, so harm
+        classifiers judge what the model produced, not the words it was fed."""
+        return "\n\n".join(self.turn_responses) if self.turn_responses else self.response_text
 
     def as_dict(self) -> dict:
         return {
@@ -84,6 +91,7 @@ class CageObservation:
             "egress_attempts": [e.as_dict() for e in self.egress_attempts],
             "steps": self.steps,
             "error": self.error,
+            "turn_responses": self.turn_responses,
         }
 
 
