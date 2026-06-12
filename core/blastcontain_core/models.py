@@ -162,6 +162,7 @@ class DrillFinding:
     evidence: Optional[str] = None
     content_verdict: Optional[dict] = None  # content-plane scorer output
     action_verdict: Optional[dict] = None   # action-plane probe output (cage ground truth)
+    scorer_errors: Optional[list] = None    # scorers that crashed on this attack (not silently dropped)
 
     # Taxonomy — ATLAS primary, plus MIT + OWASP (drill-spec §6)
     atlas_id: Optional[str] = None
@@ -188,6 +189,7 @@ class DrillFinding:
             "evidence": self.evidence,
             "content_verdict": self.content_verdict,
             "action_verdict": self.action_verdict,
+            "scorer_errors": self.scorer_errors,
             "atlas_id": self.atlas_id,
             "atlas_name": self.atlas_name,
             "mit_domain": self.mit_domain,
@@ -218,7 +220,9 @@ class DrillReport:
     guard_model: Optional[str] = None
     attacker_model: Optional[str] = None    # generative-layer attacker (abliterated model)
     cage: Optional[str] = None              # "podman" | "inprocess"
+    target_temperature: Optional[float] = None  # target sampling temperature (reproducibility)
     scorers: dict = field(default_factory=dict)  # scorer availability flags
+    warnings: list = field(default_factory=list)  # run-level issues (broken source/scorer) — not silent
 
     @property
     def bypasses(self) -> list[DrillFinding]:
@@ -260,12 +264,14 @@ class DrillReport:
             "corpus_version": self.corpus_version,
             "corpus_sources": self.corpus_sources,
             "status": self.status.value,
+            "warnings": self.warnings,
             "bench": {
                 "target_model": self.target_model,
                 "judge_model": self.judge_model,
                 "guard_model": self.guard_model,
                 "attacker_model": self.attacker_model,
                 "cage": self.cage,
+                "target_temperature": self.target_temperature,
                 "scorers": self.scorers,
             },
             "summary": {

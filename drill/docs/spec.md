@@ -173,7 +173,7 @@ mapping on the Zero-Trust horizon list.)
 
 - **Pin the corpus — per source.** A DrillReport states the corpus version *and* pins **each source
   individually**: `corpus_sources` records `name@revision` (`builtin-replay@v2026.06`,
-  `jailbreakbench@886acc3`, `operators@v2`) via `AttackSource.revision`. Reproducible, regression-
+  `jailbreakbench@886acc3`, `operators@v3`) via `AttackSource.revision`. Reproducible, regression-
   comparable, audit-packet-worthy — versioned like the behavioural golden dataset (charter-spec §7.7).
 - **Regression.** Re-run a new agent / Charter version against the pinned corpus; surface new bypasses
   vs the last DrillReport (the existing before/after baseline).

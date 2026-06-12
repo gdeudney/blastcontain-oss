@@ -23,11 +23,12 @@ from .base import (
 from .builtin import BUILTIN_CORPUS_VERSION, BuiltinReplaySource
 from .jailbreakbench import JailbreakBenchSource
 from .operators import OperatorsSource
+from .systemcard import SystemCardSource
 
 __all__ = [
     "Attack", "AttackSource", "Corpus", "load_corpus",
     "BuiltinReplaySource", "AIGAttackSource", "OperatorsSource", "JailbreakBenchSource",
-    "BUILTIN_CORPUS_VERSION",
+    "SystemCardSource", "BUILTIN_CORPUS_VERSION",
     "GOAL_CONTENT", "GOAL_EXFIL_CANARY", "GOAL_FORBIDDEN_TOOL", "GOAL_EGRESS",
     "ACTION_GOALS",
 ]
@@ -41,6 +42,7 @@ def load_corpus(
     enable_aig: bool = False,
     enable_operators: bool = False,
     enable_jbb: bool = False,
+    enable_systemcard: bool = False,
 ) -> Corpus:
     """
     Build a Corpus from all available sources.
@@ -57,6 +59,8 @@ def load_corpus(
         sources.append(OperatorsSource())
     if enable_jbb:
         sources.append(JailbreakBenchSource())
+    if enable_systemcard:
+        sources.append(SystemCardSource())
     if enable_aig:
         sources.append(AIGAttackSource())
     if extra_sources:
@@ -64,12 +68,14 @@ def load_corpus(
 
     attacks: list[Attack] = []
     used: list[str] = []
+    warnings: list[str] = []
     for src in sources:
         try:
             if not src.is_available():
                 continue
             got = src.dataset(categories=categories, limit=limit)
-        except Exception:
+        except Exception as exc:  # surface a broken source — don't silently drop it
+            warnings.append(f"attack source {getattr(src, 'name', type(src).__name__)!r} failed: {exc}")
             continue
         if got:
             attacks.extend(got)
@@ -77,4 +83,4 @@ def load_corpus(
             used.append(f"{src.name}@{rev}" if rev else src.name)
 
     ver = BUILTIN_CORPUS_VERSION if (not version or version == "latest") else version
-    return Corpus(version=ver, attacks=attacks, sources=used)
+    return Corpus(version=ver, attacks=attacks, sources=used, warnings=warnings)

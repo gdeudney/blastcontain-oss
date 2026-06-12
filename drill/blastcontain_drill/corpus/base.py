@@ -109,6 +109,7 @@ class Corpus:
     version: str
     attacks: list[Attack] = field(default_factory=list)
     sources: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)  # broken sources surfaced, not dropped
 
     def __len__(self) -> int:
         return len(self.attacks)
@@ -134,7 +135,8 @@ class Corpus:
                     out.append(a)
                     seen[a.category] = n + 1
             atk = out
-        return Corpus(version=self.version, attacks=atk, sources=self.sources)
+        return Corpus(version=self.version, attacks=atk, sources=self.sources,
+                      warnings=self.warnings)
 
 
 class AttackSource(ABC):
