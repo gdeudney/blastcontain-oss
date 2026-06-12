@@ -52,7 +52,9 @@ def run_corpus(
         try:
             obs = cage.run_attack(attack)
             action = run_action_probes(obs, forbidden_tools, permitted_tools)
-            content, all_verdicts = score_content(scorers, attack, obs.response_text)
+            # Score the agent's whole transcript (assistant turns joined) so a multi-turn
+            # attack is judged on everything it produced; single-turn = the lone response.
+            content, all_verdicts = score_content(scorers, attack, obs.transcript_text())
             decision = combine(attack, action, content)
             scorer_errs = [
                 {"scorer": v.get("scorer"), "error": v.get("rationale")}
@@ -175,6 +177,7 @@ def run_drill(cfg: DrillConfig) -> DrillReport:
         enable_operators=cfg.enable_operators,
         enable_jbb=cfg.enable_jbb,
         enable_systemcard=cfg.enable_systemcard,
+        enable_multiturn=cfg.enable_multiturn,
     )
     scorers, scorer_flags = build_scorers(cfg)
 

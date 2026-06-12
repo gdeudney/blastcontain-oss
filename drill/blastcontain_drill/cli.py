@@ -52,6 +52,7 @@ _EXIT = {
 @click.option("--operators", "enable_operators", is_flag=True, default=False, help="Add the model-free Operators layer (technique transforms)")
 @click.option("--jbb", "enable_jbb", is_flag=True, default=False, help="Add the vendored JailbreakBench dataset (100 harmful + 100 benign over-refusal probes)")
 @click.option("--systemcard", "enable_systemcard", is_flag=True, default=False, help="Add the system-card-derived checks (cyber misuse/dual-use, identity & leaked-info honesty, ART injection)")
+@click.option("--multiturn", "enable_multiturn", is_flag=True, default=False, help="Add the multi-turn checks (long-context reference tracking, decomposition/recompose, multi-turn crescendo)")
 @click.option("--generative", is_flag=True, default=False, help="Run the generative layer (attacker model crafts/refines jailbreaks)")
 @click.option("--generative-only", is_flag=True, default=False, help="Skip the static corpus; run only the generative loop")
 @click.option("--attacker-model", default=None, help="Abliterated/Heretic attacker model id for the generative layer")
@@ -67,6 +68,7 @@ def main(
     agent_id, config, env, cage_kind, target_base_url, target_model, target_temperature,
     judge_base_url, judge_model, judge_kind, guard_model, agent_url, corpus, scenarios,
     limit, charter, enable_aig, enable_operators, enable_jbb, enable_systemcard,
+    enable_multiturn,
     generative, generative_only, attacker_model, attacker_base_url,
     generative_iters, generative_corpus,
     max_steps, output, report,
@@ -94,6 +96,7 @@ def main(
             "enable_operators": enable_operators if enable_operators else None,
             "enable_jbb": enable_jbb if enable_jbb else None,
             "enable_systemcard": enable_systemcard if enable_systemcard else None,
+            "enable_multiturn": enable_multiturn if enable_multiturn else None,
             "generative": generative if generative else None,
             "generative_only": generative_only if generative_only else None,
             "attacker_model": attacker_model, "attacker_base_url": attacker_base_url,

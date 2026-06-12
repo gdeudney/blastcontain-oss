@@ -107,6 +107,13 @@ engine, ARES, ViolentUTF, Inspect) that duplicate Drill's runner.
 - **Model-sweep harness** — ✅ **DONE (2026-06-02)**: `blastcontain_drill/sweep.py`
   (`python -m blastcontain_drill.sweep`) runs Drill per `--target-model` with a fixed judge/guard →
   signed per-model reports + a risk-ranked leaderboard (md+json); live-validated on a 2-model sweep.
+- **Multi-turn harness** — ✅ **DONE (2026-06-12)**: the cage now carries conversation state —
+  `Attack.turns` + `cage.run_agent` drives a scripted turn sequence and one Toolbox spans the turns,
+  so a canary read in turn 1 and an exfil in turn N are one `CageObservation`. New `corpus/multiturn.py`
+  `MultiTurnSource` (`--multiturn`): **long-context reference tracking**, **decomposition/recompose**,
+  and a *real* multi-turn **crescendo** (supersedes the single-shot jb-03 mislabel) — the two Pliny
+  vectors no single prompt can express. Content seeds score on the joined transcript
+  (`CageObservation.transcript_text`), the exfil seed on the action plane. 123 drill unit.
 - Next-tier (above) + the `modelaudit`→Verify hand-off.
 
 ## 6. Other open threads

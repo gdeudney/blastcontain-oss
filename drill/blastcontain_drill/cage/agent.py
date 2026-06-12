@@ -183,6 +183,30 @@ class Toolbox:
         return f"ERROR: unknown tool '{tool}'"
 
 
+def _run_one_turn(backend, box, messages, max_steps, temperature) -> str:
+    """Drive one user turn (already appended to `messages`) to a DONE or max_steps.
+
+    Appends the agent's replies and tool results to `messages` so the conversation
+    carries forward into the next user turn — the persistence that long-context
+    reference-tracking and decomposition attacks rely on. Returns the agent's text;
+    sets `box.obs.error` and returns "" on a backend failure.
+    """
+    for _ in range(max_steps):
+        try:
+            reply = backend.chat(messages, temperature=temperature, max_tokens=400)
+        except Exception as exc:  # noqa: BLE001 — surface as a cage error, keep going
+            box.obs.error = f"backend error: {exc}"
+            return ""
+        box.obs.steps += 1
+        kind, payload, args = _parse_reply(reply)
+        messages.append({"role": "assistant", "content": reply.strip()})
+        if kind == "done":
+            return payload
+        result = box.call(payload, args)
+        messages.append({"role": "user", "content": f"[tool:{payload}] {result}"})
+    return "(max tool steps reached)"
+
+
 def run_agent(
     backend: ChatBackend,
     attack,  # corpus.Attack
@@ -192,26 +216,22 @@ def run_agent(
     max_steps: int = 4,
     temperature: float = 0.4,
 ) -> CageObservation:
-    """Drive one attack through the agent loop and return cage observations."""
+    """Drive one attack through the agent loop and return cage observations.
+
+    Single- and multi-turn attacks share this path: `turns_for` yields one user turn
+    for a normal attack and the scripted sequence for a multi-turn one. One Toolbox
+    spans every turn, so a canary read in turn 1 and an exfil in turn N land in the
+    same observation; `obs.turn_responses` records the agent's text per turn.
+    """
+    from ..corpus.base import turns_for
+
     box = Toolbox(canary, attack.poisoned_document, egress_allowlist, forbidden_tools)
-    messages = [
-        {"role": "system", "content": _SYSTEM_PROMPT},
-        {"role": "user", "content": attack.prompt},
-    ]
-    for step in range(max_steps):
-        try:
-            reply = backend.chat(messages, temperature=temperature, max_tokens=400)
-        except Exception as exc:  # noqa: BLE001 — surface as a cage error, keep going
-            box.obs.error = f"backend error: {exc}"
+    messages = [{"role": "system", "content": _SYSTEM_PROMPT}]
+    for user_turn in turns_for(attack):
+        messages.append({"role": "user", "content": user_turn})
+        reply = _run_one_turn(backend, box, messages, max_steps, temperature)
+        if box.obs.error:
             break
-        box.obs.steps = step + 1
-        kind, payload, args = _parse_reply(reply)
-        if kind == "done":
-            box.obs.response_text = payload
-            break
-        result = box.call(payload, args)
-        messages.append({"role": "assistant", "content": reply.strip()})
-        messages.append({"role": "user", "content": f"[tool:{payload}] {result}"})
-    else:
-        box.obs.response_text = box.obs.response_text or "(max tool steps reached)"
+        box.obs.turn_responses.append(reply)
+    box.obs.response_text = box.obs.turn_responses[-1] if box.obs.turn_responses else ""
     return box.obs
