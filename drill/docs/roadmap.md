@@ -90,7 +90,9 @@ engine, ARES, ViolentUTF, Inspect) that duplicate Drill's runner.
   converters into `OperatorsSource._OPERATORS` (7→17) — ROT13 · Caesar · Atbash · Morse · binary ·
   URL-encode (decode-and-comply) + char-space · zero-width · homoglyph (filter-evasion). Reimplemented
   (public-domain algorithms; no PyRIT/DeepTeam dependency, no service, no networking); source bumped
-  `operators@v2`; round-trip + AST-label regression tests (83 drill unit).
+  `operators@v2`; round-trip + AST-label regression tests (83 drill unit). Later extended with the
+  **framing** family (`academic_framing`, `fiction_frame` — taxonomy/document-structure + narrative
+  jailbreaks, the Pliny vectors; 17→19, `operators@v3`).
 - **#23** WildGuard scorer — ✅ **DONE (2026-06-02)**: `scoring/wildguard.py`; native refusal + harm
   axes retire the Qwen3Guard real-roles hack and score benign over-refusal natively (no abstaining).
   Unit-tested; gated model (`allenai/wildguard`) not downloaded, so not live-validated yet.

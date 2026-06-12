@@ -77,6 +77,19 @@ def test_pyrit_deepteam_operators_registered():
         assert op in DEFAULT_OPERATORS
 
 
+def test_framing_operators_carry_the_ask_inside_a_legitimate_frame():
+    # academic_framing (taxonomy/document-structure) and fiction_frame (narrative) wrap
+    # the seed *verbatim* in a benign-looking context — the underlying ask is unchanged,
+    # so the over-refusal / action labels survive (asserted in the apply-cleanly test).
+    seed = _SEED[0]
+    src = OperatorsSource()
+    for op, marker in (("academic_framing", "ANSWER KEY"), ("fiction_frame", "SCENE")):
+        assert op in DEFAULT_OPERATORS
+        out = src.generate(seed, op)[0].prompt
+        assert seed.prompt in out          # the request is carried through, not mutated
+        assert marker in out               # ...embedded in a legitimate-looking frame
+
+
 def test_all_operators_apply_cleanly_and_keep_labels():
     seed = _SEED[0]
     src = OperatorsSource()
@@ -96,7 +109,7 @@ def test_load_corpus_with_operators_grows_and_records_source():
     expanded = load_corpus(enable_operators=True)
     assert len(expanded) > len(base)
     # sources are version-tagged as name@revision in the (signed) report
-    assert "operators@v2" in expanded.sources
+    assert "operators@v3" in expanded.sources
     assert any(s.startswith("builtin-replay@") for s in expanded.sources)
 
 
