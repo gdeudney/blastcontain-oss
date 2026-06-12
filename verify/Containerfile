@@ -1,10 +1,10 @@
 # BlastContain Verify — hardened container image
 #
 # Production build (assumes blastcontain-core is published to PyPI):
-#   podman build -t blastcontain-verify:0.3.0 .
+#   podman build -t blastcontain-verify:0.3.1 .
 #
 # Dev build (sibling blastcontain-core/ source, before PyPI publish):
-#   podman build -t blastcontain-verify:0.3.0 -f verify/Containerfile ..
+#   podman build -t blastcontain-verify:0.3.1 -f verify/Containerfile ..
 #   (run from blastcontain-oss/ — context is the parent dir containing both
 #    core/ and verify/. The Containerfile auto-detects and installs core
 #    from local source when present.)
@@ -14,7 +14,7 @@
 #     --read-only --cap-drop ALL --security-opt no-new-privileges \
 #     --network none --tmpfs /tmp:rw,noexec,nosuid,size=64m \
 #     -v /path/to/agent:/scan:ro -v /path/to/reports:/reports:rw \
-#     blastcontain-verify:0.3.0 \
+#     blastcontain-verify:0.3.1 \
 #     --agent-id my-agent --env prod \
 #     --search-path /scan --report /reports/report.md \
 #     --output /reports/audit.json --sarif /reports/scan.sarif
@@ -26,7 +26,14 @@ WORKDIR /build
 
 # Copy verify source (always required). If core/ exists in the build context,
 # it gets copied too — the install step prefers local core when present.
-COPY verify/pyproject.toml verify/README.md ./
+# constraints-full.txt pins every third-party dependency (incl. transitives like
+# tldextract / litellm / onnxruntime) to the exact tested-good versions, so the
+# published image is reproducible and can't silently pull a version that breaks
+# the hardened-container offline path. Regenerate from a known-good image via:
+#   podman run --rm --entrypoint pip <img> freeze \
+#     | grep -viE '^blastcontain-|^en[-_]core[-_]web|^pip==|^setuptools==|^wheel==|@' \
+#     | sort > verify/constraints-full.txt
+COPY verify/pyproject.toml verify/README.md verify/constraints-full.txt ./
 COPY verify/blastcontain_verify/ ./blastcontain_verify/
 
 # Optional: local core source. Build context = parent dir for dev builds.
@@ -50,7 +57,7 @@ RUN if [ -d /build/core_optional ] && [ -f /build/core_optional/pyproject.toml ]
     fi && \
     FIND_LINKS_ARG="" && \
     if [ -d /build/wheels ]; then FIND_LINKS_ARG="--find-links /build/wheels"; fi && \
-    pip install --no-cache-dir --ignore-installed --prefix=/install $FIND_LINKS_ARG ".[full]" && \
+    pip install --no-cache-dir --ignore-installed --prefix=/install $FIND_LINKS_ARG --constraint constraints-full.txt ".[full]" && \
     PYTHONPATH=/install/lib/python3.12/site-packages \
     python -m spacy download en_core_web_lg --target /install/lib/python3.12/site-packages || \
     PYTHONPATH=/install/lib/python3.12/site-packages \
@@ -68,13 +75,36 @@ COPY --from=builder /install /usr/local
 # Drop any setuid binaries — verify never needs them
 RUN find / -perm /4000 -type f 2>/dev/null | xargs chmod u-s 2>/dev/null || true
 
+# Hardened-runtime cache + offline defaults.
+#
+# Optional ML/NLP deps (presidio/tldextract, litellm, huggingface, onnxruntime)
+# try to write ~/.cache and fetch over the network on first use. In the
+# read-only, --network none scan container $HOME (/home/verify) is not writable
+# and there is no network, so those attempts raise (OSError: Read-only file
+# system / socket.gaierror) — which, with the wrong unpinned version, aborts the
+# whole scan. Point every cache at the writable /tmp tmpfs the run profile
+# mounts, and force offline mode, so they degrade to bundled data instead.
+# blastcontain_verify re-applies these at runtime (writability-probed) as a
+# backstop for environments that run the image with a different tmpfs.
+#
+# $HOME is intentionally left at /home/verify (read-only): redirecting the
+# per-library caches below is sufficient, and a writable $HOME would make
+# PERM-01 (persistence-locations-writable) fire on the hardened container.
+ENV XDG_CACHE_HOME=/tmp/.cache \
+    TLDEXTRACT_CACHE=/tmp/.cache/tldextract \
+    HF_HOME=/tmp/.cache/huggingface \
+    MPLCONFIGDIR=/tmp/.cache/matplotlib \
+    HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1 \
+    LITELLM_LOCAL_MODEL_COST_MAP=True
+
 USER verify
 
 LABEL org.opencontainers.image.title="blastcontain-verify" \
       org.opencontainers.image.description="Pre-deployment compliance scanner for AI agents" \
-      org.opencontainers.image.version="0.3.0" \
+      org.opencontainers.image.version="0.3.1" \
       org.opencontainers.image.licenses="Apache-2.0" \
-      org.opencontainers.image.source="https://github.com/blastcontain/verify"
+      org.opencontainers.image.source="https://github.com/gdeudney/blastcontain-oss"
 
 ENTRYPOINT ["blastcontain-verify"]
 CMD ["--help"]

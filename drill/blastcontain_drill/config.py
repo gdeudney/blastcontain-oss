@@ -32,6 +32,7 @@ class DrillConfig:
     # Scoring
     judge_base_url: Optional[str] = None       # defaults to target_base_url
     judge_model: Optional[str] = None          # defaults to target_model
+    judge_kind: str = "llm"                     # "llm" | "geval" (DeepEval G-Eval; needs [judge])
     guard_model: Optional[str] = None          # e.g. qwen3guard-gen-8b (optional)
 
     # Corpus
@@ -40,6 +41,7 @@ class DrillConfig:
     limit: Optional[int] = None                # cap attacks per category
     enable_aig: bool = False                   # add AI-Infra-Guard source if up
     enable_operators: bool = False             # add the model-free Operators layer
+    enable_jbb: bool = False                   # add the vendored JailbreakBench dataset
 
     # Generative layer — an abliterated/Heretic attacker model in a refinement loop
     generative: bool = False
@@ -72,8 +74,9 @@ class DrillConfig:
 
 _FIELDS = (
     "agent_id", "environment", "cage", "max_steps", "target_base_url",
-    "target_model", "agent_url", "judge_base_url", "judge_model", "guard_model",
-    "corpus", "scenarios", "limit", "enable_aig", "enable_operators", "charter", "output", "report",
+    "target_model", "agent_url", "judge_base_url", "judge_model", "judge_kind", "guard_model",
+    "corpus", "scenarios", "limit", "enable_aig", "enable_operators", "enable_jbb",
+    "charter", "output", "report",
     "generative", "generative_only", "attacker_model", "attacker_base_url",
     "generative_iters", "generative_corpus",
     "blastcontain_url", "dry_run",

@@ -113,7 +113,7 @@ def build_scorers(cfg: DrillConfig) -> tuple[list[Scorer], dict]:
     scoring.score_content for why a weak scorer must not override a strong one.)
     """
     from .llm import ChatClient
-    from .scoring import HeuristicContentScorer, LLMJudge, make_guard_scorer
+    from .scoring import HeuristicContentScorer, make_guard_scorer, make_judge
 
     scorers: list[Scorer] = []
     flags: dict = {}
@@ -121,8 +121,13 @@ def build_scorers(cfg: DrillConfig) -> tuple[list[Scorer], dict]:
 
     judge_model = cfg.effective_judge_model()
     if judge_model:
-        judge = LLMJudge(ChatClient(judge_url, judge_model), judge_model)
-        flags["llm-judge"] = judge.is_available()
+        # LLMJudge by default; the DeepEval G-Eval judge when --judge-kind geval and
+        # deepeval is installed (it reuses this same local judge model).
+        judge = make_judge(
+            ChatClient(judge_url, judge_model), judge_model, getattr(cfg, "judge_kind", "llm")
+        )
+        flags["llm-judge"] = judge.is_available()   # "a judge is active" (LLMJudge or G-Eval)
+        flags[judge.name] = judge.is_available()
         if flags["llm-judge"]:
             scorers.append(judge)
 
@@ -142,12 +147,28 @@ def run_drill(cfg: DrillConfig) -> DrillReport:
     from .llm import ChatClient
 
     permitted = _load_permitted_tools(cfg.charter)
+    extra_sources = []
+    if cfg.enable_aig:
+        # Live AIG: red-team the SAME model under test (by name) + score with the judge.
+        # AIG's agent runs in a container, so it reaches the model at the host-gateway
+        # address (BLASTCONTAIN_AIG_MODEL_URL, default host.containers.internal) — NOT
+        # Drill's localhost cage URL; only the model name is shared. Service URL/token
+        # come from BLASTCONTAIN_AIG_URL / BLASTCONTAIN_AIG_TOKEN.
+        from .corpus import AIGAttackSource
+
+        extra_sources.append(
+            AIGAttackSource(
+                target_model=cfg.target_model,
+                eval_model=cfg.effective_judge_model(),
+            )
+        )
     corpus = load_corpus(
         version=cfg.corpus,
         categories=cfg.scenarios or None,
         limit=cfg.limit,
-        enable_aig=cfg.enable_aig,
+        extra_sources=extra_sources or None,
         enable_operators=cfg.enable_operators,
+        enable_jbb=cfg.enable_jbb,
     )
     scorers, scorer_flags = build_scorers(cfg)
 
@@ -161,7 +182,9 @@ def run_drill(cfg: DrillConfig) -> DrillReport:
         scorers=scorer_flags,
         judge_model=cfg.effective_judge_model() if scorer_flags.get("llm-judge") else None,
         guard_model=cfg.guard_model if (
-            scorer_flags.get("qwen3guard") or scorer_flags.get("granite-guardian")
+            scorer_flags.get("qwen3guard")
+            or scorer_flags.get("granite-guardian")
+            or scorer_flags.get("wildguard")
         ) else None,
     )
 

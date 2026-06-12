@@ -32,8 +32,11 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
-# Copy drill source (always required).
-COPY drill/pyproject.toml drill/README.md ./
+# Copy drill source (always required). constraints.txt pins every third-party
+# dependency (core's cryptography/pyyaml + drill's click/httpx + transitives) to
+# the exact tested-good versions, so the published image is reproducible and can't
+# silently pull a newer, unaudited release. Regen recipe is in the file header.
+COPY drill/pyproject.toml drill/README.md drill/constraints.txt ./
 COPY drill/blastcontain_drill/ ./blastcontain_drill/
 
 # Optional: local core source. For dev builds the context is the parent dir
@@ -48,7 +51,7 @@ RUN if [ -d /build/core_optional ] && [ -f /build/core_optional/pyproject.toml ]
     fi && \
     FIND_LINKS_ARG="" && \
     if [ -d /build/wheels ]; then FIND_LINKS_ARG="--find-links /build/wheels"; fi && \
-    pip install --no-cache-dir --ignore-installed --prefix=/install $FIND_LINKS_ARG "."
+    pip install --no-cache-dir --ignore-installed --prefix=/install $FIND_LINKS_ARG --constraint constraints.txt "."
 
 # ── Stage 2: runtime ───────────────────────────────────────────────────────────
 FROM python:3.12-slim AS runtime
@@ -67,7 +70,7 @@ LABEL org.opencontainers.image.title="blastcontain-drill" \
       org.opencontainers.image.description="Adversarial red-team scanner for AI agents" \
       org.opencontainers.image.version="0.1.0" \
       org.opencontainers.image.licenses="Apache-2.0" \
-      org.opencontainers.image.source="https://github.com/blastcontain/drill"
+      org.opencontainers.image.source="https://github.com/gdeudney/blastcontain-oss"
 
 ENTRYPOINT ["blastcontain-drill"]
 CMD ["--help"]

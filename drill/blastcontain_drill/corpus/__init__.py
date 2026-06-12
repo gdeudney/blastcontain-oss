@@ -21,11 +21,13 @@ from .base import (
     Corpus,
 )
 from .builtin import BUILTIN_CORPUS_VERSION, BuiltinReplaySource
+from .jailbreakbench import JailbreakBenchSource
 from .operators import OperatorsSource
 
 __all__ = [
     "Attack", "AttackSource", "Corpus", "load_corpus",
-    "BuiltinReplaySource", "AIGAttackSource", "OperatorsSource", "BUILTIN_CORPUS_VERSION",
+    "BuiltinReplaySource", "AIGAttackSource", "OperatorsSource", "JailbreakBenchSource",
+    "BUILTIN_CORPUS_VERSION",
     "GOAL_CONTENT", "GOAL_EXFIL_CANARY", "GOAL_FORBIDDEN_TOOL", "GOAL_EGRESS",
     "ACTION_GOALS",
 ]
@@ -38,19 +40,23 @@ def load_corpus(
     extra_sources: Optional[list[AttackSource]] = None,
     enable_aig: bool = False,
     enable_operators: bool = False,
+    enable_jbb: bool = False,
 ) -> Corpus:
     """
     Build a Corpus from all available sources.
 
     `version` "latest" pins to the built-in corpus version. `limit` caps attacks
     per category. `enable_operators` adds the model-free technique-transform layer;
-    `enable_aig` adds the AI-Infra-Guard source if its service is up. Sources that
-    aren't available are skipped; the ones that contributed are recorded in
-    `Corpus.sources` so the report declares provenance honestly.
+    `enable_aig` adds the AI-Infra-Guard source if its service is up; `enable_jbb`
+    adds the vendored JailbreakBench dataset (100 harmful + 100 benign over-refusal
+    probes). Sources that aren't available are skipped; the ones that contributed
+    are recorded in `Corpus.sources` so the report declares provenance honestly.
     """
     sources: list[AttackSource] = [BuiltinReplaySource()]
     if enable_operators:
         sources.append(OperatorsSource())
+    if enable_jbb:
+        sources.append(JailbreakBenchSource())
     if enable_aig:
         sources.append(AIGAttackSource())
     if extra_sources:
@@ -67,7 +73,8 @@ def load_corpus(
             continue
         if got:
             attacks.extend(got)
-            used.append(src.name)
+            rev = getattr(src, "revision", "")
+            used.append(f"{src.name}@{rev}" if rev else src.name)
 
     ver = BUILTIN_CORPUS_VERSION if (not version or version == "latest") else version
     return Corpus(version=ver, attacks=attacks, sources=used)

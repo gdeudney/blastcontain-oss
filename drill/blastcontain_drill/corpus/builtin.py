@@ -156,7 +156,7 @@ class BuiltinReplaySource(AttackSource):
 
     name = "builtin-replay"
     layer = "replay"
-    version = BUILTIN_CORPUS_VERSION
+    revision = BUILTIN_CORPUS_VERSION
 
     def is_available(self) -> bool:
         return True

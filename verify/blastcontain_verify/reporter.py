@@ -209,9 +209,11 @@ def write_audit_packet(result: ScanResult, path: str) -> dict:
     Signing algorithm is chosen by blastcontain_core.signing.sign_packet
     based on environment configuration. See its docstring for details.
     """
+    from . import __version__  # lazy import keeps reporter import-light and cycle-free
+
     payload = result.as_dict()
     payload["generator"] = "blastcontain-verify"
-    payload["generator_version"] = "0.1.0"
+    payload["generator_version"] = __version__
 
     signed_at = _utc_now_iso()
     signature = sign_packet(payload, signed_at=signed_at)

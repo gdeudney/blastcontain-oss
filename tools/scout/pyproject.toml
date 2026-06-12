@@ -1,0 +1,25 @@
+[project]
+name = "blastcontain-scout"
+version = "0.1.0"
+description = "Corpus scout — scans arXiv for new jailbreak/agent-attack research and opens draft PRs to feed the BlastContain Drill corpus (derive-then-ratify)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dependencies = [
+    "httpx>=0.27",
+    "click>=8.1",
+    "defusedxml>=0.7",   # hardened XML parsing for the untrusted arXiv Atom feed
+]
+
+[project.scripts]
+blastcontain-scout = "blastcontain_scout.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["blastcontain_scout"]

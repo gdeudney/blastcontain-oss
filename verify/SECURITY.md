@@ -44,6 +44,36 @@ We treat the following as bugs (open a public issue):
 | 0.2.x | security fixes only until 2026-12-31 |
 | < 0.2 | not supported |
 
+## Optional Cisco scanners — known dependency CVEs
+
+`blastcontain-verify` is **secure-by-default**: the standard install
+(`pip install blastcontain-verify` or `[full]`) and the official container image
+carry **no known-vulnerable dependencies** — verified in CI by `pip-audit`
+against [`constraints-full.txt`](constraints-full.txt).
+
+The two Cisco AI Defense scanners are **opt-in only** (`[cisco]` / `[mcp]` /
+`[skill]`) because they transitively require `litellm`, which exact-pins
+vulnerable `aiohttp` and `python-dotenv` with **no fixed combination available
+upstream**:
+
+| Dependency | CVE | Pulled via |
+|---|---|---|
+| `aiohttp` 3.13.x | CVE-2026-34993, CVE-2026-47265 | litellm |
+| `litellm` 1.83.7 | CVE-2026-40217 | cisco-ai-mcp-scanner / -skill-scanner |
+| `python-dotenv` 1.0.1 | CVE-2026-28684 | litellm |
+
+`cisco-ai-mcp-scanner` exact-pins `litellm==1.83.7`, and `litellm` exact-pins the
+vulnerable `aiohttp`/`python-dotenv` even in its own patched release — so no
+version bump resolves these.
+
+**If you opt in** (`pip install "blastcontain-verify[cisco]"`) to enable SKILL-02
+and the Cisco MCP-01 backend, you accept these CVEs. They are largely mitigated
+in the recommended hardened container profile (`--network none`): `litellm` and
+`aiohttp` make no outbound calls during a scan, so the network-path CVEs are not
+reachable. Residual exposure exists only when running via `pip` with network
+access and an `http://` `--mcp-config`. The pins will be dropped as soon as
+upstream ships a fixed combination.
+
 ## Out of scope
 
 - Vulnerabilities in optional augmentation packages (Cisco, AGT, Presidio) — report upstream

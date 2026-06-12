@@ -28,6 +28,8 @@ blastcontain-verify --agent-id my-agent --env prod --search-path ./src
 
 Every check is mapped to the [MIT AI Risk Repository](https://airisk.mit.edu/) taxonomy.
 
+> **Two checks are conditional:** SKILL-02 (Cisco AI Skill Scanner) needs the opt-in `[cisco]` extra — see [Augmentation](#augmentation); MCP-01 (unapproved tools) is not yet implemented and currently SKIPs. The rest run out of the box.
+
 ## Container (recommended)
 
 The official image bundles `[full]` with the spaCy `en_core_web_lg` model. The image copies both `verify/` and the sibling `core/`, so the build context is the `blastcontain-oss` repo root:
@@ -66,7 +68,7 @@ podman run --rm \
 --acknowledge-risk      Exit 0 even on CRITICAL
 ```
 
-Full spec: [docs/spec.md](docs/spec.md)
+Usage guide & examples: [docs/usage.md](docs/usage.md) · Full spec: [docs/spec.md](docs/spec.md) · Design notes: [docs/architecture.md](docs/architecture.md)
 
 ## GitHub Code Scanning integration
 
@@ -83,39 +85,26 @@ Full spec: [docs/spec.md](docs/spec.md)
 
 ## Augmentation
 
-Verify works standalone, but installing optional packages unlocks deeper checks:
+Verify works standalone; optional packages unlock deeper checks. **Secure by
+default:** `[full]` and the official image are CVE-clean. The Cisco AI Defense
+scanners are **opt-in** — they transitively pull `litellm`, which carries known
+CVEs with no upstream fix (see [SECURITY.md](SECURITY.md)).
 
-| Extra | Adds |
-|---|---|
-| `[pii]`   | Microsoft Presidio NER for MEM-01 |
-| `[mcp]`   | Cisco AI MCP Scanner for MCP-01 |
-| `[skill]` | Cisco AI Skill Scanner for SKILL-02 |
-| `[agt]`   | Agent Governance Toolkit for MEM-01 + SUP-01 |
-| `[full]`  | All of the above |
-
-```
-pip install "blastcontain-verify[full]"
-```
-
-## Charter integration
-
-Write a local `charter.yaml` to enable MCP-01 (unapproved tool detection):
-
-```yaml
-agent_id: my-agent
-environment: prod
-version: "1.0"
-trust_tier: 1
-permitted_tools:
-  - search_knowledge_base
-  - get_ticket_status
-```
+| Extra | Adds | Clean |
+|---|---|---|
+| `[pii]`   | Microsoft Presidio NER for MEM-01 | ✅ |
+| `[agt]`   | Agent Governance Toolkit | ✅ |
+| `[full]`  | `[pii]` + `[agt]` — the default supported set | ✅ |
+| `[mcp]`   | Cisco AI MCP Scanner (MCP-01 backend) | ⚠️ pulls litellm |
+| `[skill]` | Cisco AI Skill Scanner (SKILL-02) | ⚠️ pulls litellm |
+| `[cisco]` | `[mcp]` + `[skill]` | ⚠️ pulls litellm |
 
 ```
-blastcontain-verify --charter charter.yaml --mcp-config mcp.json ...
+pip install "blastcontain-verify[full]"          # CVE-clean: Presidio + AGT
+pip install "blastcontain-verify[full,cisco]"     # + SKILL-02 & Cisco MCP (opt-in; see SECURITY.md)
 ```
 
-For multi-tenant Charter storage, versioning, and approval workflow, see the [BlastContain Platform](https://blastcontain.io).
+Without the relevant extra, the dependent check SKIPs with a hint on how to enable it.
 
 ## Suppressing findings — `.blastcontainignore`
 

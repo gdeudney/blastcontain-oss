@@ -6,19 +6,19 @@
 # itself a published package (no [project] / [build-system] on purpose).
 #
 # Dev setup:
-#   pip install -e ./core -e "./verify[dev]" -e "./drill[dev]"
+#   pip install -e ./core -e "./verify[dev]" -e "./drill[dev]" -e "./scout[dev]"
 #   # or, with uv:  uv sync
 #
 # Release: push a per-package tag — core-vX.Y.Z / verify-vX.Y.Z / drill-vX.Y.Z —
 # and .github/workflows/release.yml builds + publishes that one package.
 
 [tool.uv.workspace]
-members = ["core", "verify", "drill"]
+members = ["core", "verify", "drill", "tools/scout"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-exclude = ["**/tests/integration/fixtures", "**/_demo"]
+extend-exclude = ["**/tests/integration/fixtures", "**/_demo", "**/corpus/contrib"]
 
 [tool.ruff.lint]
 # Pyflakes + the pycodestyle error subset — matches each package's prior default.

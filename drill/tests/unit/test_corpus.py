@@ -10,7 +10,8 @@ def test_builtin_corpus_loads():
     c = load_corpus()
     assert len(c) >= 14
     assert c.version == BUILTIN_CORPUS_VERSION
-    assert "builtin-replay" in c.sources
+    # sources are version-tagged as name@revision in the (signed) report
+    assert f"builtin-replay@{BUILTIN_CORPUS_VERSION}" in c.sources
 
 
 def test_every_attack_category_is_in_the_taxonomy():
@@ -38,4 +39,4 @@ def test_aig_absent_falls_back_to_builtin():
     # AI-Infra-Guard service is not running in CI -> silently skipped.
     c = load_corpus(enable_aig=True)
     assert len(c) >= 14
-    assert c.sources == ["builtin-replay"]
+    assert [s.split("@")[0] for s in c.sources] == ["builtin-replay"]

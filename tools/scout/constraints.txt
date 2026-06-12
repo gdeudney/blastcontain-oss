@@ -1,0 +1,25 @@
+# BlastContain Scout — pinned runtime dependency closure.
+#
+# Exact versions for the third-party packages the scout needs at runtime
+# (httpx, click, defusedxml + transitives). Scout is tooling (no published image),
+# so this exists for two things: a reproducible scheduled run
+# (`pip install ./tools/scout --constraint tools/scout/constraints.txt`) and a
+# deterministic CI audit (`pip-audit --no-deps -r tools/scout/constraints.txt`).
+# Dev tools (pytest/ruff) are excluded.
+#
+# Regenerate after changing a runtime dep in tools/scout/pyproject.toml:
+#   uv pip compile - --python-platform linux --python-version 3.12 \
+#       --no-header --no-annotate -o tools/scout/constraints.txt <<'EOF'
+#   httpx>=0.27
+#   click>=8.1
+#   defusedxml>=0.7
+#   EOF
+anyio==4.13.0
+certifi==2026.5.20
+click==8.4.1
+defusedxml==0.7.1
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+idna==3.18
+typing-extensions==4.15.0

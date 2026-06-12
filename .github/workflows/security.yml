@@ -1,0 +1,66 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly — re-audit dependencies so newly-disclosed CVEs are caught even when
+    # no code changes.
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Opt JS actions into the Node 24 runtime — Node 20 is deprecated.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  pip-audit:
+    name: Dependency audit (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit
+
+      # Every shipped/audited dependency set is pinned, so the audit is
+      # deterministic — no "latest at audit time" drift. --no-deps audits the
+      # locked versions as-is. Fix a finding by bumping the pin and regenerating
+      # the constraints file (recipe in each file's header).
+      - name: Audit verify pinned image dependencies
+        run: pip-audit --no-deps -r verify/constraints-full.txt
+
+      - name: Audit drill pinned runtime closure (core + drill)
+        run: pip-audit --no-deps -r drill/constraints.txt
+
+      - name: Audit scout pinned runtime closure
+        run: pip-audit --no-deps -r tools/scout/constraints.txt
+
+  bandit:
+    name: SAST (bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install bandit
+      # Fail on MEDIUM+ findings across every OSS package. Intentional patterns
+      # (e.g. verify's DISK-02 /tmp probe) are annotated in-source with `# nosec
+      # <id>`. Lower-severity findings — defensive try/except guards and the
+      # subprocess(list-args, no shell) git/gh calls in scout — show up in a full
+      # `bandit -r` run but do not gate CI.
+      - name: Static analysis of the OSS packages
+        run: >
+          bandit -r
+          core/blastcontain_core
+          verify/blastcontain_verify
+          drill/blastcontain_drill
+          tools/scout/blastcontain_scout
+          --severity-level medium

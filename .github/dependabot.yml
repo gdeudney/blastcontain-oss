@@ -1,0 +1,77 @@
+# Dependabot — keep the pinned dependency closures fresh and open a PR when a pin
+# has a known CVE, closing the loop on the locked constraints files (the weekly
+# Security workflow only *detects* a CVE; this *fixes* it). Every bump still runs
+# through CI (pip-audit + bandit + tests) before it can merge.
+#
+# The pip ecosystem inspects *.txt files as requirements, so it updates the exact
+# pins in each constraints file as well as the (loose) pyproject ranges. Updates
+# are grouped per package so a refresh arrives as one reviewable PR, not a swarm.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /drill            # drill/constraints.txt + drill/pyproject.toml
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      drill:
+        patterns: ["*"]
+    labels: ["dependencies", "drill"]
+    commit-message:
+      prefix: "deps(drill)"
+
+  - package-ecosystem: pip
+    directory: /tools/scout      # tools/scout/constraints.txt + tools/scout/pyproject.toml
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      scout:
+        patterns: ["*"]
+    labels: ["dependencies", "scout"]
+    commit-message:
+      prefix: "deps(scout)"
+
+  - package-ecosystem: pip
+    directory: /core             # core/pyproject.toml
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      core:
+        patterns: ["*"]
+    labels: ["dependencies", "core"]
+    commit-message:
+      prefix: "deps(core)"
+
+  - package-ecosystem: pip
+    directory: /verify           # verify/constraints-full.txt + verify/pyproject.toml
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      verify:
+        patterns: ["*"]
+    # The opt-in [cisco] scanners pull litellm, which exact-pins vulnerable
+    # aiohttp / python-dotenv with no upstream fix (see verify/pyproject.toml +
+    # SECURITY.md). Don't let Dependabot churn un-mergeable PRs on that known,
+    # documented, opt-in trade-off; the default install excludes them.
+    ignore:
+      - dependency-name: litellm
+      - dependency-name: aiohttp
+      - dependency-name: python-dotenv
+    labels: ["dependencies", "verify"]
+    commit-message:
+      prefix: "deps(verify)"
+
+  # Pin-bump the GitHub Actions used across the workflows (checkout, setup-python…).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "ci(actions)"
