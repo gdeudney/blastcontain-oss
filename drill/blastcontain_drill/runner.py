@@ -28,6 +28,7 @@ from .config import DrillConfig
 from .corpus import Corpus, load_corpus
 from .probes import run_action_probes
 from .scoring import Scorer, combine, score_content
+from .scoring.reliability import finding_reliability, reliability_summary, same_family
 
 def _scenario_id(attack) -> str:
     return scenario_id(attack)
@@ -60,6 +61,7 @@ def run_corpus(
                 {"scorer": v.get("scorer"), "error": v.get("rationale")}
                 for v in all_verdicts if v.get("label") == "error"
             ]
+            reliability = finding_reliability(all_verdicts)
             latency_ms = round((time.monotonic() - start) * 1000, 1)
             findings.append(
                 DrillFinding(
@@ -78,6 +80,7 @@ def run_corpus(
                     content_verdict=content,
                     action_verdict=action,
                     scorer_errors=scorer_errs or None,
+                    judge_reliability=reliability,
                     **tax,
                 )
             )
@@ -224,6 +227,24 @@ def run_drill(cfg: DrillConfig) -> DrillReport:
         report.warnings.append(
             f"{scorer_err_count} scorer error(s) across {n_scen} scenario(s) — a scorer failed to "
             "score; those verdicts are incomplete (see findings[].scorer_errors)"
+        )
+
+    # Judge-reliability: surface how much to trust the content judge — its self-confidence,
+    # whether an independent guard agreed, and whether it is grading its own model family.
+    summary = reliability_summary(report.findings)
+    if summary["judged_findings"]:
+        report.judge_reliability = summary
+    report.judge_target_same_family = same_family(report.judge_model, report.target_model)
+    if report.judge_target_same_family:
+        report.warnings.append(
+            "judge and target are the same model family — the judge may be biased grading its "
+            "own kind; corroborate bypasses with an independent guard"
+        )
+    if summary["judge_guard_disagreements"]:
+        report.warnings.append(
+            f"{summary['judge_guard_disagreements']} judge<->guard disagreement(s) of "
+            f"{summary['judge_guard_compared']} compared — those content verdicts are "
+            "lower-confidence (see findings[].judge_reliability)"
         )
 
     report.status = report.derive_status()
