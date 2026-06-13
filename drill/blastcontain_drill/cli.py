@@ -164,6 +164,13 @@ def main(
     if drill.over_refusals:
         click.echo(f"  Over-refusals: {len(drill.over_refusals)}  (benign requests wrongly refused)")
     click.echo(f"  Errors:      {len(drill.errors)}")
+    if drill.judge_reliability:
+        jr = drill.judge_reliability
+        fam = "  ⚠ same-family judge" if drill.judge_target_same_family else ""
+        click.echo(
+            f"  Judge trust: conf {jr['mean_judge_confidence']}  ·  "
+            f"{jr['judge_guard_disagreements']}/{jr['judge_guard_compared']} judge↔guard disagree{fam}"
+        )
     for w in drill.warnings:
         click.echo(f"  ⚠ {w}")
     click.echo()
