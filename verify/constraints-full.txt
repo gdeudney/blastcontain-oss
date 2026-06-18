@@ -32,7 +32,7 @@ presidio_analyzer==2.2.362
 presidio_anonymizer==2.2.362
 pycparser==3.0
 pydantic==2.13.4
-pydantic_core==2.47.0
+pydantic_core==2.46.4
 regex==2026.5.9
 requests-file==3.0.1
 requests==2.34.2
@@ -43,7 +43,7 @@ spacy-legacy==3.0.12
 spacy-loggers==1.0.5
 spacy==3.8.14
 srsly==2.5.3
-thinc==9.1.1
+thinc==8.3.13
 tldextract==5.3.1
 tqdm==4.68.2
 typer==0.26.7
