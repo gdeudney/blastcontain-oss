@@ -132,3 +132,18 @@ def test_run_sweep_reruns_an_errored_checkpoint(tmp_path, monkeypatch):
               "output": str(tmp_path), "resume": True}
     results = run_sweep(["m"], params, echo=lambda *a, **k: None)
     assert results == [("m", None)]             # re-run attempted; the errored checkpoint was NOT reused
+
+
+def test_run_sweep_threads_corpus_flags_into_each_config(monkeypatch):
+    seen = {}
+
+    def _capture(cfg):
+        seen.update(operators=cfg.enable_operators, multiturn=cfg.enable_multiturn,
+                    systemcard=cfg.enable_systemcard, jbb=cfg.enable_jbb)
+        raise RuntimeError("stop")              # caught by run_sweep -> (m, None); we only want the cfg
+    monkeypatch.setattr("blastcontain_drill.runner.run_drill", _capture)
+
+    run_sweep(["m"], {"base_url": "x", "cage": "inprocess", "corpus": "latest",
+                      "operators": True, "multiturn": True, "systemcard": False, "jbb": True},
+              echo=lambda *a, **k: None)
+    assert seen == {"operators": True, "multiturn": True, "systemcard": False, "jbb": True}
