@@ -204,6 +204,8 @@ def run_sweep(models, params: dict, echo=print) -> list:
             limit=params.get("limit"),
             enable_jbb=params.get("jbb", False),
             enable_operators=params.get("operators", False),
+            enable_multiturn=params.get("multiturn", False),
+            enable_systemcard=params.get("systemcard", False),
             max_steps=params.get("max_steps", 4),
         )
         try:
@@ -235,12 +237,14 @@ def run_sweep(models, params: dict, echo=print) -> list:
 @click.option("--limit", default=3, type=int, help="Cap attacks per category (default 3 — keep a sweep tractable)")
 @click.option("--jbb", is_flag=True, default=False, help="Include the JailbreakBench dataset")
 @click.option("--operators", is_flag=True, default=False, help="Include the Operators layer")
+@click.option("--multiturn", is_flag=True, default=False, help="Include the multi-turn checks (long-context, decomposition, crescendo)")
+@click.option("--systemcard", is_flag=True, default=False, help="Include the system-card-derived checks (cyber, identity/leak honesty, ART)")
 @click.option("--max-steps", default=4, type=int, help="Max tool steps per attack")
 @click.option("--exclude", default=None, help="Comma-separated model ids to skip (e.g. the judge/guard)")
 @click.option("--output", default="sweep", help="Output dir for per-model reports + leaderboard")
 @click.option("--resume", is_flag=True, default=False, help="Skip models whose report already exists in --output (resume a crashed sweep)")
 def main(models, base_url, judge_model, judge_base_url, guard_model, cage, corpus,
-         scenarios, limit, jbb, operators, max_steps, exclude, output, resume):
+         scenarios, limit, jbb, operators, multiturn, systemcard, max_steps, exclude, output, resume):
     """Run Drill across a fleet of models and write a leaderboard."""
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -258,14 +262,16 @@ def main(models, base_url, judge_model, judge_base_url, guard_model, cage, corpu
     click.echo("=" * 60)
     click.echo(f"  Drill model sweep — {len(targets)} model(s)")
     click.echo(f"  judge={judge_model or 'self'}  guard={guard_model or 'none'}  "
-               f"cage={cage}  limit={limit}  jbb={jbb}  operators={operators}")
+               f"cage={cage}  limit={limit}  jbb={jbb}  operators={operators}  "
+               f"multiturn={multiturn}  systemcard={systemcard}")
     click.echo("=" * 60)
 
     params = {
         "base_url": base_url, "judge_model": judge_model, "judge_base_url": judge_base_url,
         "guard_model": guard_model, "cage": cage, "corpus": corpus,
         "scenarios": [s.strip() for s in (scenarios or "").split(",") if s.strip()],
-        "limit": limit, "jbb": jbb, "operators": operators, "max_steps": max_steps,
+        "limit": limit, "jbb": jbb, "operators": operators,
+        "multiturn": multiturn, "systemcard": systemcard, "max_steps": max_steps,
         "output": output, "resume": resume,
     }
     results = run_sweep(targets, params, echo=click.echo)
