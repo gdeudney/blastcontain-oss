@@ -19,6 +19,7 @@ are unit-tested; the live loop is exercised against a real LM Studio bench.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -40,11 +41,24 @@ def risk_score(summary: dict) -> float:
 
 
 def summarize_report(model: str, report) -> dict:
-    """One leaderboard row from a model id + its DrillReport (None = run failed)."""
+    """One leaderboard row from a model id + its DrillReport, a loaded report dict (resumed), or None."""
     if report is None:
         s = {
             "model": model, "status": "ERROR", "scenarios": 0, "held": 0,
             "bypasses": 0, "critical": 0, "over_refusals": 0, "errors": 0,
+        }
+    elif isinstance(report, dict):
+        # a resumed run — counts come straight from the saved report's summary block
+        summ = report.get("summary") or {}
+        s = {
+            "model": model,
+            "status": report.get("status", "ERROR"),
+            "scenarios": summ.get("scenarios_run", 0),
+            "held": summ.get("held", 0),
+            "bypasses": summ.get("bypasses", 0),
+            "critical": summ.get("critical_bypasses", 0),
+            "over_refusals": summ.get("over_refusals", 0),
+            "errors": summ.get("errors", 0),
         }
     else:
         s = {
@@ -108,19 +122,74 @@ def resolve_models(base_url: str, models_arg: str, exclude: Optional[list[str]] 
     return [m for m in ids if m and "embed" not in m.lower() and m not in skip]
 
 
+def _load_report_dict(path: str):
+    """Load a saved per-model packet and return its inner report dict, or None if unreadable."""
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            packet = json.load(f)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(packet, dict):
+        return None
+    report = packet.get("packet", packet)   # unwrap the signed envelope
+    return report if isinstance(report, dict) else None
+
+
+def _resume_ok(loaded, model: str, params: dict) -> tuple:
+    """Is a loaded checkpoint a genuine, comparable, identity-matching completion? -> (bool, reason).
+
+    Re-run (don't reuse) when the saved run ERRORed or is incomplete (so a transient/unreachable
+    failure is retried, not frozen), when it was scored by a different judge/guard or a different
+    pinned corpus (the sweep's comparability invariant), or when it belongs to a different model
+    (a _slug filename collision) — each verified against the persisted packet, never assumed.
+    """
+    if not isinstance(loaded, dict):
+        return False, "unreadable"
+    if loaded.get("status") not in ("PASSED", "PARTIAL", "FAILED"):
+        return False, "previous run errored or incomplete"
+    if not isinstance(loaded.get("summary"), dict):
+        return False, "missing summary block"
+    bench = loaded.get("bench") or {}
+    if bench.get("target_model") not in (None, model):
+        return False, f"target_model mismatch ({bench.get('target_model')})"
+    for key in ("judge_model", "guard_model"):
+        want, got = params.get(key), bench.get(key)
+        if want and got and want != got:
+            return False, f"{key} differs ({got} != {want})"
+    want_corpus, saved_corpus = params.get("corpus"), loaded.get("corpus_version")
+    if want_corpus and want_corpus != "latest" and saved_corpus and saved_corpus != want_corpus:
+        return False, f"corpus differs ({saved_corpus} != {want_corpus})"
+    return True, "ok"
+
+
 def run_sweep(models, params: dict, echo=print) -> list:
-    """Run a Drill per model; return [(model, report_or_None), …]. Live."""
+    """Run a Drill per model; return [(model, report_or_None_or_loaded_dict), …]. Live.
+
+    With params['resume'] True, a model whose report already exists in the output dir is
+    loaded from disk and skipped — so a crashed sweep resumes without redoing finished models.
+    """
     from .config import DrillConfig
     from .reporter import write_drill_packet
     from .runner import run_drill
 
     out = params.get("output")
+    resume = params.get("resume", False)
     if out:
         os.makedirs(out, exist_ok=True)
 
     results = []
     for i, model in enumerate(models, 1):
         echo(f"[{i}/{len(models)}] {model}")
+        report_path = os.path.join(out, f"{_slug(model)}.json") if out else None
+        if resume and report_path and os.path.exists(report_path):
+            loaded = _load_report_dict(report_path)
+            ok, why = _resume_ok(loaded, model, params)
+            if ok:
+                results.append((model, loaded))
+                s = summarize_report(model, loaded)
+                echo(f"    ↻ resumed — {s['status']}, risk {s['risk']:g}")
+                continue
+            echo(f"    re-running (checkpoint not reusable: {why})")
         cfg = DrillConfig(
             agent_id=f"sweep-{_slug(model)}",
             environment="sweep",
@@ -144,8 +213,8 @@ def run_sweep(models, params: dict, echo=print) -> list:
             results.append((model, None))
             continue
         results.append((model, report))
-        if out:
-            write_drill_packet(report, os.path.join(out, f"{_slug(model)}.json"))
+        if report_path:
+            write_drill_packet(report, report_path)
         s = summarize_report(model, report)
         echo(
             f"    {s['status']} — held {s['held']}, bypass {s['bypasses']} "
@@ -169,8 +238,9 @@ def run_sweep(models, params: dict, echo=print) -> list:
 @click.option("--max-steps", default=4, type=int, help="Max tool steps per attack")
 @click.option("--exclude", default=None, help="Comma-separated model ids to skip (e.g. the judge/guard)")
 @click.option("--output", default="sweep", help="Output dir for per-model reports + leaderboard")
+@click.option("--resume", is_flag=True, default=False, help="Skip models whose report already exists in --output (resume a crashed sweep)")
 def main(models, base_url, judge_model, judge_base_url, guard_model, cage, corpus,
-         scenarios, limit, jbb, operators, max_steps, exclude, output):
+         scenarios, limit, jbb, operators, max_steps, exclude, output, resume):
     """Run Drill across a fleet of models and write a leaderboard."""
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -196,7 +266,7 @@ def main(models, base_url, judge_model, judge_base_url, guard_model, cage, corpu
         "guard_model": guard_model, "cage": cage, "corpus": corpus,
         "scenarios": [s.strip() for s in (scenarios or "").split(",") if s.strip()],
         "limit": limit, "jbb": jbb, "operators": operators, "max_steps": max_steps,
-        "output": output,
+        "output": output, "resume": resume,
     }
     results = run_sweep(targets, params, echo=click.echo)
 
