@@ -35,12 +35,13 @@ _OPERATORS = frozenset({
 
 _SEVERITY_RANK = {"LOW": 1, "HIGH": 2, "CRITICAL": 3}
 
-_SCHEMA = """
+_SCHEMA_TABLE = """
 CREATE TABLE IF NOT EXISTS attacks (
     id             TEXT PRIMARY KEY,
     attack_key     TEXT,
     prompt         TEXT NOT NULL,
     excerpt        TEXT,
+    turns          TEXT,
     category       TEXT,
     technique      TEXT,
     operator       TEXT,
@@ -59,6 +60,11 @@ CREATE TABLE IF NOT EXISTS attacks (
     last_seen      TEXT,
     hit_count      INTEGER NOT NULL DEFAULT 1
 );
+"""
+
+# Indexes are created AFTER the column migrations in connect(), so a CREATE INDEX can never
+# reference a column an older table hasn't been migrated to yet.
+_SCHEMA_INDEXES = """
 CREATE INDEX IF NOT EXISTS idx_attacks_operator ON attacks(operator);
 CREATE INDEX IF NOT EXISTS idx_attacks_language ON attacks(language);
 CREATE INDEX IF NOT EXISTS idx_attacks_target   ON attacks(target_model);
@@ -93,13 +99,24 @@ def make_attack_key(prompt: str) -> str:
     return hashlib.sha256(prompt.encode()).hexdigest()[:16]
 
 
+def _join_turns(turns: list) -> str:
+    """Canonical text for a multi-turn attack — numbered turns joined. This is the identity +
+    storage basis, so two multi-turn attacks that share a final turn but differ earlier stay
+    distinct (and the whole sequence, not just the last message, is what gets archived)."""
+    return "\n\n".join(f"USER {i}: {t}" for i, t in enumerate(turns, 1))
+
+
 def connect(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
-    conn.executescript(_SCHEMA)
-    # Migrate DBs created before attack_key existed.
+    conn.executescript(_SCHEMA_TABLE)
+    # Migrate older DBs BEFORE creating indexes — a CREATE INDEX must not reference a column the
+    # ALTER TABLE below hasn't added yet (e.g. a pre-attack_key or pre-turns DB).
     cols = {r[1] for r in conn.execute("PRAGMA table_info(attacks)").fetchall()}
     if "attack_key" not in cols:
         conn.execute("ALTER TABLE attacks ADD COLUMN attack_key TEXT")
+    if "turns" not in cols:
+        conn.execute("ALTER TABLE attacks ADD COLUMN turns TEXT")   # multi-turn attack sequence (JSON)
+    conn.executescript(_SCHEMA_INDEXES)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -111,11 +128,19 @@ def _now() -> str:
 def upsert(conn: sqlite3.Connection, rec: dict, now: str = "") -> bool:
     """Insert a bypass, or bump hit_count/last_seen if already known. Returns True if new."""
     now = now or _now()
-    prompt = rec.get("prompt") or ""
+    turns = rec.get("turns")
+    if isinstance(turns, list) and turns:
+        turns_json = json.dumps(turns, ensure_ascii=False)
+        prompt = _join_turns(turns)              # human-readable, for the prompt / excerpt columns
+        identity = "MT:" + turns_json            # injective id basis: a JSON array can never equal a
+    else:                                        # single-turn prompt string, and distinct turn-lists differ
+        prompt = rec.get("prompt") or ""
+        identity = prompt
+        turns_json = None
     target = rec.get("target_model") or ""
     if not prompt:
         return False
-    rid = make_id(prompt, target)
+    rid = make_id(identity, target)
     operator, language = parse_operator(rec.get("technique", ""))
     operator = rec.get("operator") or operator
     language = rec.get("language") or language
@@ -127,12 +152,12 @@ def upsert(conn: sqlite3.Connection, rec: dict, now: str = "") -> bool:
         conn.commit()
         return False
     conn.execute(
-        "INSERT INTO attacks (id, attack_key, prompt, excerpt, category, technique, operator,"
+        "INSERT INTO attacks (id, attack_key, prompt, excerpt, turns, category, technique, operator,"
         " language, goal, layer, severity, target_model, attacker_model, judge_model,"
         " guard_model, scorer, evidence, source, first_seen, last_seen, hit_count)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)",
         (
-            rid, make_attack_key(prompt), prompt, prompt[:160], rec.get("category"),
+            rid, make_attack_key(identity), prompt, prompt[:160], turns_json, rec.get("category"),
             rec.get("technique"), operator, language, rec.get("goal"), rec.get("layer"),
             rec.get("severity"), target, rec.get("attacker_model"), rec.get("judge_model"),
             rec.get("guard_model"), rec.get("scorer"), (rec.get("evidence") or "")[:300],
