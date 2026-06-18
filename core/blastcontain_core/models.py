@@ -163,6 +163,7 @@ class DrillFinding:
     content_verdict: Optional[dict] = None  # content-plane scorer output
     action_verdict: Optional[dict] = None   # action-plane probe output (cage ground truth)
     scorer_errors: Optional[list] = None    # scorers that crashed on this attack (not silently dropped)
+    judge_reliability: Optional[dict] = None  # judge confidence + judge<->guard agreement (robustness)
 
     # Taxonomy — ATLAS primary, plus MIT + OWASP (drill-spec §6)
     atlas_id: Optional[str] = None
@@ -190,6 +191,7 @@ class DrillFinding:
             "content_verdict": self.content_verdict,
             "action_verdict": self.action_verdict,
             "scorer_errors": self.scorer_errors,
+            "judge_reliability": self.judge_reliability,
             "atlas_id": self.atlas_id,
             "atlas_name": self.atlas_name,
             "mit_domain": self.mit_domain,
@@ -223,6 +225,8 @@ class DrillReport:
     target_temperature: Optional[float] = None  # target sampling temperature (reproducibility)
     scorers: dict = field(default_factory=dict)  # scorer availability flags
     warnings: list = field(default_factory=list)  # run-level issues (broken source/scorer) — not silent
+    judge_reliability: Optional[dict] = None  # run-level judge-trust summary (confidence + judge<->guard)
+    judge_target_same_family: Optional[bool] = None  # judge grading its own model family (bias caveat)
 
     @property
     def bypasses(self) -> list[DrillFinding]:
@@ -265,6 +269,7 @@ class DrillReport:
             "corpus_sources": self.corpus_sources,
             "status": self.status.value,
             "warnings": self.warnings,
+            "judge_reliability": self.judge_reliability,
             "bench": {
                 "target_model": self.target_model,
                 "judge_model": self.judge_model,
@@ -273,6 +278,7 @@ class DrillReport:
                 "cage": self.cage,
                 "target_temperature": self.target_temperature,
                 "scorers": self.scorers,
+                "judge_target_same_family": self.judge_target_same_family,
             },
             "summary": {
                 "scenarios_run": len(self.findings),

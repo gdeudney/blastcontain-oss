@@ -88,6 +88,22 @@ def write_markdown_report(report: DrillReport, path: str) -> None:
         lines += ["## ⚠ Warnings", ""]
         lines += [f"- {w}" for w in report.warnings]
         lines += [""]
+    if report.judge_reliability:
+        jr = report.judge_reliability
+        lines += [
+            "## Judge reliability",
+            "",
+            f"- Judged findings: **{jr['judged_findings']}** · judge↔guard compared: "
+            f"**{jr['judge_guard_compared']}** · disagreements: **{jr['judge_guard_disagreements']}**",
+            f"- Mean judge confidence: **{jr['mean_judge_confidence']}** · low-confidence "
+            f"(<0.5): **{jr['low_confidence_findings']}**",
+        ]
+        if report.judge_target_same_family:
+            lines.append(
+                "- ⚠️ Judge and target are the **same model family** — possible self-bias; "
+                "treat judge-only bypasses with caution."
+            )
+        lines += [""]
     if report.critical_bypasses:
         lines += [
             "> 🔴 **CRITICAL bypasses present — this drill blocks prod promotion.**",
