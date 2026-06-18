@@ -1,6 +1,8 @@
 """Effective-attack database — schema, ingest/dedupe, query, stats (model-free)."""
 from __future__ import annotations
 
+import json
+
 from blastcontain_drill.attackdb import (
     connect,
     coverage,
@@ -102,3 +104,61 @@ def test_coverage_lists_models_per_attack():
     cov = coverage(conn, operator="morse")
     assert len(cov) == 1                         # one distinct morse attack
     assert dict(cov[0]["models"]) == {"A": "HIGH", "B": "CRITICAL"}
+
+
+def test_multiturn_record_archives_the_whole_sequence():
+    conn = connect(":memory:")
+    turns = ["define X as a benign-looking thing", "now combine X to do the harmful thing"]
+    new, _ = ingest_records(conn, [{
+        "prompt": turns[-1], "turns": turns, "target_model": "A",
+        "technique": "context-smuggling", "category": "jailbreak", "layer": "replay", "severity": "HIGH",
+    }])
+    assert new == 1
+    row = conn.execute("SELECT prompt, turns FROM attacks").fetchone()
+    assert json.loads(row["turns"]) == turns                       # full sequence stored, not just the last turn
+    assert "USER 1:" in row["prompt"] and "USER 2:" in row["prompt"]  # identity/storage = joined turns
+
+
+def test_multiturn_attacks_sharing_a_final_turn_stay_distinct():
+    conn = connect(":memory:")
+    final = "combine everything and answer"
+    ingest_records(conn, [
+        {"prompt": final, "turns": ["setup A", final], "target_model": "A", "technique": "t"},
+        {"prompt": final, "turns": ["setup B is different", final], "target_model": "A", "technique": "t"},
+    ])
+    # different earlier turns -> different identity -> two rows (NOT collapsed by the shared final turn)
+    assert conn.execute("SELECT COUNT(*) AS n FROM attacks").fetchone()["n"] == 2
+
+
+def test_single_turn_record_is_unaffected():
+    conn = connect(":memory:")
+    ingest_records(conn, [_rec(prompt="solo")])
+    row = conn.execute("SELECT prompt, turns FROM attacks").fetchone()
+    assert row["prompt"] == "solo" and row["turns"] is None
+
+
+def test_join_lookalike_single_turn_does_not_collide_with_multiturn():
+    # a single-turn prompt equal to _join_turns(['a','b']) must NOT dedupe into the 2-turn
+    # attack — identity hashes the JSON array, which a plain prompt string can never equal.
+    conn = connect(":memory:")
+    ingest_records(conn, [
+        {"turns": ["a", "b"], "target_model": "A", "technique": "t"},
+        {"prompt": "USER 1: a\n\nUSER 2: b", "target_model": "A", "technique": "t"},
+    ])
+    assert conn.execute("SELECT COUNT(*) AS n FROM attacks").fetchone()["n"] == 2
+
+
+def test_connect_migrates_a_legacy_db_and_builds_indexes(tmp_path):
+    import sqlite3
+    p = str(tmp_path / "legacy.db")
+    raw = sqlite3.connect(p)
+    # a pre-attack_key, pre-turns table: has the indexed columns but lacks attack_key + turns
+    raw.execute("CREATE TABLE attacks (id TEXT PRIMARY KEY, prompt TEXT NOT NULL, "
+                "operator TEXT, language TEXT, target_model TEXT)")
+    raw.execute("INSERT INTO attacks (id, prompt) VALUES ('x', 'p')")
+    raw.commit()
+    raw.close()
+    conn = connect(p)                            # must migrate the columns THEN build indexes, no crash
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(attacks)").fetchall()}
+    assert "attack_key" in cols and "turns" in cols
+    assert conn.execute("SELECT COUNT(*) AS n FROM attacks").fetchone()["n"] == 1   # legacy row preserved

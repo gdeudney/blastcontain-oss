@@ -113,6 +113,7 @@ def _effective_records(cfg, report) -> list:
         version=cfg.corpus, categories=cfg.scenarios or None, limit=cfg.limit,
         enable_operators=cfg.enable_operators, enable_jbb=cfg.enable_jbb,
         enable_systemcard=cfg.enable_systemcard,
+        enable_multiturn=getattr(cfg, "enable_multiturn", False),
     )
     by_id = {a.id: a for a in corpus.attacks}
     common = {
@@ -128,8 +129,8 @@ def _effective_records(cfg, report) -> list:
         if not atk:
             continue
         records.append({
-            "prompt": atk.prompt, "category": atk.category, "technique": f.technique,
-            "goal": atk.goal, "layer": f.layer,
+            "prompt": atk.prompt, "turns": atk.turns, "category": atk.category,
+            "technique": f.technique, "goal": atk.goal, "layer": f.layer,
             "severity": f.severity.value if f.severity else None,
             "evidence": f.evidence, **common,
         })
@@ -264,6 +265,7 @@ def run_study(targets: list, params: dict, echo=print) -> tuple:
             enable_jbb=params.get("jbb", True),
             enable_operators=params.get("operators", True),
             enable_systemcard=params.get("systemcard", False),
+            enable_multiturn=params.get("multiturn", False),
             generative=params.get("generative", True),
             attacker_model=params["attacker_model"],
             attacker_base_url=params.get("attacker_base_url"),
@@ -336,6 +338,7 @@ def run_study(targets: list, params: dict, echo=print) -> tuple:
 @click.option("--no-operators", is_flag=True, default=False, help="Skip the technique-operator layer")
 @click.option("--no-generative", is_flag=True, default=False, help="Skip the generative attacker (static corpus only)")
 @click.option("--systemcard", is_flag=True, default=False, help="Add the system-card-derived checks (cyber misuse/dual-use, identity & leaked-info honesty)")
+@click.option("--multiturn", is_flag=True, default=False, help="Add the multi-turn checks (long-context, decomposition/recompose, crescendo)")
 @click.option("--attempts", default=1, type=int, help="Run each static attack k times for ASR@k + a resistance 95% CI (default 1)")
 @click.option("--target-temperature", "temperature", default=None, type=float, help="Target sampling temperature (default cage 0.4; raise for more ASR@k variance)")
 @click.option("--max-steps", default=4, type=int, help="Max tool steps per attack")
@@ -343,7 +346,7 @@ def run_study(targets: list, params: dict, echo=print) -> tuple:
 @click.option("--out", default="jailbreak-study", help="Output dir: reports + leaderboard + jailbreak corpus")
 def main(attacker_model, targets_arg, base_url, judge_model, judge_base_url, guard_model,
          attacker_base_url, iters, limit, scenarios, no_jbb, no_operators, no_generative,
-         systemcard, attempts, temperature, max_steps, exclude, out):
+         systemcard, multiturn, attempts, temperature, max_steps, exclude, out):
     """Pit a Heretic attacker against one or more targets and rank their jailbreak resistance."""
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -375,6 +378,8 @@ def main(attacker_model, targets_arg, base_url, judge_model, judge_base_url, gua
         layers.append("operators")
     if systemcard:
         layers.append("systemcard")
+    if multiturn:
+        layers.append("multiturn")
     if not no_generative:
         layers.append("generative")
 
@@ -392,7 +397,7 @@ def main(attacker_model, targets_arg, base_url, judge_model, judge_base_url, gua
         "iters": iters, "limit": limit,
         "scenarios": [s.strip() for s in (scenarios or "").split(",") if s.strip()],
         "jbb": not no_jbb, "operators": not no_operators, "generative": not no_generative,
-        "systemcard": systemcard, "attempts": attempts, "temperature": temperature,
+        "systemcard": systemcard, "multiturn": multiturn, "attempts": attempts, "temperature": temperature,
         "max_steps": max_steps, "out": out,
     }
     results, asr_rows = run_study(targets, params, echo=click.echo)
