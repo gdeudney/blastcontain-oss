@@ -55,6 +55,7 @@ dev = [
 
 [project.scripts]
 blastcontain-drill = "blastcontain_drill.cli:main"
+blastcontain-drill-diff = "blastcontain_drill.diff:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["blastcontain_drill"]
