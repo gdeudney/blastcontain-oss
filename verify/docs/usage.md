@@ -289,23 +289,21 @@ blastcontain-verify --agent-id a --search-path ./src \
 
 Verify runs standalone; extras unlock deeper checks. Missing extras degrade gracefully (the dependent check falls back or SKIPs — it never crashes).
 
-**Secure by default:** `[full]` and the official image are **CVE-clean** (Presidio + AGT). The Cisco AI Defense scanners are **opt-in** (`[cisco]`) — they pull `litellm`, which carries known CVEs with no upstream fix (see [SECURITY.md](../SECURITY.md)).
+Every augmentation — default and opt-in — is **CVE-clean** (as of 2026-06).
 
 | Extra | Unlocks | CVE-clean |
 |---|---|---|
 | `[pii]`   | Microsoft Presidio NER for MEM-01 (falls back to regex without it) | ✅ |
 | `[agt]`   | Agent Governance Toolkit | ✅ |
 | `[full]`  | `[pii]` + `[agt]` — the default set, shipped in the image | ✅ |
-| `[mcp]`   | Cisco AI MCP Scanner (MCP-01 backend) | ⚠️ pulls litellm |
-| `[skill]` | Cisco AI Skill Scanner (SKILL-02) | ⚠️ pulls litellm |
-| `[cisco]` | `[mcp]` + `[skill]` | ⚠️ pulls litellm |
+| `[skill]` / `[cisco]` | Cisco AI Skill Scanner (SKILL-02) | ✅ |
 
 ```bash
 pip install "blastcontain-verify[full]"          # CVE-clean default
-pip install "blastcontain-verify[full,cisco]"     # opt in to SKILL-02 + Cisco MCP
+pip install "blastcontain-verify[full,cisco]"     # + SKILL-02 (Cisco skill scanner)
 ```
 
-The startup banner prints which augmentations are active, and SKILL-02 / Cisco MCP-01 SKIP with an enable hint when the `[cisco]` extra is absent.
+The startup banner prints which augmentations are active, and SKILL-02 SKIPs with an enable hint when the `[cisco]` extra is absent. The Cisco **MCP** scanner is not currently packaged (still CVE-bearing; MCP-01 is dormant without a Charter) — see [SECURITY.md](../SECURITY.md).
 
 ---
 

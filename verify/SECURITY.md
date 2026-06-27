@@ -56,35 +56,28 @@ production secret; use `--require-signing` in pipelines that must never emit an
 advisory packet. Key management is deliberately out of scope for the OSS tool —
 the signature is only as trustworthy as your key handling.
 
-## Optional Cisco scanners — known dependency CVEs
+## Optional Cisco scanner — dependency posture
 
 `blastcontain-verify` is **secure-by-default**: the standard install
 (`pip install blastcontain-verify` or `[full]`) and the official container image
 carry **no known-vulnerable dependencies** — verified in CI by `pip-audit`
 against [`constraints-full.txt`](constraints-full.txt).
 
-The two Cisco AI Defense scanners are **opt-in only** (`[cisco]` / `[mcp]` /
-`[skill]`) because they transitively require `litellm`, which exact-pins
-vulnerable `aiohttp` and `python-dotenv` with **no fixed combination available
-upstream**:
+As of 2026-06 the **opt-in Cisco AI Skill Scanner is also CVE-clean.**
+`cisco-ai-skill-scanner>=2.0.12` (installed via `[skill]` / `[cisco]`) raised its
+`litellm` floor to `>=1.84`, and current `litellm` relaxed its transitive pins to
+ranges (`aiohttp>=3.10`, `python-dotenv>=1.0`), so the fixed versions now resolve
+and the four earlier CVEs (CVE-2026-34993 / -47265 / -40217 / -28684) clear. The
+weekly opt-in audit job in `security.yml` watches this (unpinned) tree for new
+CVEs.
 
-| Dependency | CVE | Pulled via |
-|---|---|---|
-| `aiohttp` 3.13.x | CVE-2026-34993, CVE-2026-47265 | litellm |
-| `litellm` 1.83.7 | CVE-2026-40217 | cisco-ai-mcp-scanner / -skill-scanner |
-| `python-dotenv` 1.0.1 | CVE-2026-28684 | litellm |
-
-`cisco-ai-mcp-scanner` exact-pins `litellm==1.83.7`, and `litellm` exact-pins the
-vulnerable `aiohttp`/`python-dotenv` even in its own patched release — so no
-version bump resolves these.
-
-**If you opt in** (`pip install "blastcontain-verify[cisco]"`) to enable SKILL-02
-and the Cisco MCP-01 backend, you accept these CVEs. They are largely mitigated
-in the recommended hardened container profile (`--network none`): `litellm` and
-`aiohttp` make no outbound calls during a scan, so the network-path CVEs are not
-reachable. Residual exposure exists only when running via `pip` with network
-access and an `http://` `--mcp-config`. The pins will be dropped as soon as
-upstream ships a fixed combination.
+**`cisco-ai-mcp-scanner` (the MCP-01 backend) is deliberately NOT packaged.**
+Every release still exact-pins `litellm==1.83.7`, which drags in the vulnerable
+`aiohttp`/`python-dotenv` above; it also conflicts with `skill>=2.0.12`'s newer
+`litellm`, so the two cannot coexist. And MCP-01 is dormant — it SKIPs without a
+Charter (not yet wired). It will be re-added the day upstream relaxes that pin
+**and** Charter activates MCP-01; until then it would add CVEs for zero active
+coverage.
 
 ## Out of scope
 

@@ -45,10 +45,11 @@ jobs:
       - name: Audit guard pinned runtime closure (core + guard)
         run: pip-audit --no-deps -r guard/constraints.txt
 
-  # Opt-in extras carry documented, accepted CVEs (see verify/SECURITY.md), so
-  # this job is NON-GATING — it exists to make *new* CVEs in those trees
-  # visible weekly instead of surprising an opt-in user. Gating lives above on
-  # the CVE-clean default sets only.
+  # The opt-in [cisco] extra (cisco-ai-skill-scanner) is currently CVE-clean, but
+  # its tree is UNPINNED (it floats litellm/aiohttp/etc. to latest), so this job
+  # is NON-GATING — it makes a *future* upstream CVE in that tree visible weekly
+  # without blocking merges on dependencies we don't control. Gating lives above
+  # on the pinned, CVE-clean default sets only.
   pip-audit-optin:
     name: Dependency audit — opt-in extras (non-gating)
     runs-on: ubuntu-latest

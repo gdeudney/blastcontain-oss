@@ -7,6 +7,9 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 ### Added
 - **Check plugin system.** Organizations can add their own checks without forking: expose a `CheckGroup` (a `name`, the `provides` check-ID set, and `run(ctx)`) through the `blastcontain_verify.checks` entry point. Plugins run after the built-ins under the same crash quarantine — a broken plugin degrades to a `SCAN-PLUGIN` finding (status ERROR), and check-ID collisions are rejected. See `docs/plugins.md` and `examples/plugin-check/`.
 
+### Security
+- **Every augmentation is now CVE-clean — Cisco MCP scanner dropped, Cisco skill scanner cleared.** `cisco-ai-skill-scanner>=2.0.12` raised its `litellm` floor to `>=1.84` (current `litellm` relaxed its `aiohttp`/`python-dotenv` pins to ranges), clearing CVE-2026-34993/-47265/-40217/-28684 — so the opt-in `[skill]`/`[cisco]` extra is now clean. `cisco-ai-mcp-scanner` is **removed from packaging**: every release still exact-pins the vulnerable `litellm==1.83.7`, it now conflicts with `skill>=2.0.12`, and its only consumer (MCP-01) is dormant without a Charter. (`[cisco]` is now an alias for `[skill]`; the `[mcp]` extra is gone. Re-add when upstream relaxes the pin and Charter activates MCP-01.) Bumped `agent-governance-toolkit>=4.1` and regenerated the default lock (`pip-audit`-clean).
+
 ### Changed
 - **Typed check contract (internal).** Check groups now implement `run(ctx: CheckContext) -> CheckGroupResult` (`contract.py`) and are inventoried in an ordered registry (`registry.py`) instead of being hand-called with `**kwargs` from the scanner. Typed config access replaces silently-defaulted kwargs; `ScanState.fired` replaces the ad-hoc `env02_fired` threading for composites. External behavior — CLI, report, audit packet, SARIF — is unchanged.
 - `--require-signing` flag — exit 3 before scanning when no real signing key is configured, so CI attestation pipelines never emit an advisory (default-HMAC-key) packet.

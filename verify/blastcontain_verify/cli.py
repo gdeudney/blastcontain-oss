@@ -130,8 +130,8 @@ def main(
         click.echo(f"  Not installed:         {', '.join(inactive)}")
         if any(k in inactive for k in ("presidio", "agt")):
             click.echo('  Enable PII / AGT:      pip install "blastcontain-verify[full]"')
-        if any(k in inactive for k in ("cisco_mcp", "cisco_skill")):
-            click.echo('  Enable Cisco (opt-in): pip install "blastcontain-verify[cisco]"  (pulls litellm; see SECURITY.md)')
+        if "cisco_skill" in inactive:
+            click.echo('  Enable SKILL-02:       pip install "blastcontain-verify[cisco]"')
     click.echo()
 
     # ── Run scan ───────────────────────────────────────────────────────────────
