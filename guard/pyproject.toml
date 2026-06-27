@@ -38,7 +38,7 @@ dependencies = [
 Homepage      = "https://github.com/blastcontain/guard"
 Repository    = "https://github.com/blastcontain/guard"
 Issues        = "https://github.com/blastcontain/guard/issues"
-Documentation = "https://github.com/blastcontain/guard/blob/main/docs/spec.md"
+Documentation = "https://github.com/blastcontain/guard/blob/main/docs/architecture.md"
 
 [project.optional-dependencies]
 # Optional, availability-flagged augmentation (used-if-present, never required).

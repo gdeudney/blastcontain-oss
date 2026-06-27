@@ -141,10 +141,12 @@ learning signal · CloudEvents telemetry (jsonl / Ledger / OTel-if-present) ·
 signed decision log · Charter→ruleset compiler · native backend · generic / MCP /
 Claude Code adapters · backend abstraction with fail-closed AGT seam · AGT policy
 export + push seam (`to_agt` / `push_to_agt`) · **config-driven modes**
-(`Guard.from_config`: guard-only / dual / sole, with an HTTP AGT backend).
+(`Guard.from_config`: guard-only / dual / sole, with an HTTP AGT backend) ·
+**Platform Charter source** (`Guard.from_charter`: fetch → verify signature →
+enforce; rejects unverifiable or dev-key-signed Charters; paused/quarantined
+agents enforce deny-all).
 
-Planned (guard-spec §13): live AGT delegation/consult at runtime · the Platform
-Charter-source client · running choke-point sidecars · LangChain / OpenAI-SDK
-adapters.
+Planned (guard-spec §13): live AGT delegation/consult at runtime · running
+choke-point sidecars · LangChain / OpenAI-SDK adapters.
 
-See [`docs/BlastContain-guard-spec.md`](../../blastcontain/docs/BlastContain-guard-spec.md).
+See [`docs/architecture.md`](docs/architecture.md).

@@ -82,6 +82,49 @@ class CharterSchema:
     draft: bool = False
 
 
+_CHARTER_FIELDS = frozenset(CharterSchema.__dataclass_fields__)
+
+
+def charter_from_mapping(raw: dict, strict: bool = True) -> CharterSchema:
+    """
+    Build a CharterSchema from a parsed mapping.
+
+    With ``strict=True`` (the hand-authored-YAML path) unknown keys raise
+    ValueError — a typo in a local charter.yaml should fail loudly, not
+    silently drop a control. With ``strict=False`` unknown keys are ignored:
+    a Platform-issued Charter packet carries Intent-layer and lifecycle
+    fields (``autonomy_mode``, ``objectives``, ``state``, ``compiled_policy``,
+    …) this control-layer schema doesn't model, and older clients must keep
+    verifying newer packets.
+    """
+    if not isinstance(raw, dict):
+        raise ValueError("Charter document is not a mapping")
+
+    unknown = set(raw) - _CHARTER_FIELDS
+    if unknown and strict:
+        raise ValueError(f"Charter contains unknown fields: {sorted(unknown)}")
+
+    data = {k: v for k, v in raw.items() if k in _CHARTER_FIELDS}
+
+    # Nested dataclass fields need explicit construction
+    if isinstance(data.get("environment_constraints"), dict):
+        data["environment_constraints"] = EnvironmentConstraints(**data["environment_constraints"])
+    if isinstance(data.get("delegation_rules"), dict):
+        data["delegation_rules"] = DelegationRules(**data["delegation_rules"])
+    if isinstance(data.get("hitl_config"), dict):
+        data["hitl_config"] = HitlConfig(**data["hitl_config"])
+    if isinstance(data.get("remediation_proofs"), list):
+        data["remediation_proofs"] = [
+            RemediationProof(**p) if isinstance(p, dict) else p
+            for p in data["remediation_proofs"]
+        ]
+
+    try:
+        return CharterSchema(**data)
+    except TypeError as exc:
+        raise ValueError(f"Charter document is not a valid CharterSchema: {exc}") from exc
+
+
 def load_charter(path: str) -> CharterSchema:
     """
     Load a Charter from a YAML file. Raises FileNotFoundError if missing,
@@ -93,18 +136,4 @@ def load_charter(path: str) -> CharterSchema:
     raw = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
     if not isinstance(raw, dict):
         raise ValueError(f"Charter at {path} is not a mapping")
-
-    # Nested dataclass fields need explicit construction
-    if "environment_constraints" in raw and isinstance(raw["environment_constraints"], dict):
-        raw["environment_constraints"] = EnvironmentConstraints(**raw["environment_constraints"])
-    if "delegation_rules" in raw and isinstance(raw["delegation_rules"], dict):
-        raw["delegation_rules"] = DelegationRules(**raw["delegation_rules"])
-    if "hitl_config" in raw and isinstance(raw["hitl_config"], dict):
-        raw["hitl_config"] = HitlConfig(**raw["hitl_config"])
-    if "remediation_proofs" in raw and isinstance(raw["remediation_proofs"], list):
-        raw["remediation_proofs"] = [
-            RemediationProof(**p) if isinstance(p, dict) else p
-            for p in raw["remediation_proofs"]
-        ]
-
-    return CharterSchema(**raw)
+    return charter_from_mapping(raw, strict=True)

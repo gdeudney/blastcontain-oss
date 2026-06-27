@@ -128,12 +128,22 @@ class Guard:
     @classmethod
     def from_charter(
         cls, agent_id: str, env: str = "prod", base_url: Optional[str] = None,
-        token: Optional[str] = None, **kwargs: Any,
+        token: Optional[str] = None, allow_advisory: bool = False, **kwargs: Any,
     ) -> "Guard":
-        """Pull a signed Charter from the Platform (planned — see platform_source)."""
+        """Pull a signed Charter from the Platform and enforce it.
+
+        Fetches ``GET {base_url}/v1/charters/{agent_id}?env={env}`` (defaults:
+        ``$BLASTCONTAIN_URL`` / ``$BLASTCONTAIN_TOKEN``), verifies the signature,
+        and enforces the embedded compiled policy — or compiles the control layer
+        locally when none is embedded. ``allow_advisory=True`` accepts dev-key
+        (integrity-only) signatures: local development only. Trust rules live in
+        ``platform_source``.
+        """
         from .platform_source import fetch_ruleset
 
-        ruleset = fetch_ruleset(agent_id, env, base_url=base_url, token=token)
+        ruleset = fetch_ruleset(
+            agent_id, env, base_url=base_url, token=token, allow_advisory=allow_advisory
+        )
         return cls(ruleset, **kwargs)
 
     @classmethod

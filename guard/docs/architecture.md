@@ -33,7 +33,7 @@ consequence of that.
 | `reporter.py` | the signed decision-log packet (Audit-Packet envelope) | ③ record |
 | `compile.py` | `CharterSchema` → ruleset (offline bridge) | sources |
 | `agt_export.py` | `to_agt` / `push_to_agt` — emit + deploy the AGT form of the policy | sources |
-| `platform_source.py` | the Platform Charter client (planned stub) | sources |
+| `platform_source.py` | the Platform Charter client — fetch · verify signature · lifecycle gate | sources |
 | `config.py` | `GuardConfig` + `load_config` (the mode lives here) | sources |
 | `adapters/` | thin translators: `@guard.tool`, `MCPMiddleware`, `ClaudeCodeHook` | adapters |
 | `chokepoint.py` | out-of-process policy helpers (egress / MCP gateway / cred broker) | 2nd front |
