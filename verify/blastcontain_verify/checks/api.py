@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from ..contract import CheckContext, CheckGroupResult
 from ..models import InfraFinding, Severity
 from ..constants import MIT_RISK_MAP
 
@@ -206,11 +207,9 @@ def check_api02_unauthenticated_endpoints(
     )], "FAIL"
 
 
-def run(
-    api_spec: Optional[str] = None,
-    live_probe: bool = False,
-    **_,
-) -> tuple[list[InfraFinding], list[str], list[dict]]:
+def run(ctx: CheckContext) -> CheckGroupResult:
+    api_spec = ctx.cfg.api_spec
+    live_probe = ctx.cfg.api_live_probe
     findings: list[InfraFinding] = []
     passed: list[str] = []
     skipped: list[dict] = []
@@ -229,4 +228,4 @@ def run(
         else:
             findings.extend(result_findings)
 
-    return findings, passed, skipped
+    return CheckGroupResult(findings=findings, passed=passed, skipped=skipped)

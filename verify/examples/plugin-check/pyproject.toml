@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "blastcontain-verify-orgpolicy-demo"
+version = "0.1.0"
+description = "Example third-party check group for blastcontain-verify"
+requires-python = ">=3.11"
+dependencies = ["blastcontain-verify>=0.3,<1.0"]
+
+# This is the whole integration: an entry point in the
+# `blastcontain_verify.checks` group pointing at a CheckGroup class.
+[project.entry-points."blastcontain_verify.checks"]
+orgpolicy = "orgpolicy_demo:OrgPolicyGroup"
+
+[tool.hatch.build.targets.wheel]
+packages = ["orgpolicy_demo"]

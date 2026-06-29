@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 from typing import Optional
 
+from ..contract import CheckContext, CheckGroupResult
 from ..models import InfraFinding, Severity
 from ..constants import MIT_RISK_MAP, MCP_CAPABILITY_CATEGORIES, MCP_DANGEROUS_PAIRS
 from ..augmentation import CISCO_MCP_AVAILABLE, get_mcp_scanner
@@ -285,12 +286,12 @@ def check_mcp03_dangerous_combinations(
     )], "FAIL", ""
 
 
-def run(
-    mcp_config: Optional[str] = None,
-    permitted_tools: Optional[list[str]] = None,
-    cisco_api_key: str = "",
-    **_,
-) -> tuple[list[InfraFinding], list[str], list[dict]]:
+def run(ctx: CheckContext) -> CheckGroupResult:
+    mcp_config = ctx.cfg.mcp_config
+    cisco_api_key = ctx.cfg.cisco_api_key
+    # Charter integration is deferred (blocked on the platform UI/server that
+    # issues Charters). Until then MCP-01 SKIPs: no allowlist to compare against.
+    permitted_tools: Optional[list[str]] = None
     findings: list[InfraFinding] = []
     passed: list[str] = []
     skipped: list[dict] = []
@@ -310,4 +311,4 @@ def run(
         else:
             findings.extend(result_findings)
 
-    return findings, passed, skipped
+    return CheckGroupResult(findings=findings, passed=passed, skipped=skipped)
