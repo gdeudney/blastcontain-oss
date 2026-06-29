@@ -42,6 +42,35 @@ jobs:
       - name: Audit scout pinned runtime closure
         run: pip-audit --no-deps -r tools/scout/constraints.txt
 
+      - name: Audit guard pinned runtime closure (core + guard)
+        run: pip-audit --no-deps -r guard/constraints.txt
+
+  # The opt-in [cisco] extra (cisco-ai-skill-scanner) is currently CVE-clean, but
+  # its tree is UNPINNED (it floats litellm/aiohttp/etc. to latest), so this job
+  # is NON-GATING — it makes a *future* upstream CVE in that tree visible weekly
+  # without blocking merges on dependencies we don't control. Gating lives above
+  # on the pinned, CVE-clean default sets only.
+  pip-audit-optin:
+    name: Dependency audit — opt-in extras (non-gating)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve verify[full,cisco] and audit the environment
+        run: |
+          python -m venv .optin
+          . .optin/bin/activate
+          pip install -q ./core "./verify[full,cisco]" pip-audit
+          pip-audit 2>&1 | tee optin-extras-audit.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: optin-extras-audit
+          path: optin-extras-audit.txt
+
   bandit:
     name: SAST (bandit)
     runs-on: ubuntu-latest
@@ -62,5 +91,6 @@ jobs:
           core/blastcontain_core
           verify/blastcontain_verify
           drill/blastcontain_drill
+          guard/blastcontain_guard
           tools/scout/blastcontain_scout
           --severity-level medium

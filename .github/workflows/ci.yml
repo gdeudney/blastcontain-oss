@@ -23,6 +23,7 @@ jobs:
       core: ${{ steps.filter.outputs.core }}
       verify: ${{ steps.filter.outputs.verify }}
       drill: ${{ steps.filter.outputs.drill }}
+      guard: ${{ steps.filter.outputs.guard }}
       scout: ${{ steps.filter.outputs.scout }}
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +39,9 @@ jobs:
             drill:
               - 'drill/**'
               - 'core/**'
+            guard:
+              - 'guard/**'
+              - 'core/**'
             scout:
               - 'tools/scout/**'
 
@@ -49,7 +53,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install ruff
-      - run: ruff check core verify drill tools/scout
+      - run: ruff check core verify drill guard tools/scout
 
   import-policy:
     runs-on: ubuntu-latest
@@ -60,12 +64,12 @@ jobs:
           set -e
           if grep -REn \
             "from blastcontain\.(platform|enterprise)|import blastcontain\.(platform|enterprise)" \
-            --include="*.py" verify/blastcontain_verify drill/blastcontain_drill tools/scout/blastcontain_scout; then
+            --include="*.py" verify/blastcontain_verify drill/blastcontain_drill guard/blastcontain_guard tools/scout/blastcontain_scout; then
             echo "ERROR: an OSS package imports from a closed-source package."
             echo "Move shared code into blastcontain-core (Apache 2.0) instead."
             exit 1
           fi
-          if grep -REn "blastcontain[_-](platform|enterprise)" verify/pyproject.toml drill/pyproject.toml tools/scout/pyproject.toml; then
+          if grep -REn "blastcontain[_-](platform|enterprise)" verify/pyproject.toml drill/pyproject.toml guard/pyproject.toml tools/scout/pyproject.toml; then
             echo "ERROR: an OSS package declares a closed-source dependency."
             exit 1
           fi
@@ -126,6 +130,25 @@ jobs:
       - run: pip install -e "./drill[dev]"
       - run: pytest -m "not live and not podman"
         working-directory: drill
+
+  guard:
+    needs: changes
+    if: ${{ needs.changes.outputs.guard == 'true' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e "./core"
+      - run: pip install -e "./guard[dev]"
+      - run: pytest -m "not live"
+        working-directory: guard
 
   # Tooling — lint + test only, never published (no release job / container).
   scout:

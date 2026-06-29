@@ -1,0 +1,14 @@
+# Mode 3 — AGT only. Guard is a thin shim; AGT's PolicyEvaluator is the SOLE
+# decider (the native ruleset is pass-through).
+# Run:  python examples/demo_agt_server.py        (in another terminal)
+#       python examples/agent.py examples/mode-agt-only.yaml
+#
+# NOTE: in sole mode the native rules (incl. block-exfiltration) do NOT apply —
+# AGT decides everything. Make sure AGT's policy is complete.
+agent_id: invoice-bot
+environment: prod
+policy: examples/policy.yaml
+agt:
+  enabled: true
+  mode: sole                          # AGT is the only decider
+  endpoint: http://127.0.0.1:8700/evaluate
