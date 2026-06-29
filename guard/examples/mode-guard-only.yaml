@@ -1,0 +1,5 @@
+# Mode 1 — Guard only. In-process enforcement, nothing else required.
+# Run:  python examples/agent.py examples/mode-guard-only.yaml
+agent_id: invoice-bot
+environment: prod
+policy: examples/policy.yaml

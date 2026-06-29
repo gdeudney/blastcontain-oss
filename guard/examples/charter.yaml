@@ -1,0 +1,33 @@
+# BlastContain Guard — a core CharterSchema (the blastcontain_core.charter format
+# Verify already reads). Guard compiles it OFFLINE into a governance.toolkit/v1
+# ruleset, so you can run a real Charter without the commercial Platform:
+#
+#   blastcontain-guard compile examples/charter.yaml
+#   blastcontain-guard simulate --charter examples/charter.yaml --tool query_invoice
+#
+# permitted_tools -> an allow-rule; hitl_config.required_for -> require_approval
+# (interactive) or deny (autonomous); egress_blocked -> a deny-send rule.
+
+agent_id: invoice-bot
+environment: prod
+version: "1.0.0"
+trust_tier: 1
+
+permitted_tools:
+  - query_invoice
+  - list_invoices
+  - get_customer
+  - send_customer_receipt
+
+environment_constraints:
+  read_only_rootfs: true
+  egress_blocked: true
+  max_trust_tier: 1
+  verify_required: true
+
+hitl_config:
+  required_for:
+    - destructive_apis
+    - send_customer_receipt
+  timeout_sec: 300
+  escalation_contact: "#invoice-bot-oncall"

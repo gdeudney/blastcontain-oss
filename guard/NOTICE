@@ -1,0 +1,15 @@
+BlastContain Guard
+Copyright 2026 BlastContain Contributors
+
+This product includes software developed by BlastContain Contributors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+see the LICENSE file in this directory or
+http://www.apache.org/licenses/LICENSE-2.0
+
+Guard depends on blastcontain-core (Apache-2.0) for signing and the Charter
+schema. It optionally exports decisions to OpenTelemetry and can back its
+in-process enforcement with the Microsoft Agent Governance Toolkit (AGT) when
+present — both via the availability-flag pattern (used-if-present, never
+required); neither is vendored here. Record their provenance and licenses in
+your own deployment's AIBOM.
