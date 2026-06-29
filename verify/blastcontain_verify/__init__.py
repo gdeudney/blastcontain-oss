@@ -5,7 +5,7 @@ See: https://github.com/blastcontain/verify
 """
 from __future__ import annotations
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 
 
 def _harden_runtime_env() -> None:

@@ -85,7 +85,7 @@ Every run prints a per-check table and a summary to the console:
 ============================================================
   BlastContain Verify  |  Agent: my-agent  |  Env: prod
 ============================================================
-  Augmentation active:   presidio, cisco_mcp, cisco_skill, agt
+  Augmentation active:   presidio, agt
 
   Running checks...
 
@@ -259,6 +259,13 @@ from blastcontain_core.signing import verify_packet
 assert verify_packet(json.load(open("audit.json")))
 ```
 
+To make CI fail rather than ship an advisory (default-key) packet, add `--require-signing` — it exits 3 *before scanning* when no real key (`BLASTCONTAIN_SIGNING_KEY_PATH` / `_PEM`, or a non-default `BLASTCONTAIN_SIGNING_KEY`) is configured:
+
+```bash
+BLASTCONTAIN_SIGNING_KEY_PATH=./verify-signing.pem \
+blastcontain-verify --agent-id a --search-path ./src --output audit.json --require-signing
+```
+
 ### 6.8 Suppress known-safe paths and checks
 
 `.blastcontainignore` at the root of `--search-path` (honoured by CRED-01, CODE-01, TLS-01):
@@ -282,6 +289,17 @@ blastcontain-verify --agent-id a --search-path ./src \
   --blastcontain-url https://blastcontain.internal:8080
 # add --dry-run to compute everything but skip the POST
 ```
+
+### 6.10 Add your own checks (plugins)
+
+Ship organization-specific checks without forking. Expose a `CheckGroup` through the `blastcontain_verify.checks` entry point; it runs after the built-ins under the same crash quarantine (a broken plugin degrades to a `SCAN-PLUGIN` finding, never a crash). Minimal `pyproject.toml`:
+
+```toml
+[project.entry-points."blastcontain_verify.checks"]
+org_policy = "my_org_checks:OrgPolicyGroup"
+```
+
+A group declares the check IDs it `provides` and returns a `CheckGroupResult` from `run(ctx)`. Full walkthrough and a runnable example: [docs/plugins.md](plugins.md) and [`examples/plugin-check/`](../examples/plugin-check/).
 
 ---
 

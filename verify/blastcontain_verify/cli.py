@@ -62,7 +62,7 @@ def main(
     """
     BlastContain Verify — pre-deployment environmental compliance scanner.
 
-    Runs 24 security checks against the agent's runtime environment and
+    Runs 27 security checks against the agent's runtime environment and
     produces a Markdown report and signed JSON Audit Packet.
 
     Exit codes: 0=APPROVED  1=REJECTED  2=QUARANTINED  3=ERROR

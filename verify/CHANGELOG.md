@@ -4,20 +4,20 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-06-28
+
 ### Added
 - **Check plugin system.** Organizations can add their own checks without forking: expose a `CheckGroup` (a `name`, the `provides` check-ID set, and `run(ctx)`) through the `blastcontain_verify.checks` entry point. Plugins run after the built-ins under the same crash quarantine — a broken plugin degrades to a `SCAN-PLUGIN` finding (status ERROR), and check-ID collisions are rejected. See `docs/plugins.md` and `examples/plugin-check/`.
-
-### Security
-- **Every augmentation is now CVE-clean — Cisco MCP scanner dropped, Cisco skill scanner cleared.** `cisco-ai-skill-scanner>=2.0.12` raised its `litellm` floor to `>=1.84` (current `litellm` relaxed its `aiohttp`/`python-dotenv` pins to ranges), clearing CVE-2026-34993/-47265/-40217/-28684 — so the opt-in `[skill]`/`[cisco]` extra is now clean. `cisco-ai-mcp-scanner` is **removed from packaging**: every release still exact-pins the vulnerable `litellm==1.83.7`, it now conflicts with `skill>=2.0.12`, and its only consumer (MCP-01) is dormant without a Charter. (`[cisco]` is now an alias for `[skill]`; the `[mcp]` extra is gone. Re-add when upstream relaxes the pin and Charter activates MCP-01.) Bumped `agent-governance-toolkit>=4.1` and regenerated the default lock (`pip-audit`-clean).
+- `--require-signing` flag — exit 3 *before scanning* when no real signing key is configured, so CI attestation pipelines never emit an advisory (default-HMAC-key) packet.
 
 ### Changed
 - **Typed check contract (internal).** Check groups now implement `run(ctx: CheckContext) -> CheckGroupResult` (`contract.py`) and are inventoried in an ordered registry (`registry.py`) instead of being hand-called with `**kwargs` from the scanner. Typed config access replaces silently-defaulted kwargs; `ScanState.fired` replaces the ad-hoc `env02_fired` threading for composites. External behavior — CLI, report, audit packet, SARIF — is unchanged.
-- `--require-signing` flag — exit 3 before scanning when no real signing key is configured, so CI attestation pipelines never emit an advisory (default-HMAC-key) packet.
-- Doc-drift tests (`tests/unit/test_doc_consistency.py`) pin the spec's per-check sections and the README's check/category counts to the new canonical inventory `constants.ALL_CHECK_IDS`, and pin pyproject/`__version__`/CHANGELOG coherence (regression guard for the hardcoded `generator_version` bug).
+- Audit packets signed with the built-in default HMAC key now carry `signature.advisory: true` (additive field from `blastcontain-core`) — integrity-only signatures are machine-distinguishable from attestation. README/SECURITY.md state the distinction plainly.
+- Doc-drift tests (`tests/unit/test_doc_consistency.py`) pin the spec's per-check sections and the README's check/category counts to the canonical inventory `constants.ALL_CHECK_IDS`, and pin pyproject/`__version__`/CHANGELOG coherence (regression guard for the hardcoded `generator_version` bug).
 - `CONTRIBUTING.md` gains the augmentation acceptance checklist (pip-audit-clean tree, no exact-pins of shared libraries, offline/read-only import safety, tree-size budget, graceful degradation) — codifying the litellm/tldextract lessons. The Security workflow now also audits the opt-in `[cisco]` tree weekly, non-gating.
 
-### Changed
-- Audit packets signed with the built-in default HMAC key now carry `signature.advisory: true` (additive field from `blastcontain-core`) — integrity-only signatures are machine-distinguishable from attestation. README/SECURITY.md state the distinction plainly.
+### Security
+- **Every augmentation is now CVE-clean — Cisco MCP scanner dropped, Cisco skill scanner cleared.** `cisco-ai-skill-scanner>=2.0.12` raised its `litellm` floor to `>=1.84` (current `litellm` relaxed its `aiohttp`/`python-dotenv` pins to ranges), clearing CVE-2026-34993/-47265/-40217/-28684 — so the opt-in `[skill]`/`[cisco]` extra is now clean. `cisco-ai-mcp-scanner` is **removed from packaging**: every release still exact-pins the vulnerable `litellm==1.83.7`, it now conflicts with `skill>=2.0.12`, and its only consumer (MCP-01) is dormant without a Charter. (`[cisco]` is now an alias for `[skill]`; the `[mcp]` extra is gone. Re-add when upstream relaxes the pin and Charter activates MCP-01.) Bumped `agent-governance-toolkit>=4.1` and regenerated the default lock (`pip-audit`-clean).
 
 ## [0.3.1] — 2026-06-03
 

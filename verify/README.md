@@ -66,6 +66,7 @@ podman run --rm \
 --api-live-probe        Enable live OPTIONS probe in API-01 (off by default)
 --egress-probe-target   host:port for ENV-02/NET-01 probes
 --acknowledge-risk      Exit 0 even on CRITICAL
+--require-signing       Exit 3 unless a real signing key is set (no advisory packet)
 ```
 
 Usage guide & examples: [docs/usage.md](docs/usage.md) · Full spec: [docs/spec.md](docs/spec.md) · Design notes: [docs/architecture.md](docs/architecture.md) · Custom checks: [docs/plugins.md](docs/plugins.md)
