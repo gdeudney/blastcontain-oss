@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from ..contract import CheckContext, CheckGroupResult
 from ..models import InfraFinding, Severity
 from ..constants import MIT_RISK_MAP, PERSISTENCE_PATHS
 
@@ -78,7 +79,7 @@ def check_perm01_persistence_locations() -> tuple[list[InfraFinding], str]:
     )], "FAIL"
 
 
-def run(**_) -> tuple[list[InfraFinding], list[str], list[dict]]:
+def run(ctx: CheckContext) -> CheckGroupResult:
     findings: list[InfraFinding] = []
     passed: list[str] = []
     skipped: list[dict] = []
@@ -91,4 +92,4 @@ def run(**_) -> tuple[list[InfraFinding], list[str], list[dict]]:
     else:
         findings.extend(result_findings)
 
-    return findings, passed, skipped
+    return CheckGroupResult(findings=findings, passed=passed, skipped=skipped)

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "blastcontain-verify"
-version = "0.3.1"
+version = "0.4.0"
 description = "Pre-deployment compliance scanner for AI agents — 27 security checks, SARIF output, signed audit packets"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -42,24 +42,26 @@ Documentation = "https://github.com/blastcontain/verify/blob/main/docs/spec.md"
 
 [project.optional-dependencies]
 # Secure-by-default: [full] is the CVE-clean augmentation set (Presidio + AGT).
-# The Cisco AI Defense scanners are NOT in [full] — they transitively pull
-# `litellm`, which exact-pins vulnerable `aiohttp` / `python-dotenv`
-# (CVE-2026-34993, -47265, -40217, -28684) with no fix available upstream
-# (every cisco-ai-mcp-scanner release pins litellm==1.83.7). Opt in with the
-# [cisco] extra to enable SKILL-02 + the Cisco MCP-01 backend and accept that
-# trade-off. See SECURITY.md.
 full  = [
     "presidio-analyzer>=2.2",
     "presidio-anonymizer>=2.2",
-    "agent-governance-toolkit",
+    "agent-governance-toolkit>=4.1",
 ]
 pii   = ["presidio-analyzer>=2.2", "presidio-anonymizer>=2.2"]
-agt   = ["agent-governance-toolkit"]
+agt   = ["agent-governance-toolkit>=4.1"]
 
-# Cisco AI Defense scanners — OPT-IN ONLY (pull litellm + CVE-bearing pins).
-mcp   = ["cisco-ai-mcp-scanner"]
-skill = ["cisco-ai-skill-scanner"]
-cisco = ["cisco-ai-mcp-scanner", "cisco-ai-skill-scanner"]
+# Cisco AI Defense — OPT-IN (SKILL-02). cisco-ai-skill-scanner>=2.0.12 raised its
+# litellm floor to >=1.84, which lets the fixed aiohttp/python-dotenv resolve, so
+# this tree is now CVE-clean. `cisco` is an alias for `skill`.
+#
+# NOTE: cisco-ai-mcp-scanner (the MCP-01 backend) is intentionally NOT packaged.
+# Every release still exact-pins litellm==1.83.7 (CVE-2026-34993/-47265/-40217/
+# -28684), and it conflicts with skill>=2.0.12's litellm>=1.84 — they can no
+# longer coexist. MCP-01 is also dormant (SKIPs without a Charter), so it buys
+# nothing today. Re-add it when upstream relaxes the litellm pin AND Charter
+# wiring activates MCP-01. See SECURITY.md.
+skill = ["cisco-ai-skill-scanner>=2.0.12"]
+cisco = ["cisco-ai-skill-scanner>=2.0.12"]
 
 dev = [
     "pytest>=8.0",

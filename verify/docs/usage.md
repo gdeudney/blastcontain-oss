@@ -85,7 +85,7 @@ Every run prints a per-check table and a summary to the console:
 ============================================================
   BlastContain Verify  |  Agent: my-agent  |  Env: prod
 ============================================================
-  Augmentation active:   presidio, cisco_mcp, cisco_skill, agt
+  Augmentation active:   presidio, agt
 
   Running checks...
 
@@ -259,6 +259,13 @@ from blastcontain_core.signing import verify_packet
 assert verify_packet(json.load(open("audit.json")))
 ```
 
+To make CI fail rather than ship an advisory (default-key) packet, add `--require-signing` — it exits 3 *before scanning* when no real key (`BLASTCONTAIN_SIGNING_KEY_PATH` / `_PEM`, or a non-default `BLASTCONTAIN_SIGNING_KEY`) is configured:
+
+```bash
+BLASTCONTAIN_SIGNING_KEY_PATH=./verify-signing.pem \
+blastcontain-verify --agent-id a --search-path ./src --output audit.json --require-signing
+```
+
 ### 6.8 Suppress known-safe paths and checks
 
 `.blastcontainignore` at the root of `--search-path` (honoured by CRED-01, CODE-01, TLS-01):
@@ -283,29 +290,38 @@ blastcontain-verify --agent-id a --search-path ./src \
 # add --dry-run to compute everything but skip the POST
 ```
 
+### 6.10 Add your own checks (plugins)
+
+Ship organization-specific checks without forking. Expose a `CheckGroup` through the `blastcontain_verify.checks` entry point; it runs after the built-ins under the same crash quarantine (a broken plugin degrades to a `SCAN-PLUGIN` finding, never a crash). Minimal `pyproject.toml`:
+
+```toml
+[project.entry-points."blastcontain_verify.checks"]
+org_policy = "my_org_checks:OrgPolicyGroup"
+```
+
+A group declares the check IDs it `provides` and returns a `CheckGroupResult` from `run(ctx)`. Full walkthrough and a runnable example: [docs/plugins.md](plugins.md) and [`examples/plugin-check/`](../examples/plugin-check/).
+
 ---
 
 ## 7. Optional augmentation
 
 Verify runs standalone; extras unlock deeper checks. Missing extras degrade gracefully (the dependent check falls back or SKIPs — it never crashes).
 
-**Secure by default:** `[full]` and the official image are **CVE-clean** (Presidio + AGT). The Cisco AI Defense scanners are **opt-in** (`[cisco]`) — they pull `litellm`, which carries known CVEs with no upstream fix (see [SECURITY.md](../SECURITY.md)).
+Every augmentation — default and opt-in — is **CVE-clean** (as of 2026-06).
 
 | Extra | Unlocks | CVE-clean |
 |---|---|---|
 | `[pii]`   | Microsoft Presidio NER for MEM-01 (falls back to regex without it) | ✅ |
 | `[agt]`   | Agent Governance Toolkit | ✅ |
 | `[full]`  | `[pii]` + `[agt]` — the default set, shipped in the image | ✅ |
-| `[mcp]`   | Cisco AI MCP Scanner (MCP-01 backend) | ⚠️ pulls litellm |
-| `[skill]` | Cisco AI Skill Scanner (SKILL-02) | ⚠️ pulls litellm |
-| `[cisco]` | `[mcp]` + `[skill]` | ⚠️ pulls litellm |
+| `[skill]` / `[cisco]` | Cisco AI Skill Scanner (SKILL-02) | ✅ |
 
 ```bash
 pip install "blastcontain-verify[full]"          # CVE-clean default
-pip install "blastcontain-verify[full,cisco]"     # opt in to SKILL-02 + Cisco MCP
+pip install "blastcontain-verify[full,cisco]"     # + SKILL-02 (Cisco skill scanner)
 ```
 
-The startup banner prints which augmentations are active, and SKILL-02 / Cisco MCP-01 SKIP with an enable hint when the `[cisco]` extra is absent.
+The startup banner prints which augmentations are active, and SKILL-02 SKIPs with an enable hint when the `[cisco]` extra is absent. The Cisco **MCP** scanner is not currently packaged (still CVE-bearing; MCP-01 is dormant without a Charter) — see [SECURITY.md](../SECURITY.md).
 
 ---
 

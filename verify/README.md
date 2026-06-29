@@ -66,9 +66,10 @@ podman run --rm \
 --api-live-probe        Enable live OPTIONS probe in API-01 (off by default)
 --egress-probe-target   host:port for ENV-02/NET-01 probes
 --acknowledge-risk      Exit 0 even on CRITICAL
+--require-signing       Exit 3 unless a real signing key is set (no advisory packet)
 ```
 
-Usage guide & examples: [docs/usage.md](docs/usage.md) · Full spec: [docs/spec.md](docs/spec.md) · Design notes: [docs/architecture.md](docs/architecture.md)
+Usage guide & examples: [docs/usage.md](docs/usage.md) · Full spec: [docs/spec.md](docs/spec.md) · Design notes: [docs/architecture.md](docs/architecture.md) · Custom checks: [docs/plugins.md](docs/plugins.md)
 
 ## GitHub Code Scanning integration
 
@@ -85,24 +86,24 @@ Usage guide & examples: [docs/usage.md](docs/usage.md) · Full spec: [docs/spec.
 
 ## Augmentation
 
-Verify works standalone; optional packages unlock deeper checks. **Secure by
-default:** `[full]` and the official image are CVE-clean. The Cisco AI Defense
-scanners are **opt-in** — they transitively pull `litellm`, which carries known
-CVEs with no upstream fix (see [SECURITY.md](SECURITY.md)).
+Verify works standalone; optional packages unlock deeper checks. Every
+augmentation — default and opt-in — is **CVE-clean** as of 2026-06.
 
 | Extra | Adds | Clean |
 |---|---|---|
 | `[pii]`   | Microsoft Presidio NER for MEM-01 | ✅ |
 | `[agt]`   | Agent Governance Toolkit | ✅ |
 | `[full]`  | `[pii]` + `[agt]` — the default supported set | ✅ |
-| `[mcp]`   | Cisco AI MCP Scanner (MCP-01 backend) | ⚠️ pulls litellm |
-| `[skill]` | Cisco AI Skill Scanner (SKILL-02) | ⚠️ pulls litellm |
-| `[cisco]` | `[mcp]` + `[skill]` | ⚠️ pulls litellm |
+| `[skill]` / `[cisco]` | Cisco AI Skill Scanner (SKILL-02) | ✅ |
 
 ```
-pip install "blastcontain-verify[full]"          # CVE-clean: Presidio + AGT
-pip install "blastcontain-verify[full,cisco]"     # + SKILL-02 & Cisco MCP (opt-in; see SECURITY.md)
+pip install "blastcontain-verify[full]"          # default: Presidio + AGT
+pip install "blastcontain-verify[full,cisco]"     # + SKILL-02 (Cisco skill scanner)
 ```
+
+> The Cisco **MCP** scanner (the MCP-01 backend) is not currently packaged — it
+> still pins a CVE-bearing `litellm` and MCP-01 is dormant without a Charter. See
+> [SECURITY.md](SECURITY.md).
 
 Without the relevant extra, the dependent check SKIPs with a hint on how to enable it.
 
@@ -129,6 +130,13 @@ assert verify_packet(packet)
 ```
 
 Ed25519 packets carry their public key inline — verification needs nothing else. HMAC packets require `BLASTCONTAIN_SIGNING_KEY` in the environment.
+
+**Be clear about what the default signature means:** with no key configured,
+packets are signed with a built-in key and marked `"advisory": true` — that
+proves *integrity* (the packet wasn't modified), **not attestation** (anyone
+can produce one). Attestation requires an Ed25519 key you manage. CI pipelines
+that must never emit an advisory packet should pass `--require-signing`, which
+exits 3 before scanning if no real key is configured.
 
 ## License
 

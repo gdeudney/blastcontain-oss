@@ -134,24 +134,30 @@ classDiagram
 
 ---
 
-## 4. View — the check "contract" (a shape, not a base class)
+## 4. View — the check contract (typed, registry-driven since 0.4.0)
 
-Every check module exposes the **same function signature**. There is no `Check`
-base class; uniformity is by convention and enforced only by the integration
-tests.
+Every check group satisfies the `CheckGroup` protocol defined in
+[`contract.py`](../blastcontain_verify/contract.py) — a deliberate leaf module
+(types only) so groups can import it without cycles. The ordered inventory
+lives in [`registry.py`](../blastcontain_verify/registry.py); third parties add
+groups via the `blastcontain_verify.checks` entry point ([plugin guide](plugins.md)).
 
 ```mermaid
 flowchart LR
-    subgraph one["any checks/X.py"]
-      R["run(**kwargs)"] --> T["returns a 3-tuple"]
+    subgraph one["any CheckGroup (built-in module or plugin)"]
+      R["run(ctx: CheckContext)"] --> T["returns CheckGroupResult"]
     end
-    T --> F["findings: list[InfraFinding]  — things that FAILED"]
-    T --> P["passed: list[str]  — check IDs that passed"]
-    T --> S["skipped: list[dict]  — id + human-readable reason"]
+    CTX["CheckContext<br/>cfg: VerifyConfig (typed)<br/>state.fired: check IDs fired so far"] --> R
+    T --> F["findings — things that FAILED"]
+    T --> P["passed — check IDs that passed"]
+    T --> S["skipped — id + human-readable reason"]
 ```
 
-`scanner.py` holds a hand-written list and calls each module uniformly, e.g.
-`collect('memory', memory.run, context_file=..., env02_fired=...)`.
+`scanner.py` iterates `BUILTIN_GROUPS` + discovered plugins in registry order
+(order is load-bearing: environment runs before memory so MEM-05 can read
+ENV-02 from `ScanState.fired`). Each group declares `provides` — the check IDs
+it owns — enforced unique across the registry, and asserted equal to
+`constants.ALL_CHECK_IDS` by the drift tests.
 
 | Module (`checks/`) | Checks | Notable inputs |
 |---|---|---|
@@ -177,12 +183,14 @@ group's result and feeds it to `memory.run()`.)*
 
 ## 5. Why it's coded this way (plain-English)
 
-**1. Checks are functions, not a class hierarchy.**
+**1. Checks are simple groups behind one typed contract, not a class hierarchy.**
 Like an airport with independent screening stations — X-ray, metal detector,
 passport desk. Each does one job and stamps "pass / flagged / not-applicable."
-They share a *shape*, not machinery. A class hierarchy would add ceremony for
-behavior the checks don't share. Cost: the contract is a convention the type
-checker can't enforce (see §6).
+They share a *contract*, not machinery: `run(ctx) -> CheckGroupResult`, where
+`ctx.cfg` gives typed access to the config (a renamed field is a type error at
+the read site, not a silently-defaulted kwarg). The registry makes the
+inventory explicit and lets organizations add their own groups via entry
+points instead of forking.
 
 **2. Every check reports into three buckets: failed / passed / skipped.**
 In compliance, *silence is dangerous* — a check that quietly didn't run looks
@@ -230,18 +238,14 @@ earliest moment, before the optional deps load.
 
 ## 6. Design tensions / open questions (let's discuss)
 
-- **Convention vs. enforced contract for checks.** The `run()` signature and the
-  module list in `scanner.py` are hand-maintained. A `typing.Protocol` (or a
-  `@register` decorator with auto-discovery) would make the contract explicit and
-  catch a mistyped `**kwargs` at type-check time. Worth it, or is the simplicity
-  better?
+- ~~**Convention vs. enforced contract for checks.**~~ **Resolved (0.4.0):**
+  `contract.py` defines the `CheckGroup` protocol + typed `CheckContext`;
+  `registry.py` holds the explicit inventory and entry-point plugin discovery.
+  The `**kwargs` dispatch is gone with it.
 - **The optimistic `PRESIDIO_AVAILABLE` flag.** It is `True` the moment the
   package imports and only flips to `False` after the first failed use — so the
   banner can advertise "presidio active" and *then* fall back to regex. Honest
   enough, or misleading?
-- **`**kwargs` dispatch in `collect()`.** Flexible (each check takes only what it
-  needs) but loses type safety — a renamed config field fails silently at runtime,
-  not at import.
 - **Unpinned `[full]` extras.** Exactly what caused the bug we just fixed —
   different machines resolve different ML-lib versions. Pin for reproducibility,
   or keep open for easy upgrades?

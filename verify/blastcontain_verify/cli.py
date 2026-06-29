@@ -5,6 +5,7 @@ blastcontain-verify [OPTIONS]
 """
 from __future__ import annotations
 
+import os
 import sys
 
 import click
@@ -51,16 +52,17 @@ _EXIT_CODES = {
 @click.option("--skip-checks",       default=None,            help="Comma-separated check IDs to skip, e.g. 'CRED-02,LOCAL-01'")
 @click.option("--api-live-probe",    is_flag=True, default=False, help="API-01: send live OPTIONS requests to spec server URLs (off by default — opt-in for offline scans)")
 @click.option("--sarif",             default=None,            help="Write SARIF 2.1.0 output to this path (for GitHub Code Scanning, GitLab, IDEs)")
+@click.option("--require-signing",   is_flag=True, default=False, help="Exit 3 before scanning unless a real signing key is configured — never emit an advisory (default-HMAC-key) packet")
 def main(
     agent_id, config, env, search_path, skills_dir, api_spec, mcp_config,
     model_dir, context_file, output, report, blastcontain_url,
     dry_run, acknowledge_risk, max_tier, egress_probe_target,
-    skip_checks, api_live_probe, sarif,
+    skip_checks, api_live_probe, sarif, require_signing,
 ):
     """
     BlastContain Verify — pre-deployment environmental compliance scanner.
 
-    Runs 24 security checks against the agent's runtime environment and
+    Runs 27 security checks against the agent's runtime environment and
     produces a Markdown report and signed JSON Audit Packet.
 
     Exit codes: 0=APPROVED  1=REJECTED  2=QUARANTINED  3=ERROR
@@ -94,6 +96,27 @@ def main(
         click.echo("Error: --agent-id is required (or set agent_id in config file)", err=True)
         sys.exit(3)
 
+    # ── Signing gate ───────────────────────────────────────────────────────────
+    # With --require-signing, refuse to scan unless a real key source is set.
+    # The default HMAC key produces an *advisory* packet (integrity-only, not
+    # attestation) — CI attestation pipelines use this flag to fail fast rather
+    # than ship one. Mirrors blastcontain_core.signing's key priority.
+    if require_signing:
+        has_real_key = bool(
+            os.environ.get("BLASTCONTAIN_SIGNING_KEY_PATH")
+            or os.environ.get("BLASTCONTAIN_SIGNING_KEY_PEM")
+            or os.environ.get("BLASTCONTAIN_SIGNING_KEY", "local-verify-default")
+            != "local-verify-default"
+        )
+        if not has_real_key:
+            click.echo(
+                "Error: --require-signing is set but no signing key is configured. "
+                "Set BLASTCONTAIN_SIGNING_KEY_PATH (PEM Ed25519, preferred), "
+                "BLASTCONTAIN_SIGNING_KEY_PEM, or a non-default BLASTCONTAIN_SIGNING_KEY.",
+                err=True,
+            )
+            sys.exit(3)
+
     # ── Augmentation banner ────────────────────────────────────────────────────
     active = [k for k, v in AUGMENTATION_FLAGS.items() if v]
     inactive = [k for k, v in AUGMENTATION_FLAGS.items() if not v]
@@ -107,8 +130,8 @@ def main(
         click.echo(f"  Not installed:         {', '.join(inactive)}")
         if any(k in inactive for k in ("presidio", "agt")):
             click.echo('  Enable PII / AGT:      pip install "blastcontain-verify[full]"')
-        if any(k in inactive for k in ("cisco_mcp", "cisco_skill")):
-            click.echo('  Enable Cisco (opt-in): pip install "blastcontain-verify[cisco]"  (pulls litellm; see SECURITY.md)')
+        if "cisco_skill" in inactive:
+            click.echo('  Enable SKILL-02:       pip install "blastcontain-verify[cisco]"')
     click.echo()
 
     # ── Run scan ───────────────────────────────────────────────────────────────

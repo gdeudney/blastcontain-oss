@@ -1,18 +1,23 @@
 """
 BlastContain Verify — scan orchestrator.
 
-Thin orchestrator: runs each check group module, collects results,
-derives final status, posts to Ledger if configured.
+Thin orchestrator: walks the check-group registry (built-ins + entry-point
+plugins, see `registry.py`), collects each group's typed result, derives the
+final status, and returns a ScanResult.
 
-Each check group is wrapped in try/except so a single failing check
-produces a synthetic ERROR finding and the remaining groups continue
-to run.
+Resilience contract — nothing here may kill the scan:
+  - every group's run() is wrapped in `except BaseException`; a crash becomes
+    a synthetic SCAN-<GROUP> finding and the remaining groups continue;
+  - a plugin that fails to load or collides with existing check IDs becomes a
+    SCAN-PLUGIN finding the same way.
+Either case flips the overall status to ERROR, and the audit packet is still
+written so the failure is auditable.
 
-User-specified `skip_checks` are filtered from each check group's
-results post-hoc: the check runs (because the result feeds other
-checks like MEM-05), but any matching findings are downgraded to
-SKIP and any passes/skips with the same ID are coerced to the
-"User-requested skip" reason.
+User-specified `skip_checks` are filtered from each group's results post-hoc:
+the check runs, but matching findings/passes are coerced to SKIP with the
+"User-requested skip" reason. Coerced findings are NOT recorded in
+ScanState.fired, so skipping a prerequisite (e.g. ENV-02) also suppresses its
+composites (MEM-05) — longstanding behavior, preserved.
 """
 from __future__ import annotations
 
@@ -21,24 +26,9 @@ import traceback
 from .augmentation import AUGMENTATION_FLAGS
 from .config import VerifyConfig
 from .constants import TIER_BLAST_WEIGHTS
+from .contract import CheckContext, ScanState
 from .models import InfraFinding, ScanResult, ScanStatus, Severity
-
-from .checks import (
-    environment,
-    filesystem,
-    credentials,
-    process,
-    network,
-    persistence,
-    memory,
-    skills,
-    api,
-    mcp,
-    code,
-    supply_chain,
-    tls,
-    local,
-)
+from .registry import BUILTIN_GROUPS, load_plugin_groups
 
 
 def _error_finding(group_name: str, exc: BaseException) -> InfraFinding:
@@ -61,6 +51,28 @@ def _error_finding(group_name: str, exc: BaseException) -> InfraFinding:
             "file an issue at https://github.com/<org>/blastcontain/issues."
         ),
         evidence=tb_short[:500],
+    )
+
+
+def _plugin_error_finding(error: str) -> InfraFinding:
+    """Synthetic finding for a plugin that failed to load or register."""
+    return InfraFinding(
+        check_id="SCAN-PLUGIN",
+        finding_type="blastcontain.scanner.plugin_failed",
+        severity=Severity.HIGH,
+        title="A check plugin failed to load",
+        detail=(
+            "A third-party check group registered via the "
+            "'blastcontain_verify.checks' entry point could not be used, so its "
+            "checks did not run and this scan is incomplete. "
+            f"Loader error: {error}"
+        ),
+        remediation=(
+            "Fix or uninstall the plugin package. A plugin must expose a "
+            "CheckGroup (non-empty `provides`, callable `run(ctx)`) and must not "
+            "claim check IDs that already exist. See docs/plugins.md."
+        ),
+        evidence=error[:500],
     )
 
 
@@ -113,16 +125,11 @@ def _apply_skip_filter(
 
 def run_scan(cfg: VerifyConfig) -> ScanResult:
     """
-    Run all check groups and return a ScanResult.
+    Run every registered check group, in registry order, and return a ScanResult.
 
-    Check groups run in dependency order:
-    1. Process + privilege checks (no dependencies)
-    2. Environment checks  (ENV-02 result feeds MEM-05)
-    3. Filesystem + network + persistence + local (independent)
-    4. Credentials (independent)
-    5. Memory (depends on ENV-02 and CRED-02 results)
-    6. Code + supply chain + TLS (independent)
-    7. Skills + API + MCP (depend on config inputs)
+    Order is part of the registry contract: groups that feed composites run
+    before their consumers (environment before memory — MEM-05 reads ENV-02
+    from ScanState.fired). Plugins run after all built-ins.
     """
     result = ScanResult(
         agent_id=cfg.agent_id,
@@ -139,74 +146,29 @@ def run_scan(cfg: VerifyConfig) -> ScanResult:
 
     skip_set: set[str] = {c.strip().upper() for c in cfg.skip_checks if c.strip()}
 
-    def collect(group_name: str, module_run_fn, **kwargs) -> list[InfraFinding]:
-        """
-        Run a check group inside a try/except. On exception, emit a synthetic
-        SCAN-<group> error finding and return [].
-        """
-        nonlocal scanner_errored
-        try:
-            f, p, s = module_run_fn(**kwargs)
-        except BaseException as exc:  # noqa: BLE001 — we want to catch everything
-            scanner_errored = True
-            err = _error_finding(group_name, exc)
-            all_findings.append(err)
-            return [err]
+    state = ScanState()
+    ctx = CheckContext(cfg=cfg, state=state)
 
-        f, p, s = _apply_skip_filter(f, p, s, skip_set)
+    plugin_groups, plugin_errors = load_plugin_groups()
+    for error in plugin_errors:
+        scanner_errored = True
+        all_findings.append(_plugin_error_finding(error))
+
+    for group in (*BUILTIN_GROUPS, *plugin_groups):
+        try:
+            group_result = group.run(ctx)
+        except BaseException as exc:  # noqa: BLE001 — quarantine: nothing kills the scan
+            scanner_errored = True
+            all_findings.append(_error_finding(group.name, exc))
+            continue
+
+        f, p, s = _apply_skip_filter(
+            group_result.findings, group_result.passed, group_result.skipped, skip_set,
+        )
         all_findings.extend(f)
         all_passed.extend(p)
         all_skipped.extend(s)
-        return f
-
-    # ── Privilege + process ────────────────────────────────────────────────────
-    collect("process", process.run)
-
-    # ── Environment ───────────────────────────────────────────────────────────
-    env_findings = collect(
-        "environment",
-        environment.run,
-        model_dir=cfg.model_dir,
-        egress_probe_target=cfg.egress_probe_target,
-    )
-    env02_fired = any(f.check_id == "ENV-02" for f in env_findings)
-
-    # ── Filesystem, network, persistence, local ────────────────────────────────
-    collect("filesystem", filesystem.run, environment=cfg.environment)
-    collect("network", network.run, egress_probe_target=cfg.egress_probe_target)
-    collect("persistence", persistence.run)
-    collect("local", local.run)
-
-    # ── Credentials ───────────────────────────────────────────────────────────
-    collect("credentials", credentials.run, search_path=cfg.search_path)
-
-    # ── Memory (uses ENV-02 result) ────────────────────────────────────────────
-    collect(
-        "memory",
-        memory.run,
-        context_file=cfg.context_file,
-        env02_fired=env02_fired,
-    )
-
-    # ── Code + supply chain + TLS ─────────────────────────────────────────────
-    collect("code", code.run, search_path=cfg.search_path)
-    collect("supply_chain", supply_chain.run, model_dir=cfg.model_dir)
-    collect("tls", tls.run, search_path=cfg.search_path)
-
-    # ── Skills + API + MCP ────────────────────────────────────────────────────
-    collect(
-        "skills",
-        skills.run,
-        skills_dir=cfg.effective_skills_dir() if cfg.skills_dir or cfg.search_path else None,
-    )
-    collect("api", api.run, api_spec=cfg.api_spec, live_probe=cfg.api_live_probe)
-    collect(
-        "mcp",
-        mcp.run,
-        mcp_config=cfg.mcp_config,
-        permitted_tools=None,  # Phase 3: pull from Charter
-        cisco_api_key=cfg.cisco_api_key,
-    )
+        state.fired.update(finding.check_id for finding in f)
 
     result.findings = all_findings
     result.passed = all_passed

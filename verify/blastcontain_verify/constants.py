@@ -15,6 +15,29 @@ import sys
 from blastcontain_core.constants import MIT_RISK_MAP, TIER_BLAST_WEIGHTS  # noqa: F401
 
 
+# ── Canonical check inventory ──────────────────────────────────────────────────
+# The single source of truth for which checks exist. The doc-consistency tests
+# pin spec.md's per-check sections and the README's "N checks across M
+# categories" claim to this set — add a check here (and to spec.md §5) when you
+# add one to a check module, or CI fails naming the drifted file.
+ALL_CHECK_IDS: frozenset[str] = frozenset({
+    "ENV-01", "ENV-02", "ENV-03",
+    "DISK-01", "DISK-02",
+    "CRED-01", "CRED-02", "CRED-03",
+    "PRIV-01", "CAP-01",
+    "NET-01", "NET-02",
+    "PERM-01",
+    "MEM-01", "MEM-03", "MEM-05",
+    "SKILL-01", "SKILL-02",
+    "API-01", "API-02",
+    "MCP-01", "MCP-02", "MCP-03",
+    "CODE-01",
+    "SUP-01",
+    "TLS-01",
+    "LOCAL-01",
+})
+
+
 # ── Credential secret names to flag in files and process environment ───────────
 SECRET_ENV_NAMES: frozenset[str] = frozenset({
     "AWS_SECRET_ACCESS_KEY", "AWS_ACCESS_KEY_ID", "GITHUB_TOKEN", "GH_TOKEN",

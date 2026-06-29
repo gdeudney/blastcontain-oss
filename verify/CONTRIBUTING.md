@@ -35,6 +35,37 @@ All commits must be signed off with `git commit -s`. This certifies you wrote th
 6. **Add tests** to `tests/unit/checks/` covering FAIL, PASS, and SKIP paths.
 7. **Add a section** to `docs/spec.md` matching the existing check format.
 
+## Adding an augmentation
+
+Augmentations are optional third-party engines behind `augmentation.py` flags
+(Presidio, AGT, the Cisco scanners). The cisco→litellm exact-pin chain cost the
+default install its CVE-clean status once — the quarantine architecture
+absorbed it, but selection is the cheaper control. A candidate package must
+pass **all** of these before it lands in any extra:
+
+1. **`pip-audit` clean** on its full resolved dependency tree, on the day of
+   the PR. Run: `pip install <pkg> && pip-audit` in a fresh venv.
+2. **No `==` pins of widely-shared libraries** in its dependency metadata
+   (`aiohttp`, `requests`, `pydantic`, `click`, ...). Exact pins of common libs
+   are how one package's CVE becomes unfixable for everyone (the litellm
+   lesson — it exact-pins vulnerable `aiohttp` even in its own patched
+   releases).
+3. **Imports cleanly offline and read-only.** Under `--network none` with a
+   non-writable `$HOME`, importing the package must not raise — no network
+   fetches, no `~/.cache` writes at import time (the tldextract lesson). Test
+   in the hardened container.
+4. **Tree size budget:** fewer than ~25 transitive packages, or an explicit
+   justification in the PR for why the coverage is worth the surface.
+5. **A graceful-degradation path:** an availability flag in `augmentation.py`,
+   `(Exception, SystemExit)` import guards, and dependent checks that SKIP
+   with an enable hint when the package is absent — never crash, never
+   silently pass.
+
+CVE-bearing packages that clear the other gates go in an **opt-in extra**
+(like `[cisco]`), never in `[full]`, with the accepted CVEs documented in
+[SECURITY.md](SECURITY.md). The weekly Security workflow audits opt-in extras
+non-gating so new CVEs in them stay visible.
+
 ## What we don't accept
 
 - Checks that require live network calls (breaks the offline guarantee — see API-01 `--api-live-probe` for how to add opt-in network checks)
