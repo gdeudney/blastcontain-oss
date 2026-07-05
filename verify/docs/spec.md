@@ -68,13 +68,13 @@ The official container image bundles `[full]` with the spaCy `en_core_web_lg` mo
 
 ```
 # from the blastcontain-oss/ root
-podman build -t blastcontain-verify:0.3.0 -f verify/Containerfile .
+podman build -t blastcontain-verify:0.4.0 -f verify/Containerfile .
 ```
 
 Run with full security isolation:
 
 ```
-podman run --rm --read-only --cap-drop ALL --security-opt no-new-privileges --network none --tmpfs /tmp:rw,noexec,nosuid,size=64m -v "C:/path/to/agent:/scan:ro,z" -v "C:/path/to/reports:/reports:rw,z" blastcontain-verify:0.3.0 --agent-id my-agent --env prod --search-path //scan --report //reports/report.md --output //reports/audit.json --acknowledge-risk
+podman run --rm --read-only --cap-drop ALL --security-opt no-new-privileges --network none --tmpfs /tmp:rw,noexec,nosuid,size=64m -v "C:/path/to/agent:/scan:ro,z" -v "C:/path/to/reports:/reports:rw,z" blastcontain-verify:0.4.0 --agent-id my-agent --env prod --search-path //scan --report //reports/report.md --output //reports/audit.json --acknowledge-risk
 ```
 
 Note: Use `//scan` and `//reports` (double-slash) on Windows to prevent MSYS2/Git Bash from translating Linux paths.
@@ -793,7 +793,7 @@ export BLASTCONTAIN_SIGNING_KEY_ID=ed25519-prod-2026-q2
 
 ### 7.6 Verifying a packet
 
-`reporter.verify_audit_packet(packet)` returns `bool`. For Ed25519 packets it uses the embedded `public_key`; for HMAC packets it requires `BLASTCONTAIN_SIGNING_KEY` to be set in the environment.
+`blastcontain_core.signing.verify_packet(packet)` returns `bool` (it also accepts an optional `public_key_b64` argument). For Ed25519 packets it uses the embedded `public_key`; for HMAC packets it requires `BLASTCONTAIN_SIGNING_KEY` to be set in the environment.
 
 In server mode the packet is `POST`-ed to `/v1/agents/{agent_id}/findings`.
 
@@ -831,12 +831,17 @@ blastcontain_verify/
 │                       #   is_ignored(rel_path, patterns) — gitignore-style matching:
 │                       #     filename globs (fnmatch), path prefixes, ** globs
 │                       # Used by CRED-01, CODE-01, TLS-01.
-├── scanner.py          # Thin orchestrator (~100 lines). Runs checks in dependency order.
-│                       # ENV-02 result (env02_fired) passed to memory.run().
-│                       # egress_probe_target passed to both environment.run() and network.run().
-├── reporter.py         # write_markdown_report(), write_audit_packet(),
-│                       # verify_audit_packet(), post_to_ledger()
-│                       # Ed25519 + HMAC signing with canonical JSON encoding.
+├── contract.py         # ScanState, CheckContext, CheckGroupResult, and the CheckGroup
+│                       # protocol — the typed check contract (a leaf module).
+├── registry.py         # Ordered BUILTIN_GROUPS + load_plugin_groups() entry-point discovery
+│                       # (blastcontain_verify.checks); rejects check-ID collisions.
+├── scanner.py          # Thin orchestrator. Iterates registry.py BUILTIN_GROUPS (+ plugin
+│                       # groups) with a typed CheckContext/ScanState; each group's run() is
+│                       # wrapped in `except BaseException`. Composites read prerequisites
+│                       # from ScanState.fired (e.g. MEM-05 reads ENV-02).
+├── reporter.py         # write_markdown_report(), write_audit_packet(), post_to_ledger().
+│                       # Signing/verification delegated to blastcontain_core.signing
+│                       # (sign_packet / verify_packet); canonical JSON encoding.
 ├── reporter_sarif.py   # write_sarif() — SARIF 2.1.0 output for GitHub Code
 │                       # Scanning, GitLab Security, IDE extensions.
 │                       # Maps Severity → SARIF level + security-severity,
