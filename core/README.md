@@ -24,7 +24,7 @@ pip install blastcontain-core
 - [`blastcontain-discovery`](https://github.com/blastcontain/discovery) — shadow AI / agent discovery
 - BlastContain Platform (closed source)
 
-> **Pre-release note:** these repositories and PyPI packages are not published yet. The links above are the planned canonical locations and will 404 until the first public release; `blastcontain-verify` ships first, with `drill` and `discovery` following once they have implementations. Until then, build from the local `blastcontain-oss/` working tree.
+> **Note:** the per-package GitHub links above are placeholders — the code currently lives in the single `blastcontain-oss` monorepo, so they will 404. `blastcontain-core` and `blastcontain-verify` are published on PyPI; `drill` and `discovery` are not yet released — build those from the `blastcontain-oss/` working tree until they are.
 
 If you're writing a third-party BlastContain tool, depend on this package and your output will be wire-compatible with the rest of the ecosystem.
 

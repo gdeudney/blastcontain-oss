@@ -40,9 +40,9 @@ We treat the following as bugs (open a public issue):
 
 | Version | Supported |
 |---|---|
-| 0.3.x | yes |
-| 0.2.x | security fixes only until 2026-12-31 |
-| < 0.2 | not supported |
+| 0.4.x | yes |
+| 0.3.x | security fixes only until 2026-12-31 |
+| < 0.3 | not supported |
 
 ## Audit packet signing — what the default actually proves
 

@@ -5,8 +5,8 @@ Thanks for your interest. This repo is the keystone of the BlastContain tool fam
 ## Quick start
 
 ```
-git clone git@github.com:blastcontain/core.git
-cd core
+git clone https://github.com/gdeudney/blastcontain-oss.git
+cd blastcontain-oss/core
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest
@@ -56,4 +56,4 @@ Maintainers only. We follow [semver](https://semver.org) strictly because downst
 - Minor bump for new functionality (additive)
 - Patch bump for fixes
 
-Tag a release with `git tag v0.2.0` and push. The release workflow handles PyPI publication.
+Tag a release with `git tag core-v0.2.0` and push (`git push origin core-v0.2.0`). The `core-` prefix selects this package in the monorepo; the release workflow then builds and publishes `blastcontain-core` to PyPI.
