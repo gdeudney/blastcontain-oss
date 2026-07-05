@@ -17,10 +17,10 @@ investment; the generic checks get delegated or explicitly demoted to
 
 | Phase | Items | Theme | Status / target |
 |---|---|---|---|
-| 0 — Quick wins | 6 (drift tests), 5 (signing honesty), 7 (augmentation policy) | Days of work, all verify-scoped, no design risk | ✅ shipped (0.3.x) |
+| 0 — Quick wins | 6 (drift tests), 5 (signing honesty), 7 (augmentation policy) | Days of work, all verify-scoped, no design risk | ✅ shipped (0.4.0) |
 | 1 — Moat, part 1 | 2a (Charter → MCP-01) | Small, high-value: the schema already exists | **DEFERRED** — blocked on the platform UI/server that issues Charters; revisit when they exist |
 | 2 — Foundation | 3 (registry + typed contract + plugins) | Enables 2b, 4, 5 without doing them twice | 0.4.0 |
-| 3 — Policy | 4 (per-environment verdict policy) | Depends on 3 for clean wiring; recorded in the packet | 0.4.0 |
+| 3 — Policy | 4 (per-environment verdict policy) | Depends on Phase 2 for clean wiring; recorded in the packet | 0.5.0 (planned) |
 | 4 — Moat, part 2 | 2b (blast-radius model), 2c (tier wiring) | Needs a short design spec first. Without Charter, `--max-tier` stays the explicit authority input (charter-derived tier lands with Phase 1) | 0.5.0 |
 | 5 — Delegation | 1 (best-of-breed engines for generic checks) | Built on the registry + augmentation pattern | 0.5.0 |
 
@@ -321,4 +321,4 @@ README positions baseline vs moat explicitly.
 | Blast-radius formula invites bikeshedding | Design-first with a one-pager; ship v1 with the breakdown visible so the formula is criticizable *and fixable* |
 | gitleaks binary complicates the pip story | Container-first (where it is free); PATH detection + regex fallback for pip |
 | Policy weakens attestation credibility | The applied policy is embedded in the signed packet — weaker gates are visible, never silent |
-| Scope creep across phases | Each phase ships independently; 0.4.0 = phases 1–3, 0.5.0 = phases 4–5 |
+| Scope creep across phases | Each phase ships independently; 0.4.0 = Phase 2 + the Phase 0 items (Phase 1 deferred, Phase 3 still planned); 0.5.0 = phases 3–5 |
