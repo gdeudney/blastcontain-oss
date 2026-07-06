@@ -16,7 +16,7 @@ cloudpathlib==0.24.0
 confection==1.3.3
 cryptography==49.0.0
 cymem==2.0.13
-filelock==3.29.4
+filelock==3.29.5
 h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
@@ -26,14 +26,14 @@ mdurl==0.1.2
 murmurhash==1.0.15
 numpy==2.5.0
 packaging==26.2
-phonenumbers==9.0.33
+phonenumbers==9.0.34
 preshed==3.0.13
 presidio_analyzer==2.2.362
 presidio_anonymizer==2.2.362
 pycparser==3.0
 pydantic==2.13.4
 pydantic_core==2.46.4
-regex==2026.5.9
+regex==2026.6.28
 requests-file==3.0.1
 requests==2.34.2
 rich==15.0.0
@@ -48,7 +48,7 @@ tldextract==5.3.1
 tqdm==4.68.3
 typer==0.26.8
 typing-inspection==0.4.2
-typing_extensions==4.15.0
+typing_extensions==4.16.0
 urllib3==2.7.0
 wasabi==1.1.3
 weasel==1.0.0
