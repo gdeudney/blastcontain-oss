@@ -36,18 +36,31 @@ that blocked it. An action-plane bypass is **CRITICAL** and blocks prod promotio
 
 | Layer | Source | Catches |
 |---|---|---|
-| **Replay** | built-in seed set · HF datasets · AI-Infra-Guard curated sets | *known* attacks — a regression suite |
-| **Operators** | arXiv techniques as transforms (PAIR, TAP, many-shot, encoding…) | known *methods* on fresh seeds |
-| **Generative** | an abliterated attacker model | *novel* jailbreaks |
+| **Replay** | built-in seeds · JailbreakBench · system-card checks · multi-turn vectors · AI-Infra-Guard curated sets | *known* attacks — a regression suite |
+| **Operators** | arXiv techniques as transforms (PyRIT/DeepTeam encoders, framing, obfuscation, homoglyph…) | known *methods* on fresh seeds |
+| **Generative** | an abliterated attacker model in a PAIR/TAP loop | *novel* jailbreaks |
 
-Every run is pinned to a corpus version (e.g. `v2026.06`) and recorded in the
-DrillReport, so reports are reproducible and regression-comparable. All three
-layers ship: **Replay** (a built-in seed corpus, no downloads), **Operators**
-(model-free technique transforms — `--operators`), and **Generative**
-(`--generative` — an abliterated/no-refusal attacker model crafts and refines
-novel jailbreaks against the caged target in a PAIR/TAP loop; needs
-`--attacker-model`). Discovered jailbreaks are written to a separate, sensitive
-corpus (`--generative-corpus`), never into the signed report.
+Every run is pinned to a corpus version (e.g. `v2026.06.1`) and recorded in the
+DrillReport, so reports are reproducible and regression-comparable.
+
+**Replay sources (opt-in, mix per run):**
+
+- Built-in seed corpus — always on, version-pinned (`BUILTIN_CORPUS_VERSION`), ATLAS-tagged.
+- `--jbb` — JailbreakBench (100 harmful + 100 benign over-refusal probes, dataset revision pinned).
+- `--systemcard` — cyber-misuse / dual-use, identity & leaked-info honesty, ART indirect-injection probes.
+- `--multiturn` — long-context reference tracking, decomposition/recompose, and real multi-turn crescendo (a conversation carried across turns, not a single prompt).
+- `--enable-aig` — AI-Infra-Guard as a live attack-source plugin (if the service is up).
+
+**Operators (`--operators`)** applies model-free string transforms (base64, ROT13,
+Caesar, Atbash, Morse, binary, url-encode, reverse, leetspeak, many-shot, persona,
+payload-split, prefix-injection, multilingual, char-space, zero-width, homoglyph)
+to every seed, expanding each into fresh variants while preserving its
+category/goal. No model required — fast and reproducible.
+
+**Generative (`--generative`)** runs an abliterated/no-refusal attacker model
+against the caged target in a PAIR/TAP loop (`--attacker-model`). Discovered
+jailbreaks are written to a separate, sensitive corpus (`--generative-corpus`),
+never into the signed report (which carries only an excerpt).
 
 ## The cage
 
@@ -80,11 +93,23 @@ techniques `AML.T0086` (Exfiltration via AI Agent Tool Invocation) and `AML.T011
 --target-model          model id to drive as the agent (e.g. qwen/qwen3.6-27b)
 --judge-base-url        endpoint for the LLM judge (defaults to --target-base-url)
 --judge-model           model id for the content-plane judge
---guard-model           guardrail classifier id (e.g. qwen3guard-gen-8b), if served
+--judge-kind            llm | geval               (default: llm; geval needs [judge] extra)
+--guard-model           guardrail classifier id (auto-selects Qwen3Guard / Granite Guardian / WildGuard)
 --agent-url             attack an already-running agent over HTTP (black-box mode)
 --corpus                corpus version to pin (default: built-in latest)
 --scenarios             comma-separated categories (default: all)
 --charter               local charter.yaml — its permitted_tools define "forbidden"
+
+# Corpus source toggles (see "The attack corpus" above)
+--jbb                   include JailbreakBench (100 harmful + 100 benign)
+--systemcard            include system-card checks (cyber-misuse, honesty, ART indirect)
+--multiturn             include multi-turn vectors (long-context, decomposition, crescendo)
+--enable-aig            include AI-Infra-Guard as a live attack source
+--operators             expand every seed with model-free technique transforms
+--generative            run the generative attacker loop
+--attacker-model        attacker model id (abliterated/heretic; required with --generative)
+--generative-corpus     write discovered jailbreaks (SENSITIVE; separate from --output)
+
 --output PATH           write the signed DrillReport JSON
 --report PATH           write the Markdown report
 ```
