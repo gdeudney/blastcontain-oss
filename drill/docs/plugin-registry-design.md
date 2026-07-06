@@ -17,7 +17,7 @@ behaviours — no more, no less:
 |---|---|---|
 | R1 | Runs **many** sources at once (`builtin + operators + jbb`) and **many** scorers (`judge + guard + heuristic`) | **Multiple plugins per kind**, not one-per-slot. `active(kind)` returns a **list**. |
 | R2 | `load_corpus` / `build_scorers` skip anything whose `is_available()` is False | **Availability is first-class** — `active()` filters out unavailable plugins. |
-| R3 | Opt-in flags: `enable_jbb`, `enable_operators`, `enable_aig`; always-on base (`builtin`, `heuristic`) | **Config-driven enable/disable** per plugin, with a default-enabled flag. |
+| R3 | Opt-in flags: `enable_jbb`, `enable_operators`, `enable_aig`, `enable_systemcard`, `enable_multiturn`; always-on base (`builtin`, `heuristic`) | **Config-driven enable/disable** per plugin, with a default-enabled flag. |
 | R4 | Signed report records `corpus_sources` as **`name@revision`** (`jailbreakbench@886acc3`) and `scorers` availability flags | **Every plugin declares `name` + `revision`**; the registry emits a **manifest** for provenance. |
 | R5 | `make_guard_scorer(id)` picks a guard family by matching the model id (`"wildguard"` → `WildGuardScorer`) | **Resolve-by-name/pattern**: `resolve(kind, name, config) -> plugin`. |
 | R6 | Scorers consumed in **authority order** (judge ▸ guard ▸ heuristic) | **Ordering** — registry carries an optional `priority`; the *consumer* decides final order. |
@@ -112,8 +112,11 @@ The point: the registry *removes wiring*, and **provenance comes for free**.
 ```python
 # load_corpus  (corpus/__init__.py)  — BEFORE: hand-assembled + per-source enable flags
 sources = [BuiltinReplaySource()]
-if enable_operators: sources.append(OperatorsSource())
-if enable_jbb:       sources.append(JailbreakBenchSource())
+if enable_operators:  sources.append(OperatorsSource())
+if enable_jbb:        sources.append(JailbreakBenchSource())
+if enable_systemcard: sources.append(SystemCardSource())
+if enable_multiturn:  sources.append(MultiTurnSource())
+if enable_aig:        sources.append(AIGAttackSource(...))
 # ...filter is_available(), build `name@revision` list by hand...
 
 # AFTER

@@ -27,7 +27,8 @@ one with justification.
 
 - **`blastcontain-core`**: shared types, taxonomy, signing — drill depends on this
 - **`blastcontain-verify`**: pre-deployment scanner — sibling project
-- **`blastcontain-discovery`**: shadow AI discovery — sibling project
+- **`blastcontain-guard`**: in-process runtime enforcer (allow/ask/deny) — sibling project
+- **`tools/scout`**: arXiv corpus scout (opens draft PRs proposing new sources) — sibling tool
 - **BlastContain Platform**: closed-source Ledger + Charter management — consumes
   DrillReports via the `--blastcontain-url` flag
 
