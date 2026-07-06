@@ -3,7 +3,11 @@ name: Release
 # Per-package release in a monorepo: a prefixed tag selects which package ships.
 #   git tag core-v0.2.0 && git push origin core-v0.2.0   -> publishes blastcontain-core
 #   git tag verify-v0.3.0 ...                             -> publishes blastcontain-verify (+ container)
-#   git tag drill-v0.1.0 ...                              -> publishes blastcontain-drill  (+ container)
+#   git tag drill-v0.2.0 ...                              -> publishes blastcontain-drill  (+ container)
+#   git tag scout-v0.1.0 ...                              -> publishes blastcontain-scout  (no container)
+#
+# Packages live in per-name subdirectories except scout, which is under tools/scout;
+# the pkg step below maps the tag prefix to the actual project path.
 #
 # PyPI Trusted Publishing: configure each project's publisher to point at THIS
 # repository and workflow `release.yml`.
@@ -14,6 +18,7 @@ on:
       - "core-v*"
       - "verify-v*"
       - "drill-v*"
+      - "scout-v*"
 
 # Opt JS actions into the Node 24 runtime — Node 20 is deprecated (forced 2026-06-02).
 env:
@@ -30,7 +35,15 @@ jobs:
 
       - name: Resolve package from tag
         id: pkg
-        run: echo "name=${GITHUB_REF_NAME%-v*}" >> "$GITHUB_OUTPUT"
+        run: |
+          name="${GITHUB_REF_NAME%-v*}"
+          case "$name" in
+            core|drill|verify) path="$name" ;;
+            scout)             path="tools/scout" ;;
+            *) echo "::error::Unknown package prefix: $name" >&2; exit 1 ;;
+          esac
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v5
         with:
@@ -39,7 +52,7 @@ jobs:
       - name: Build ${{ steps.pkg.outputs.name }}
         run: |
           python -m pip install --upgrade build
-          python -m build "${{ steps.pkg.outputs.name }}" --outdir dist
+          python -m build "${{ steps.pkg.outputs.path }}" --outdir dist
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
