@@ -6,9 +6,11 @@ doesn't. We hold attack scenarios and scorers to the same bar Verify holds check
 
 ## Quick start
 
+Drill lives in the `blastcontain-oss` monorepo (alongside `core`, `verify`, `guard`, `tools/scout`):
+
 ```
-git clone git@github.com:blastcontain/drill.git
-cd drill
+git clone git@github.com:gdeudney/blastcontain-oss.git
+cd blastcontain-oss/drill
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 pytest tests/unit -m "not live and not podman"
@@ -68,5 +70,13 @@ service is absent, and declare honestly which plane is active in the report.
 
 ## Releasing
 
-Maintainers tag a release with `git tag v0.2.0` and push. The release workflow
-handles PyPI publication.
+Maintainers tag a release with the monorepo per-package prefix scheme:
+
+```
+git tag drill-v<next> && git push origin drill-v<next>
+```
+
+The release workflow (`.github/workflows/release.yml`) triggers on `core-v*` /
+`drill-v*` / `verify-v*` tags, derives the package from the prefix, and handles
+PyPI publication plus the container image build. A bare `v<next>` tag will not
+fire the workflow.
