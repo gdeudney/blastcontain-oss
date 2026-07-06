@@ -5,6 +5,25 @@ description = "Corpus scout — scans arXiv for new jailbreak/agent-attack resea
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
+authors = [{ name = "BlastContain Contributors" }]
+keywords = [
+    "ai-safety", "agent-security", "red-team", "jailbreak",
+    "arxiv", "corpus", "derive-then-ratify",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "httpx>=0.27",
     "click>=8.1",
@@ -13,6 +32,12 @@ dependencies = [
 
 [project.scripts]
 blastcontain-scout = "blastcontain_scout.cli:main"
+
+[project.urls]
+Homepage      = "https://github.com/gdeudney/blastcontain-oss/tree/main/tools/scout"
+Repository    = "https://github.com/gdeudney/blastcontain-oss"
+Issues        = "https://github.com/gdeudney/blastcontain-oss/issues"
+Changelog     = "https://github.com/gdeudney/blastcontain-oss/blob/main/tools/scout/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6"]
