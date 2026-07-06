@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "blastcontain-drill"
-version = "0.1.0"
+version = "0.2.0"
 description = "Adversarial red-team scanner for AI agents — versioned attack corpus, cage action-ground-truth, signed DrillReport"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -35,10 +35,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage      = "https://github.com/blastcontain/drill"
-Repository    = "https://github.com/blastcontain/drill"
-Issues        = "https://github.com/blastcontain/drill/issues"
-Documentation = "https://github.com/blastcontain/drill/blob/main/docs/spec.md"
+Homepage      = "https://github.com/gdeudney/blastcontain-oss/tree/main/drill"
+Repository    = "https://github.com/gdeudney/blastcontain-oss"
+Issues        = "https://github.com/gdeudney/blastcontain-oss/issues"
+Documentation = "https://github.com/gdeudney/blastcontain-oss/blob/main/drill/docs/spec.md"
+Changelog     = "https://github.com/gdeudney/blastcontain-oss/blob/main/drill/CHANGELOG.md"
 
 [project.optional-dependencies]
 # Optional, availability-flagged augmentation (used-if-present, never required).
