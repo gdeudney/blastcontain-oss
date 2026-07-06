@@ -8,9 +8,12 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 - **Operators layer** — model-free technique transforms (`base64`, `leetspeak`, `many_shot`, `persona`, `payload_split`, `prefix_injection`, `multilingual`) that expand the seed corpus into fresh variants while preserving each seed's category/goal. Enable with `--operators`.
 - **Generative layer** (`--generative`) — a no-refusal/abliterated attacker model crafts and refines jailbreaks against the caged target in a PAIR/TAP loop, discovering novel attacks. Discovered jailbreaks go to a separate, sensitive corpus (`--generative-corpus`), never the signed report (which carries only an excerpt). Adds `--attacker-model`, `--generative-only`, `--generative-iters`; records `attacker_model` in the DrillReport bench provenance.
 - **IBM Granite Guardian** as a second guard family — `--guard-model` now auto-selects the guard scorer (Granite Guardian or Qwen3Guard) via a pluggable factory, so guard models are swappable and comparable. Granite scores the assistant turn against a `harm` criteria (`<score>yes/no</score>`), avoiding request-contamination.
-- Hardened `Containerfile` (`ghcr.io/blastcontain/drill`) and a container build job in the release workflow.
+- Hardened `Containerfile` (`ghcr.io/gdeudney/blastcontain-drill`) and a container build job in the release workflow.
 
-## [0.1.0] — 2026-06-01
+### Changed
+- Built-in Replay seed corpus bumped to `v2026.06.1` (relabel `jb-03` single-shot crescendo → `crescendo-singleshot`; the real multi-turn crescendo lives in the multi-turn source).
+
+## [0.1.0] — 2026-06-02
 
 Initial release: the Replay-layer red-team with cage action-ground-truth and a
 signed, ATLAS-tagged DrillReport (drill-spec §11 build-order steps 1–5).
