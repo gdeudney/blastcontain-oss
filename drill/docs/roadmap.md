@@ -17,7 +17,7 @@ local LM Studio models:
 - **Scorers:** `LLMJudge` + `Qwen3Guard` + `Granite Guardian` + heuristic; `make_guard_scorer`
   auto-selects the guard family by model id.
 - Signed `DrillReport` (`core.signing`); MITRE ATLAS / OWASP-Agentic / MIT taxonomy in `core`.
-- **Tests:** 52 model-free unit + `podman` + `live` markers (drill); 22 (core). Lint clean.
+- **Tests:** ~150 model-free unit across 21 files + `podman` + `live` markers (drill); 22 (core). Lint clean.
 
 ## 2. Gotchas — cost real time, don't re-discover
 
@@ -36,14 +36,17 @@ local LM Studio models:
    data-exfil-described response). **Both content guards miss action attacks** — when the agent
    *says* a refusal but *does* the exfiltration via tools, only the action plane catches it.
 
-## 3. Uncommitted changes (commit when you pause)
+## 3. History — the 2026-06 landing batch (all committed)
+
+All of the following landed on `main` in the 2026-06 push. Kept as a checkpoint for readers
+tracing back through commits; no outstanding work in this section.
 
 - `scoring/guard.py` — Qwen3Guard real-roles fix (was under-flagging unsafe content)
 - `llm.py` — `enable_thinking=false` (reasoning-model fix)
 - `generative/attacker.py` — concise prompt + `max_tokens=4096`
 - `corpus/aig.py` — API-correct `model_redteam_report` body (target `model[]` + `eval_model`)
 - `release.yml` + `verify/Containerfile` + `drill/Containerfile` — GHCR namespace → `gdeudney`
-- `scripts/guard_compare.py` — guard A/B tool · this `docs/roadmap.md`
+- `scripts/guard_compare.py` — guard A/B tool
 - **JBB + over-refusal feature (#21)** — core `OVER_REFUSAL`/`over_refusals`; `corpus/jailbreakbench.py`
   + `data/jbb/*.csv` (vendored MIT); combine/judge/guard/granite/reporter/cli/config/runner edits;
   `test_jailbreakbench.py` + scoring tests
@@ -118,8 +121,8 @@ engine, ARES, ViolentUTF, Inspect) that duplicate Drill's runner.
 
 ## 6. Other open threads
 
-- **Commit** the §3 changes; push to `github.com/gdeudney/blastcontain-oss`.
 - The `github.com/blastcontain/*` URLs in pyproject/SARIF/READMEs point at a non-existent org —
   decision pending: sweep to `gdeudney/blastcontain-oss`, or create a `blastcontain` org.
 - Configure **PyPI Trusted Publishers** before pushing the `*-v*` release tags.
-- Role B (prove a Charter-denied action can't execute) still needs `blastcontain-guard`.
+- Role B (prove a Charter-denied action can't execute) — `blastcontain-guard` is now built, so
+  Role B is unblocked; still needs the Charter-source → Drill wiring pass to close the loop.

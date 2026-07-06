@@ -65,7 +65,7 @@ effort:
 | Layer | Source | Catches | Cost |
 |---|---|---|---|
 | **Replay** | built-in seed · **JailbreakBench** (100 harmful + 100 benign over-refusal probes; MIT, pinned `@886acc3`) · **system-card** checks (`--systemcard`) · **multi-turn** (`--multiturn`: long-context reference tracking · decomposition/recompose · multi-turn crescendo) · HF jailbreak datasets · AI-Infra-Guard curated sets | *known* attacks — a **regression suite** (+ over-refusal / false-positive measurement) | cheap, reproducible |
-| **Operators** | model-free `str→str` transforms (PyRIT/DeepTeam-derived) — encoders (base64 · ROT13 · Caesar · Atbash · Morse · binary · URL) · filter-evasion (leetspeak · char-space · zero-width · homoglyph) · framing (many-shot · persona · payload-split · prefix-injection · multilingual · academic · fiction); GCG/AutoDAN suffixes on the roadmap | known *methods* on fresh seeds | medium |
+| **Operators** | model-free `str→str` transforms (PyRIT/DeepTeam-derived) — encoders (base64 · ROT13 · Caesar · Atbash · Morse · binary · URL) · filter-evasion (leetspeak · char-space · zero-width · homoglyph) · framing (many-shot · persona · payload-split · prefix-injection · multilingual · academic · fiction) | known *methods* on fresh seeds | medium |
 | **Generative** | a **Heretic / abliterated attacker model** (no refusals) | *novel* jailbreaks the corpus has never seen | compute-heavy |
 
 ### 4.1 The local adversarial loop (Generative layer)
@@ -227,7 +227,8 @@ which surfaces a capability BlastContain needs platform-wide (Tenet 6, *pluggabl
 
 **Built (2026-06):** build-order steps 1–7 are done — the cage (InProcess + Podman `--network none`),
 action probes, all three corpus layers, two-plane scoring, and the signed DrillReport ship and run live
-against the local bench (74 model-free unit tests). Step 8 (the registry/UI) is partial — see below.
+against the local bench (~150 model-free unit tests across 21 files). Step 8 (the registry/UI) is
+partial — see below.
 
 Build order (P1):
 
