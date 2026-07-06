@@ -4,6 +4,9 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 
 ## [Unreleased]
 
+### Fixed
+- **CLI no longer crashes (and loses the audit packet) on a non-UTF-8 stdout.** The results table and summary print status emoji (`✅ ❌ ⏭ ⚠️`); on Windows a redirected/piped stdout or a legacy cp1252 console couldn't encode them, so `click.echo` raised `UnicodeEncodeError` mid-run — and because the table prints *before* the report/audit/SARIF write block, the run aborted with a traceback (exit 1) and the audit packet was never written even though the scan completed. `main()` now reconfigures `stdout`/`stderr` to UTF-8 (`errors="replace"`) before any output. Linux/container output is unaffected. Regression-tested in `tests/unit/test_cli.py`.
+
 ## [0.4.0] — 2026-06-28
 
 ### Added

@@ -32,6 +32,27 @@ _EXIT_CODES = {
 }
 
 
+def _force_utf8_output() -> None:
+    """Keep the emoji-bearing console output from ever aborting the scan.
+
+    The results table and summary print status glyphs (✅ ❌ ⏭ ⚠️). On Windows a
+    non-UTF-8 stdout — a redirect to a file, a pipe, or a legacy cp1252 console —
+    cannot encode them, so ``click.echo`` raises ``UnicodeEncodeError`` mid-run
+    and, because the table prints *before* the packet is written, the audit
+    packet is lost. Reconfigure both streams to UTF-8 (replacing any glyph a
+    target still can't render rather than crashing). No-op on streams that don't
+    support ``reconfigure``.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
+
+
 @click.command("blastcontain-verify")
 @click.option("--agent-id",          default=None,      help="Agent identifier (required)")
 @click.option("--config", "-c",      default=None,      help="Config file path (default: blastcontain-verify.yaml)")
@@ -67,6 +88,11 @@ def main(
 
     Exit codes: 0=APPROVED  1=REJECTED  2=QUARANTINED  3=ERROR
     """
+    # Make console output encoding-safe before anything is printed — a Windows
+    # cp1252 or redirected stdout otherwise raises UnicodeEncodeError on the
+    # status emoji and aborts the scan before the audit packet is written.
+    _force_utf8_output()
+
     # ── Build config ───────────────────────────────────────────────────────────
     cfg = load_config(
         config_file=config,
