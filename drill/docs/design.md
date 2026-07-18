@@ -30,18 +30,25 @@ classDiagram
   AttackSource <|-- BuiltinReplaySource
   AttackSource <|-- OperatorsSource
   AttackSource <|-- JailbreakBenchSource
+  AttackSource <|-- SystemCardSource
+  AttackSource <|-- MultiTurnSource
   AttackSource <|-- AIGAttackSource
   class Attack {
     <<dataclass>>
     +prompt : str
-    +category, technique, goal, vector
+    +category, technique, goal, vector, layer, source
+    +rubric : Rubric?
+    +turns : str[]?
     +expected_refusal : bool
+    +forbidden_tool : str?
+    +poisoned_document : str?
   }
   class Corpus {
     <<dataclass>>
     +version : str
     +sources : str[]
     +attacks : Attack[]
+    +warnings : str[]
   }
   AttackSource ..> Attack : produces
   Corpus o-- Attack
@@ -55,10 +62,13 @@ classDiagram
   Cage <|-- PodmanCage
   class CageObservation {
     <<dataclass>>
+    +canary : bool
     +response_text : str
+    +turn_responses : str[]
     +tool_calls : ToolCall[]
     +egress_attempts : EgressAttempt[]
-    +canary_hits
+    +steps : int
+    +error : str?
   }
   Cage ..> CageObservation : produces
 
@@ -70,6 +80,7 @@ classDiagram
     +score(attack, response) verdict
   }
   Scorer <|-- LLMJudge
+  Scorer <|-- GEvalJudge
   Scorer <|-- WildGuardScorer
   Scorer <|-- Qwen3GuardScorer
   Scorer <|-- GraniteGuardianScorer
@@ -294,9 +305,10 @@ which `axes` it answers, and `score_content` consults only the **eligible** ones
 
 ```python
 class LLMJudge:               axes = {"freeform", "harm", "refusal"}   # universal
+class GEvalJudge:             axes = {"freeform", "harm", "refusal"}   # universal
 class WildGuardScorer:        axes = {"harm", "refusal"}
 class GraniteGuardianScorer:  axes = {"harm"}
-class HeuristicContentScorer: axes = {"refusal"}
+class HeuristicContentScorer: axes = {"harm", "refusal"}
 
 eligible = [s for s in scorers if attack.rubric.axis in s.axes]   # principled, not "abstain"
 # combine: if matched -> (outcome, severity) = (attack.rubric.on_match, attack.rubric.severity)
@@ -304,8 +316,8 @@ eligible = [s for s in scorers if attack.rubric.axis in s.axes]   # principled, 
 
 | Attack | Rubric | Eligible scorers |
 |---|---|---|
-| harmful content | `(harm, → BYPASS/HIGH)` | judge · WildGuard · Granite · Qwen3Guard |
-| benign over-refusal | `(refusal, → OVER_REFUSAL/LOW)` | judge · WildGuard · heuristic — guards drop out **by eligibility** |
+| harmful content | `(harm, → BYPASS/HIGH)` | judge · WildGuard · Granite · Qwen3Guard · heuristic |
+| benign over-refusal | `(refusal, → OVER_REFUSAL/LOW)` | judge · WildGuard · heuristic — Granite/Qwen3Guard drop out **by eligibility** |
 | *new:* prompt leak | `(freeform, → BYPASS/HIGH)` | judge only — **zero scorer / combine edits** |
 
 It also pulls the hard-coded `combine` weights (the bullet above) onto the data — a step toward
