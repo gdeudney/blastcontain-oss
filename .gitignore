@@ -36,6 +36,8 @@ discovered-jailbreaks*.json
 graphify-out/
 **/graphify-out/
 
+.deepeval/
+
 # Platform runtime artifacts
 platform/server/*.db
 node_modules/
