@@ -1,0 +1,1684 @@
+openapi: 3.1.0
+info:
+  title: BlastContain Platform API
+  version: 0.2.0
+  description: |
+    Agent Governance Platform — Charter + Ledger + Fleet.
+
+    **Charter** turns human intent into enforceable policy: author a draft
+    (or derive one from a Verify scan), sign it, and the platform serves a
+    signed `{packet, signature}` bundle whose packet embeds the compiled
+    `governance.toolkit/v1` policy. The OSS Guard enforces it
+    (`Guard.from_charter`).
+
+    **Ledger** is the priced audit trail: findings and Guard/AGT decision
+    CloudEvents are scrubbed (PII/secrets hashed) and persisted, priced as a
+    calibrated MPL exposure index, measured for HITL quality and Charter
+    drift, and summarized into signed Audit Packets with an A–F compliance
+    grade.
+
+    **Lifecycle**: `draft → active ⇄ paused`, `active → quarantined →
+    (recertify) → active`, `→ decommissioned → archived`. State changes
+    re-stamp and re-sign the served packet, so the signature always covers
+    the current state; paused/quarantined agents enforce deny-all at the
+    Guard edge.
+
+    **Auth**: when the server is started with `BLASTCONTAIN_API_TOKEN`, every
+    route except `/health` requires `Authorization: Bearer <token>`.
+servers:
+  - url: http://localhost:8080
+    description: local development (uvicorn server:app --port 8080)
+tags:
+  - name: System
+  - name: Charter Authoring
+    description: Draft, derive, sign — signing is the deliberate commitment gate.
+  - name: Charter Serving
+    description: The signed-bundle contract Guard consumes; versions, policy, diff.
+  - name: Governance Operations
+    description: Promote, rollback, recertify, exceptions, standards.
+  - name: Agent Lifecycle
+    description: Pause / resume / emergency-stop / decommission / ownership / log.
+  - name: Findings
+    description: Verify / Drill / Discovery scan ingest (scrubbed before persist).
+  - name: Decisions
+    description: Guard/AGT runtime decision CloudEvents (the Art. 12/14 stream).
+  - name: Ledger
+    description: MPL exposure index, HITL quality, drift, calibration, audit packets.
+  - name: Fleet
+    description: Fleet dashboard reads and the live event stream.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      operationId: getHealth
+      summary: Liveness + version
+      security: []
+      responses:
+        "200":
+          description: Server is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, const: ok }
+                  version: { type: string }
+                  timestamp: { type: string, format: date-time }
+
+  /v1/charters:
+    post:
+      tags: [Charter Authoring]
+      operationId: createCharterDraft
+      summary: Create or update a draft Charter
+      description: >
+        Upserts the single mutable draft for `(agent_id, environment)`.
+        The body is the flat packet shape (control + intent fields). Compile
+        conflicts are returned as a preview; only signing is blocked by them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CharterDocument" }
+            example:
+              agent_id: invoice-bot
+              environment: prod
+              version: 1.0.0
+              trust_tier: 1
+              permitted_tools: [query_invoice, send_receipt]
+              autonomy_mode: interactive
+              base_strictness: balanced
+              objectives:
+                - { id: no-prod-data-mutation }
+                - { id: no-pii-egress }
+              environment_constraints:
+                read_only_rootfs: true
+                egress_blocked: false
+                max_trust_tier: 1
+                verify_required: true
+              owner: alice@example.com
+      responses:
+        "201":
+          description: Draft stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted: { type: boolean }
+                  charter_id: { type: string, example: "invoice-bot:prod" }
+                  state: { type: string, const: draft }
+                  draft_row: { type: integer }
+                  conflicts:
+                    type: array
+                    items: { $ref: "#/components/schemas/CompileConflict" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/charters/{agent_id}/derive:
+    post:
+      tags: [Charter Authoring]
+      operationId: deriveCharterDraft
+      summary: Derive-then-ratify — auto-draft a tight Charter from observed reality
+      description: >
+        Drafts a Charter from a Verify audit packet and (optionally) a
+        Discovery `observed` capability mapping. Constraints start tight; the
+        allowlist is seeded from observation; objectives come pre-selected by
+        `base_strictness`. The human's job is review + sign, not data entry.
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                audit_packet:
+                  type: object
+                  description: A Verify audit packet (`packet` payload).
+                observed:
+                  type: object
+                  properties:
+                    tools: { type: array, items: { type: string } }
+                    apis: { type: array, items: { type: object } }
+                    mcp_servers: { type: array, items: { type: object } }
+                    trust_tier: { type: integer }
+                autonomy_mode: { $ref: "#/components/schemas/AutonomyMode" }
+                base_strictness: { $ref: "#/components/schemas/BaseStrictness" }
+                owner: { type: string }
+      responses:
+        "201":
+          description: Derived draft stored and returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted: { type: boolean }
+                  charter_id: { type: string }
+                  state: { type: string, const: draft }
+                  document: { $ref: "#/components/schemas/CharterDocument" }
+                  conflicts:
+                    type: array
+                    items: { $ref: "#/components/schemas/CompileConflict" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/charters/{agent_id}/sign:
+    post:
+      tags: [Charter Authoring]
+      operationId: signCharter
+      summary: "Sign + register the draft: draft → Active"
+      description: >
+        Compiles the draft (Standards inheritance + Exceptions applied),
+        blocks on blocking conflicts, signs the packet (with the compiled
+        policy embedded), stores it as a new immutable version, and deletes
+        the draft. The commitment gate.
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [actor]
+              properties:
+                actor: { type: string, description: Who signs (named accountability). }
+                version: { type: string, description: Optional version override. }
+      responses:
+        "200":
+          description: Signed and active.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signed: { type: boolean }
+                  state: { type: string, const: active }
+                  version: { type: string }
+                  advisory_signature:
+                    type: boolean
+                    description: >
+                      True when the platform signed with the shared dev HMAC
+                      key (integrity only — Guard rejects these by default).
+                  conflicts:
+                    type: array
+                    items: { $ref: "#/components/schemas/CompileConflict" }
+                  bundle: { $ref: "#/components/schemas/SignedCharterBundle" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/charters/{agent_id}:
+    get:
+      tags: [Charter Serving]
+      operationId: getCharter
+      summary: Fetch the signed Charter bundle (the Guard contract)
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+        - name: include_draft
+          in: query
+          schema: { type: boolean, default: false }
+          description: Return the unsigned draft instead, when one exists.
+      responses:
+        "200":
+          description: >
+            The signed bundle (or, with `include_draft=true`, the draft
+            document).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SignedCharterBundle"
+                  - type: object
+                    properties:
+                      draft: { type: boolean, const: true }
+                      document: { $ref: "#/components/schemas/CharterDocument" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/charters/{agent_id}/versions:
+    get:
+      tags: [Charter Serving]
+      operationId: listCharterVersions
+      summary: Version history
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+      responses:
+        "200":
+          description: All signed versions, oldest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent_id: { type: string }
+                  environment: { type: string }
+                  versions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        version: { type: string }
+                        state: { $ref: "#/components/schemas/LifecycleState" }
+                        superseded: { type: boolean }
+                        created_at: { type: string, format: date-time }
+                        updated_at: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/charters/{agent_id}/policy:
+    get:
+      tags: [Charter Serving]
+      operationId: getCompiledPolicy
+      summary: The compiled governance.toolkit/v1 policy
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+        - name: fmt
+          in: query
+          schema: { type: string, enum: [json, yaml], default: json }
+        - name: draft
+          in: query
+          schema: { type: boolean, default: false }
+          description: Compile the current draft live instead of the signed policy.
+      responses:
+        "200":
+          description: The ruleset.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CompiledPolicy" }
+            application/yaml:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/charters/{agent_id}/diff:
+    get:
+      tags: [Charter Serving]
+      operationId: diffCharterVersions
+      summary: Diff two versions — surfaces capability creep
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+        - name: from_version
+          in: query
+          required: true
+          schema: { type: string }
+        - name: to_version
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Structured capability diff.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CharterDiff" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/charters/{agent_id}/promote:
+    post:
+      tags: [Governance Operations]
+      operationId: promoteCharter
+      summary: Promote across environments (a governance gate, not a pipeline step)
+      description: >
+        Blocked while the source environment's latest scan has CRITICAL
+        findings without remediation proofs. On success a **draft** is created
+        in the target environment — signing it there is the separate sign-off.
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from_env, to_env, actor]
+              properties:
+                from_env: { type: string, example: staging }
+                to_env: { type: string, example: prod }
+                actor: { type: string }
+      responses:
+        "200":
+          description: Draft created in the target environment.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  promoted: { type: boolean }
+                  draft_environment: { type: string }
+                  note: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/charters/{agent_id}/rollback:
+    post:
+      tags: [Governance Operations]
+      operationId: rollbackCharter
+      summary: Revert to the last-known-good signed version
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [actor]
+              properties:
+                actor: { type: string }
+                reason: { type: string }
+      responses:
+        "200":
+          description: Prior version re-issued (new signature, active).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rolled_back: { type: boolean }
+                  version: { type: string }
+                  state: { type: string, const: active }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/charters/{agent_id}/recertify:
+    post:
+      tags: [Governance Operations]
+      operationId: recertifyCharter
+      summary: Quarantine → Active, via a proof addressing the trigger
+      description: >
+        The proof's `finding_type` must match the FindingType that triggered
+        quarantine. Produces a new signed version (patch bump) with the proof
+        embedded — the Proof of Remediation.
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [actor, proof]
+              properties:
+                actor: { type: string }
+                proof: { $ref: "#/components/schemas/RemediationProof" }
+      responses:
+        "200":
+          description: Recertified.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recertified: { type: boolean }
+                  version: { type: string }
+                  state: { type: string, const: active }
+                  proof_of_remediation: { $ref: "#/components/schemas/RemediationProof" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/charters/{agent_id}/exceptions:
+    post:
+      tags: [Governance Operations]
+      operationId: fileException
+      summary: File a break-glass Exception (expires; separation of duties)
+      description: >
+        Lifts a mandatory objective at the next compile until `expires_at`.
+        The Charter owner cannot approve their own Exception (403).
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [objective_id, justification, granted_by, expires_at]
+              properties:
+                objective_id: { type: string, example: block-exfiltration }
+                justification: { type: string }
+                granted_by: { type: string }
+                expires_at: { type: string, format: date-time }
+                scope: { type: string }
+      responses:
+        "201":
+          description: Exception recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted: { type: boolean }
+                  exception: { $ref: "#/components/schemas/ExceptionRecord" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: Separation of duties — owner self-approval refused.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/standards:
+    post:
+      tags: [Governance Operations]
+      operationId: upsertStandard
+      summary: Create or update an org Standard
+      description: >
+        Every Charter inherits Standard objectives. `mandatory` objectives
+        hard-deny and cannot be loosened by owners; `recommended`/`optional`
+        may be overridden.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Standard" }
+      responses:
+        "201":
+          description: Stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted: { type: boolean }
+                  standard_id: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    get:
+      tags: [Governance Operations]
+      operationId: listStandards
+      summary: List org Standards
+      responses:
+        "200":
+          description: All Standards.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  standards:
+                    type: array
+                    items: { $ref: "#/components/schemas/Standard" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/agents/{agent_id}/pause:
+    post:
+      tags: [Agent Lifecycle]
+      operationId: pauseAgent
+      summary: Pause (graceful suspend) — deny-all / drain / halt
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [actor]
+              properties:
+                actor: { type: string }
+                reason: { type: string }
+                mode:
+                  type: string
+                  enum: [deny-all, drain, halt]
+                  default: deny-all
+      responses:
+        "200":
+          description: Paused; the served packet is re-stamped to `paused`.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/LifecycleResult"
+                  - type: object
+                    properties:
+                      impact:
+                        type: string
+                        description: What this pause mode means for in-flight work.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/agents/{agent_id}/resume:
+    post:
+      tags: [Agent Lifecycle]
+      operationId: resumeAgent
+      summary: Resume a paused agent
+      description: Quarantined agents cannot resume — only recertify (409).
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+      requestBody: { $ref: "#/components/requestBodies/ActorReason" }
+      responses:
+        "200":
+          description: Active again.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LifecycleResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/agents/{agent_id}/stop:
+    post:
+      tags: [Agent Lifecycle]
+      operationId: emergencyStop
+      summary: Emergency stop / kill (break-glass)
+      description: Immediate hard stop; lands in `paused` pending review.
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+      requestBody: { $ref: "#/components/requestBodies/ActorReason" }
+      responses:
+        "200":
+          description: Stopped (paused, `break_glass` recorded).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LifecycleResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/agents/{agent_id}/decommission:
+    post:
+      tags: [Agent Lifecycle]
+      operationId: decommissionAgent
+      summary: Decommission (retire) an agent — emits the final Audit Packet
+      description: >
+        Tombstone monitoring stays live: decision traffic arriving afterwards
+        raises a HIGH finding and fails the next audit grade.
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+      requestBody: { $ref: "#/components/requestBodies/ActorReason" }
+      responses:
+        "200":
+          description: Decommissioned; final Audit Packet generated.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/LifecycleResult"
+                  - type: object
+                    properties:
+                      final_audit_packet:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          grade: { $ref: "#/components/schemas/ComplianceGrade" }
+                          generated_at: { type: string, format: date-time }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/agents/{agent_id}/owner:
+    post:
+      tags: [Agent Lifecycle]
+      operationId: transferOwner
+      summary: Transfer ownership (Technical Owner)
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [actor, owner]
+              properties:
+                actor: { type: string }
+                owner: { type: string, description: The new Technical Owner. }
+      responses:
+        "200":
+          description: Owner transferred; served packet re-stamped.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/LifecycleResult"
+                  - type: object
+                    properties:
+                      owner: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/agents/{agent_id}/operations:
+    get:
+      tags: [Agent Lifecycle]
+      operationId: listOperations
+      summary: The decision-rights log (date · change · rationale · approver)
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvAll"
+      responses:
+        "200":
+          description: Append-only governance actions, oldest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent_id: { type: string }
+                  operations:
+                    type: array
+                    items: { $ref: "#/components/schemas/Operation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/agents/{agent_id}/findings:
+    post:
+      tags: [Findings]
+      operationId: ingestFindings
+      summary: Ingest a scan packet (Verify / Drill / Discovery)
+      description: >
+        Accepts a bare packet or a signed `{packet, signature}` bundle (the
+        signature is verified). Evidence is scrubbed (PII/secrets hashed)
+        before persist. A CRITICAL finding against an active prod Charter
+        auto-quarantines the agent.
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/FindingPacket"
+                - type: object
+                  required: [packet, signature]
+                  properties:
+                    packet: { $ref: "#/components/schemas/FindingPacket" }
+                    signature: { $ref: "#/components/schemas/Signature" }
+      responses:
+        "201":
+          description: Ingested.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted: { type: boolean }
+                  finding_count: { type: integer }
+                  signature_verified:
+                    type: [boolean, "null"]
+                    description: null when the packet arrived unsigned.
+                  evidence_scrubbed:
+                    type: integer
+                    description: How many PII/secret spans were hashed.
+                  quarantined:
+                    type: boolean
+                    description: True when this packet auto-quarantined the agent.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    get:
+      tags: [Findings]
+      operationId: listFindings
+      summary: Query stored finding packets
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvAll"
+      responses:
+        "200":
+          description: Stored (scrubbed) packets, oldest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent_id: { type: string }
+                  findings:
+                    type: array
+                    items: { $ref: "#/components/schemas/FindingPacket" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/agents/{agent_id}/decisions:
+    post:
+      tags: [Decisions]
+      operationId: ingestDecision
+      summary: Ingest a Guard/AGT decision CloudEvent
+      description: >
+        The Art. 12/14 evidence stream (Guard's LedgerSink posts here).
+        Payloads are scrubbed before persist. Traffic for a decommissioned
+        agent is recorded *and* raises a tombstone finding.
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DecisionEvent" }
+      responses:
+        "202":
+          description: Accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted: { type: boolean }
+                  tombstone_alert:
+                    type: boolean
+                    description: Present (true) when the agent is retired.
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    get:
+      tags: [Decisions]
+      operationId: listDecisions
+      summary: Query stored decision events (newest first)
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvAll"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Stored (scrubbed) CloudEvents.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent_id: { type: string }
+                  decisions:
+                    type: array
+                    items: { $ref: "#/components/schemas/DecisionEvent" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/agents/{agent_id}/mpl:
+    get:
+      tags: [Ledger]
+      operationId: getMplEstimate
+      summary: MPL exposure index — calibrated, oversight-aware, banded
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+        - name: classification
+          in: query
+          schema:
+            type: string
+            enum: [PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED, PII, PHI]
+            default: INTERNAL
+        - name: volume
+          in: query
+          schema: { type: integer, default: 1 }
+          description: Records at risk (scales sublinearly).
+        - name: regime
+          in: query
+          schema:
+            type: string
+            enum: [STANDARD, EU_AI_ACT_HIGH_RISK, CANADA_AIDA]
+            default: STANDARD
+        - name: business_context
+          in: query
+          schema:
+            type: string
+            enum: [STANDARD, ELEVATED, CRITICAL]
+            default: STANDARD
+        - name: hops
+          in: query
+          schema: { type: integer, default: 1 }
+          description: Delegation hops (blast radius).
+      responses:
+        "200":
+          description: The exposure report.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MplReport" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/agents/{agent_id}/hitl:
+    get:
+      tags: [Ledger]
+      operationId: getHitlMetrics
+      summary: HITL quality — is the human gate real or rubber-stamped?
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvAll"
+        - $ref: "#/components/parameters/Limit1000"
+      responses:
+        "200":
+          description: Aggregated gate quality over the decision window.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HitlMetrics" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/agents/{agent_id}/drift:
+    get:
+      tags: [Ledger]
+      operationId: getDriftReport
+      summary: Charter drift — declared vs observed
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+        - $ref: "#/components/parameters/Limit1000"
+      responses:
+        "200":
+          description: Drift analysis against the signed Charter.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DriftReport" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/ledger/calibration:
+    get:
+      tags: [Ledger]
+      operationId: getCalibration
+      summary: Current per-org MPL calibration
+      responses:
+        "200":
+          description: The stored calibration (defaults when unset).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  calibration: { $ref: "#/components/schemas/MplCalibration" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [Ledger]
+      operationId: setCalibration
+      summary: Set per-org MPL calibration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MplCalibration" }
+      responses:
+        "200":
+          description: Stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted: { type: boolean }
+                  calibration: { $ref: "#/components/schemas/MplCalibration" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/agents/{agent_id}/audit-packet:
+    get:
+      tags: [Ledger]
+      operationId: generateAuditPacket
+      summary: Generate (and retain) a signed Audit Packet now
+      description: >
+        The regulatory artifact: compliance grade (A–F + rationale), charter
+        history, scan/MPL/HITL/drift summaries, exceptions, operations log.
+        Each call generates and stores a new packet.
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvProd"
+      responses:
+        "200":
+          description: The signed packet bundle.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuditPacketBundle" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/agents/{agent_id}/audit-packets:
+    get:
+      tags: [Ledger]
+      operationId: listAuditPackets
+      summary: List retained Audit Packets
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/EnvAll"
+      responses:
+        "200":
+          description: Packet index (oldest first).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent_id: { type: string }
+                  audit_packets:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        environment: { type: string }
+                        kind: { type: string, enum: [periodic, final] }
+                        grade: { $ref: "#/components/schemas/ComplianceGrade" }
+                        generated_at: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /stream:
+    get:
+      tags: [Fleet]
+      operationId: streamEvents
+      summary: Live event stream (SSE)
+      description: >
+        `text/event-stream` of events published after connect. Each SSE
+        message has `event: finding|decision|operation` and a JSON `data:`
+        payload `{seq, type, agent_id, at, data}`. The stream opens with a
+        `: connected` comment line.
+      responses:
+        "200":
+          description: SSE stream.
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/agents:
+    get:
+      tags: [Fleet]
+      operationId: listAgents
+      summary: All known agents with charter state
+      parameters:
+        - $ref: "#/components/parameters/EnvFilter"
+      responses:
+        "200":
+          description: Agents across charters and drafts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        agent_id: { type: string }
+                        environment: { type: string }
+                        state: { $ref: "#/components/schemas/LifecycleState" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /fleet:
+    get:
+      tags: [Fleet]
+      operationId: getFleet
+      summary: Fleet-wide compliance status
+      responses:
+        "200":
+          description: One row per agent.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        agent_id: { type: string }
+                        status:
+                          type: string
+                          description: Latest scan status (UNKNOWN when unscanned).
+                        last_scan: { type: [string, "null"], format: date-time }
+                        critical: { type: integer }
+                        charters:
+                          type: object
+                          additionalProperties:
+                            $ref: "#/components/schemas/LifecycleState"
+                          description: environment → lifecycle state
+                  total: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /violations:
+    get:
+      tags: [Fleet]
+      operationId: listViolations
+      summary: All CRITICAL/HIGH findings across the fleet
+      responses:
+        "200":
+          description: Flattened findings with their agent ids.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  violations:
+                    type: array
+                    items:
+                      allOf:
+                        - type: object
+                          properties:
+                            agent_id: { type: string }
+                        - $ref: "#/components/schemas/Finding"
+                  total: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >
+        Required on every route except /health when the server is started
+        with BLASTCONTAIN_API_TOKEN.
+
+  parameters:
+    AgentId:
+      name: agent_id
+      in: path
+      required: true
+      schema: { type: string }
+      example: invoice-bot
+    EnvProd:
+      name: env
+      in: query
+      schema: { type: string, default: prod }
+      description: Deployment environment (half of the charter key).
+    EnvAll:
+      name: env
+      in: query
+      schema: { type: string, default: "" }
+      description: Environment filter; empty = all environments.
+    EnvFilter:
+      name: env
+      in: query
+      schema: { type: string, default: "" }
+      description: Environment filter; empty = all environments.
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, default: 200 }
+    Limit1000:
+      name: limit
+      in: query
+      schema: { type: integer, default: 1000 }
+      description: Decision-window size for the analysis.
+
+  requestBodies:
+    ActorReason:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [actor]
+            properties:
+              actor: { type: string, description: Named accountability. }
+              reason: { type: string }
+
+  responses:
+    BadRequest:
+      description: Malformed request.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: No such charter / draft / agent.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: >
+        The state machine or compile gate refused (e.g. blocking conflicts,
+        invalid lifecycle transition, unaddressed CRITICALs).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        detail:
+          oneOf:
+            - type: string
+            - type: object
+              description: Structured detail (e.g. {message, conflicts} on 409).
+
+    LifecycleState:
+      type: string
+      enum: [discovered, draft, active, paused, quarantined, decommissioned, archived]
+
+    AutonomyMode:
+      type: string
+      enum: [interactive, autonomous]
+      default: interactive
+
+    BaseStrictness:
+      type: string
+      enum: [locked, balanced, permissive]
+      default: balanced
+
+    ComplianceGrade:
+      type: string
+      enum: [A, B, C, D, F]
+
+    EnvironmentConstraints:
+      type: object
+      properties:
+        read_only_rootfs: { type: boolean, default: true }
+        egress_blocked: { type: boolean, default: true }
+        max_trust_tier: { type: integer, default: 1 }
+        verify_required: { type: boolean, default: true }
+
+    DelegationRules:
+      type: object
+      properties:
+        max_chain_depth: { type: integer, default: 0, description: 0 = no delegation. }
+        allowed_tiers: { type: array, items: { type: integer } }
+        require_parent_approval: { type: boolean, default: true }
+
+    HitlConfig:
+      type: object
+      properties:
+        required_for:
+          type: array
+          items: { type: string }
+          description: Legacy gate tokens (e.g. destructive_apis) or tool names.
+        timeout_sec: { type: integer, default: 300 }
+        escalation_contact: { type: [string, "null"] }
+
+    RemediationProof:
+      type: object
+      required: [finding_type, evidence_uri]
+      properties:
+        finding_type: { type: string, example: blastcontain.env.model_weights_writable }
+        evidence_uri: { type: string, example: "pr://42" }
+        verified_by: { type: [string, "null"] }
+        verified_at: { type: [string, "null"], format: date-time }
+
+    Objective:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          description: A catalog concern id (e.g. no-pii-egress, approved-tools-only).
+        enforcement_level:
+          type: string
+          enum: [mandatory, recommended, optional, self]
+          default: self
+        params: { type: object }
+        inherited_from:
+          type: [string, "null"]
+          description: Standard id when inherited.
+        compiled_refs:
+          type: array
+          items: { type: string }
+          description: Rule names this objective compiled to (compiler fills).
+
+    CharterDocument:
+      type: object
+      description: >
+        The flat packet shape — control layer + Intent layer + lifecycle
+        envelope. POST bodies omit signing/lifecycle fields; the platform
+        manages those.
+      required: [agent_id, environment, version, trust_tier]
+      properties:
+        agent_id: { type: string }
+        environment: { type: string }
+        version: { type: string }
+        trust_tier: { type: integer, minimum: 0, maximum: 3 }
+        permitted_tools: { type: array, items: { type: string } }
+        permitted_apis:
+          type: array
+          items:
+            type: object
+            properties:
+              url: { type: string }
+              methods: { type: array, items: { type: string } }
+        mcp_servers:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              url: { type: string }
+        environment_constraints: { $ref: "#/components/schemas/EnvironmentConstraints" }
+        delegation_rules: { $ref: "#/components/schemas/DelegationRules" }
+        hitl_config: { $ref: "#/components/schemas/HitlConfig" }
+        remediation_proofs:
+          type: array
+          items: { $ref: "#/components/schemas/RemediationProof" }
+        transparency_label: { type: [string, "null"] }
+        draft: { type: boolean }
+        autonomy_mode: { $ref: "#/components/schemas/AutonomyMode" }
+        base_strictness: { $ref: "#/components/schemas/BaseStrictness" }
+        objectives:
+          type: array
+          items: { $ref: "#/components/schemas/Objective" }
+        state: { $ref: "#/components/schemas/LifecycleState" }
+        owner: { type: [string, "null"] }
+        derived_from_scan: { type: [string, "null"] }
+        signed_at: { type: [string, "null"], format: date-time }
+        signed_by: { type: [string, "null"] }
+        signing_key_id: { type: [string, "null"] }
+
+    CharterPacket:
+      allOf:
+        - $ref: "#/components/schemas/CharterDocument"
+        - type: object
+          properties:
+            compiled_policy:
+              $ref: "#/components/schemas/CompiledPolicy"
+              description: >
+                The platform compiler's authoritative output — inside the
+                signed packet, so tamper-evident end to end.
+
+    Signature:
+      type: object
+      description: blastcontain-core signing block (Ed25519 preferred, HMAC fallback).
+      properties:
+        algorithm: { type: string, enum: [ed25519, sha256-hmac] }
+        key_id: { type: string }
+        value: { type: string }
+        value_encoding: { type: string, enum: [base64, hex] }
+        canonical: { type: string, const: json-sort-keys-tight }
+        signed_at: { type: string, format: date-time }
+        public_key:
+          type: string
+          description: ed25519 only — base64 of the 32-byte raw public key.
+        public_key_encoding: { type: string, const: base64-raw }
+        advisory:
+          type: boolean
+          description: >
+            Present (true) only when signed with the shared dev HMAC key —
+            integrity, not attestation. Guard rejects these by default.
+
+    SignedCharterBundle:
+      type: object
+      required: [packet, signature]
+      properties:
+        packet: { $ref: "#/components/schemas/CharterPacket" }
+        signature: { $ref: "#/components/schemas/Signature" }
+
+    Rule:
+      type: object
+      required: [name, condition, action]
+      properties:
+        name: { type: string, example: no-prod-data-mutation-destructive }
+        condition:
+          type: string
+          example: "action.type in ['delete', 'drop', 'truncate']"
+        action: { type: string, enum: [allow, deny, require_approval] }
+        approvers:
+          type: array
+          items: { type: string, enum: [self, central] }
+        concern: { type: string }
+
+    CompiledPolicy:
+      type: object
+      description: A governance.toolkit/v1 ruleset (first matching rule wins).
+      properties:
+        apiVersion: { type: string, const: governance.toolkit/v1 }
+        name: { type: string, example: invoice-bot-prod }
+        agent_id: { type: string }
+        environment: { type: string }
+        autonomy_mode: { $ref: "#/components/schemas/AutonomyMode" }
+        default_action: { type: string, const: deny }
+        rules:
+          type: array
+          items: { $ref: "#/components/schemas/Rule" }
+
+    CompileConflict:
+      type: object
+      properties:
+        objective_id: { type: string }
+        reason: { type: string }
+        blocking:
+          type: boolean
+          description: Blocking conflicts stop signing (reconcile or file an Exception).
+
+    CharterDiff:
+      type: object
+      properties:
+        from_version: { type: string }
+        to_version: { type: string }
+        permitted_tools: { $ref: "#/components/schemas/AddedRemoved" }
+        permitted_apis: { $ref: "#/components/schemas/AddedRemoved" }
+        mcp_servers: { $ref: "#/components/schemas/AddedRemoved" }
+        objectives: { $ref: "#/components/schemas/AddedRemoved" }
+        environment_constraints:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              from: {}
+              to: {}
+        trust_tier:
+          type: object
+          properties: { from: { type: integer }, to: { type: integer } }
+        autonomy_mode:
+          type: object
+          properties: { from: { type: string }, to: { type: string } }
+        capability_creep:
+          type: boolean
+          description: >
+            True when capability grew (tools/APIs/MCP added, objectives
+            removed, tier raised, or a constraint loosened).
+
+    AddedRemoved:
+      type: object
+      properties:
+        added: { type: array, items: {} }
+        removed: { type: array, items: {} }
+
+    Operation:
+      type: object
+      properties:
+        op:
+          type: string
+          enum: [register, pause, resume, quarantine, recertify, kill, rollback,
+                 decommission, archive, recommission, transfer_owner, promote,
+                 exception, sign]
+        from_state: { $ref: "#/components/schemas/LifecycleState" }
+        to_state: { $ref: "#/components/schemas/LifecycleState" }
+        actor: { type: string }
+        reason: { type: string }
+        params: { type: object }
+        at: { type: string, format: date-time }
+
+    LifecycleResult:
+      type: object
+      properties:
+        agent_id: { type: string }
+        environment: { type: string }
+        state: { $ref: "#/components/schemas/LifecycleState" }
+        operation: { $ref: "#/components/schemas/Operation" }
+
+    ExceptionRecord:
+      type: object
+      properties:
+        objective_id: { type: string }
+        agent_id: { type: string }
+        environment: { type: string }
+        justification: { type: string }
+        granted_by: { type: string }
+        granted_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        scope: { type: string }
+
+    Standard:
+      type: object
+      required: [id]
+      properties:
+        id: { type: string, example: org-baseline }
+        name: { type: string }
+        version: { type: string }
+        objectives:
+          type: array
+          items: { $ref: "#/components/schemas/Objective" }
+          description: enforcement_level must be mandatory|recommended|optional.
+        updated_at: { type: [string, "null"], format: date-time }
+
+    Finding:
+      type: object
+      properties:
+        check_id: { type: string, example: ENV-02 }
+        finding_type: { type: string, example: blastcontain.env.egress_unrestricted }
+        severity: { type: string, enum: [CRITICAL, HIGH, MEDIUM, LOW, INFO] }
+        title: { type: string }
+        detail: { type: string }
+        remediation: { type: string }
+        evidence:
+          type: [string, "null"]
+          description: Scrubbed before persist ([scrubbed:kind:hash] tokens).
+      additionalProperties: true
+
+    FindingPacket:
+      type: object
+      description: A Verify/Drill/Discovery scan packet (shape is tool-defined).
+      properties:
+        scan_id: { type: string }
+        agent_id: { type: string }
+        environment: { type: string }
+        scanned_at: { type: string, format: date-time }
+        status: { type: string, example: PASSED }
+        summary:
+          type: object
+          properties:
+            critical: { type: integer }
+            high: { type: integer }
+            medium: { type: integer }
+        findings:
+          type: array
+          items: { $ref: "#/components/schemas/Finding" }
+        evidence_scrubbed:
+          type: integer
+          description: Added by the platform when scrubbing replaced spans.
+      additionalProperties: true
+
+    DecisionData:
+      type: object
+      properties:
+        agent_id: { type: string }
+        environment: { type: string }
+        tool: { type: string }
+        action_type: { type: string, example: read }
+        decision:
+          type: string
+          enum: [allow, ask, deny]
+          description: The evaluated outcome.
+        final:
+          type: string
+          enum: [allow, deny]
+          description: The outcome after ask resolution.
+        rule: { type: [string, "null"] }
+        approver: { type: [string, "null"], enum: [self, central, null] }
+        approver_id: { type: [string, "null"] }
+        ask_choice:
+          type: [string, "null"]
+          enum: [allow_once, allow_always, deny, null]
+        risk_tag: { type: [string, "null"] }
+        concern: { type: [string, "null"] }
+        reason: { type: [string, "null"] }
+        latency_ms: { type: number }
+        degraded: { type: boolean }
+        ts: { type: string, format: date-time }
+      additionalProperties: true
+
+    DecisionEvent:
+      type: object
+      description: CloudEvents 1.0 envelope (Guard's telemetry format).
+      properties:
+        specversion: { type: string, const: "1.0" }
+        type: { type: string, example: com.blastcontain.guard.decision }
+        source: { type: string, example: blastcontain-guard/invoice-bot }
+        id: { type: string }
+        time: { type: string, format: date-time }
+        subject: { type: string, description: The tool name. }
+        datacontenttype: { type: string, const: application/json }
+        data: { $ref: "#/components/schemas/DecisionData" }
+      additionalProperties: true
+
+    MplCalibration:
+      type: object
+      description: Per-org MPL overrides — the dollars are yours, not ours.
+      properties:
+        base_values:
+          type: object
+          additionalProperties: { type: number }
+          description: Overrides per classification label (PII, PHI, …).
+        regulatory_multipliers:
+          type: object
+          additionalProperties: { type: number }
+        global_scale: { type: number, default: 1.0 }
+        currency: { type: string, default: USD }
+        note: { type: string }
+
+    MplReport:
+      type: object
+      properties:
+        agent_id: { type: string }
+        environment: { type: string }
+        exposure: { type: number, description: The calibrated exposure value. }
+        currency: { type: string }
+        band: { type: string, enum: [LOW, MODERATE, HIGH, SEVERE] }
+        oversight_factor:
+          type: number
+          description: 0.6 healthy gate · 0.9 rubber-stamped · 1.0 none.
+        calibrated: { type: boolean }
+        methodology: { type: string }
+        mpl_usd: { type: number, description: Back-compat alias of exposure. }
+        inputs:
+          type: object
+          properties:
+            classification: { type: string }
+            volume: { type: integer }
+            regime: { type: string }
+            business_context: { type: string }
+            hops: { type: integer }
+            trust_tier: { type: integer }
+            max_tier_in_chain: { type: integer }
+            oversight: { type: string, enum: [none, gated, gated_low_quality] }
+
+    HitlMetrics:
+      type: object
+      properties:
+        agent_id: { type: string }
+        environment: { type: string }
+        events_total: { type: integer }
+        by_decision:
+          type: object
+          properties:
+            allow: { type: integer }
+            ask: { type: integer }
+            deny: { type: integer }
+        asks_total: { type: integer }
+        approvals: { type: integer }
+        overrides: { type: integer }
+        approval_rate: { type: [number, "null"] }
+        override_rate: { type: [number, "null"] }
+        allow_always_count: { type: integer }
+        approval_latency_ms:
+          type: object
+          properties:
+            median: { type: [number, "null"] }
+            p95: { type: [number, "null"] }
+            samples: { type: integer }
+        rubber_stamp_risk:
+          type: boolean
+          description: ≥20 asks, ≥95% approved, median latency under 2s.
+        top_denied_concerns:
+          type: array
+          items:
+            type: array
+            prefixItems: [{ type: string }, { type: integer }]
+          description: "[concern, deny-count] pairs, highest first."
+        degraded_events: { type: integer }
+        notes: { type: string }
+
+    DriftReport:
+      type: object
+      properties:
+        agent_id: { type: string }
+        environment: { type: string }
+        charter_version: { type: string }
+        decisions_analyzed: { type: integer }
+        unused_grants:
+          type: array
+          items: { type: string }
+          description: Permitted tools with zero runtime use (right-sizing).
+        unlisted_attempts:
+          type: array
+          items:
+            type: object
+            properties:
+              tool: { type: string }
+              attempts: { type: integer }
+              denied: { type: integer }
+        learning_candidates:
+          type: array
+          items:
+            type: object
+            properties:
+              tool: { type: string }
+              action_type: { type: string }
+              approvals: { type: integer }
+              proposal: { type: string }
+          description: Repeatedly human-approved gated actions → allowlist proposals.
+        scan_contradictions:
+          type: array
+          items:
+            type: object
+            properties:
+              constraint: { type: string }
+              declared: { type: boolean }
+              contradicted_by:
+                type: array
+                items: { type: string }
+        drift_detected: { type: boolean }
+
+    AuditPacket:
+      type: object
+      properties:
+        packet_type: { type: string, const: blastcontain.audit_packet/v1 }
+        kind: { type: string, enum: [periodic, final] }
+        agent_id: { type: string }
+        environment: { type: string }
+        generated_at: { type: string, format: date-time }
+        compliance:
+          type: object
+          properties:
+            grade: { $ref: "#/components/schemas/ComplianceGrade" }
+            rationale:
+              type: array
+              items: { type: string }
+        charter:
+          type: [object, "null"]
+          properties:
+            version: { type: string }
+            state: { $ref: "#/components/schemas/LifecycleState" }
+            trust_tier: { type: integer }
+            autonomy_mode: { type: string }
+            signed_at: { type: [string, "null"] }
+            signed_by: { type: [string, "null"] }
+            objectives: { type: array, items: { type: string } }
+            permitted_tools: { type: array, items: { type: string } }
+            remediation_proofs:
+              type: array
+              items: { $ref: "#/components/schemas/RemediationProof" }
+            owner: { type: [string, "null"] }
+        versions: { type: array, items: { type: object } }
+        scan:
+          type: object
+          properties:
+            status: { type: string }
+            scanned_at: { type: [string, "null"] }
+            summary: { type: object }
+            open_critical_types:
+              type: array
+              items: { type: string }
+        mpl: { $ref: "#/components/schemas/MplReport" }
+        hitl: { $ref: "#/components/schemas/HitlMetrics" }
+        drift: { $ref: "#/components/schemas/DriftReport" }
+        exceptions: { type: array, items: { type: object } }
+        operations: { type: array, items: { type: object } }
+
+    AuditPacketBundle:
+      type: object
+      required: [packet, signature]
+      properties:
+        packet: { $ref: "#/components/schemas/AuditPacket" }
+        signature: { $ref: "#/components/schemas/Signature" }

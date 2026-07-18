@@ -1,5 +1,14 @@
 # BlastContain OSS — Migration Notes
 
+> ⚠️ **Historical record — this extraction is complete and the repo has moved on.** Written when only
+> `core` (0.1.0) and `verify` were extracted. Current reality: a single `gdeudney/blastcontain-oss`
+> monorepo with **five** built packages — `core` 0.2.0, `verify` 0.3.1, `drill` 0.1.0, `guard` 0.1.0,
+> `tools/scout` 0.1.0 — and a **single** CI workflow (`.github/workflows/ci.yml`, with `import-policy`
+> as a *job*, not a per-package workflow). The org/GHCR commands below still say `blastcontain/*`; the
+> real remote is `gdeudney/blastcontain-oss`. The "Drill and Discovery … don't have implementations
+> yet" section is obsolete (Drill and Guard are built; only Discovery remains unbuilt). Steps are kept
+> for history.
+
 Status of the local extraction and the manual steps left for you.
 
 ## What's done locally
@@ -206,3 +215,24 @@ Skipped in this migration — they don't have implementations yet. When each is 
 - **CONTRIBUTING.md says no CLA.** Stick with DCO — switching to a CLA later would invite a fork. The community read on this is strong.
 
 If you want me to also extract drill or discovery once they exist, or to write a launch blog post / HN announcement, ping me.
+
+---
+
+## Platform import (2026-07-17)
+
+The commercial platform repo was merged into this repo as a **clean snapshot**
+(no history carried over) and re-licensed Apache-2.0:
+
+- `platform/server/` — Charter compiler, Ledger + MPL, Fleet API (`blastcontain-server`, was `Proprietary`, now Apache-2.0; uv sources now point at in-repo `core`/`guard`)
+- `platform/gui/` — Next.js console + hardened Containerfile
+- `platform/tests/` — server unit tests, scenarios, container compose
+- `docs/` — the product spec set, at repo root; the verify/drill spec mirrors now point at the in-repo canonical `verify/docs/spec.md` / `drill/docs/spec.md`
+
+**Deliberately not imported** (stale or runtime artifacts): `tools/` pre-split
+copies of verify/drill/discovery, `tests/tools/`, `tests/integration/` (older
+duplicate of `verify/tests/integration/`), `tests/containers/Containerfile.verify`,
+`blastcontain.db`, `gui/web/node_modules/`, `audit.json` / `report.md` scan
+outputs, product `CLAUDE.md`, and the legacy `integration.yml` workflow.
+
+The "OSS never imports platform" rule is unchanged and still CI-enforced —
+the boundary is now a directory boundary instead of a repo boundary.

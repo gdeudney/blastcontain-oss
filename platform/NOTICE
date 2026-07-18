@@ -1,0 +1,15 @@
+BlastContain Platform
+Copyright 2026 BlastContain Contributors
+
+This product includes software developed by BlastContain Contributors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+see the LICENSE file in this directory or
+http://www.apache.org/licenses/LICENSE-2.0
+
+The Platform (Charter compiler, Ledger, Fleet API, and console GUI) depends on
+blastcontain-core (Apache-2.0) for shared types, signing, and the Charter
+schema, and uses blastcontain-guard (Apache-2.0) in its closed-loop
+integration tests. Runtime dependencies (FastAPI, uvicorn, SQLAlchemy,
+PyYAML, Next.js for the GUI) are not vendored here — record their provenance
+and licenses in your own deployment's AIBOM.

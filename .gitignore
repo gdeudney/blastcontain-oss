@@ -31,3 +31,12 @@ Thumbs.db
 # Sensitive — discovered jailbreak corpora (drill-spec §8): treat like secrets
 discovered-jailbreaks*.json
 *.jailbreaks.json
+
+# Graphify analysis output (generated)
+graphify-out/
+**/graphify-out/
+
+# Platform runtime artifacts
+platform/server/*.db
+node_modules/
+platform/gui/web/.next/

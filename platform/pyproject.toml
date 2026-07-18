@@ -1,0 +1,10 @@
+# Platform test-runner config only — the installable package is server/
+# (blastcontain-server). Run from this directory: `pytest tests/server`, or
+# plain `pytest` for the full platform suite (integration needs docker/podman).
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
