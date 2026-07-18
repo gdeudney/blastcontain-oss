@@ -4,8 +4,13 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-07-17
+
 ### Fixed
 - **CLI no longer crashes (and loses the audit packet) on a non-UTF-8 stdout.** The results table and summary print status emoji (`✅ ❌ ⏭ ⚠️`); on Windows a redirected/piped stdout or a legacy cp1252 console couldn't encode them, so `click.echo` raised `UnicodeEncodeError` mid-run — and because the table prints *before* the report/audit/SARIF write block, the run aborted with a traceback (exit 1) and the audit packet was never written even though the scan completed. `main()` now reconfigures `stdout`/`stderr` to UTF-8 (`errors="replace"`) before any output. Linux/container output is unaffected. Regression-tested in `tests/unit/test_cli.py`.
+
+### Changed
+- Refreshed the pinned dependency lock — `cffi`, `charset-normalizer`, `filelock`, `regex`, and `tqdm` bumped to current patch/minor releases (`pip-audit`-clean and resolvable). The coupled `pydantic`/`pydantic_core`, `smart_open` 8.x, `thinc` 9.x, and `presidio` bumps Dependabot proposed are held pending a coordinated stack update.
 
 ## [0.4.0] — 2026-06-28
 
