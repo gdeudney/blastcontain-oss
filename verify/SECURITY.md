@@ -56,6 +56,21 @@ production secret; use `--require-signing` in pipelines that must never emit an
 advisory packet. Key management is deliberately out of scope for the OSS tool —
 the signature is only as trustworthy as your key handling.
 
+## Presidio Anonymizer compatibility hold (2026-09-07)
+
+Analyzer is updated to 2.2.364, but Anonymizer is deliberately pinned to
+2.2.362 in both `[full]` and `[pii]`. Anonymizer 2.2.364 requires
+`cryptography>=48.0.1,<49.0.0`; resolving it selected cryptography 48.0.1.
+`pip-audit` reported PYSEC-2026-3553 and PYSEC-2026-3554 (fixed in 49.0.0),
+and PYSEC-2026-3552 (fixed in 50.0.0). Duplicate advisory rows were also
+reported; these represent three distinct advisory identifiers.
+
+The upgrade candidate passed unit tests but failed the security audit. Keep
+Anonymizer 2.2.362 with the audited cryptography 50.0.1 container pin. Revisit
+when an upstream Anonymizer release supports patched cryptography; regenerate
+constraints, run the tests and audit, and validate the container before updating.
+Do not override upstream metadata with `--no-deps` to force this upgrade.
+
 ## Optional Cisco scanner — dependency posture
 
 `blastcontain-verify` is **secure-by-default**: the standard install

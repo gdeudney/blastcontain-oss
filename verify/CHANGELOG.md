@@ -4,6 +4,20 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 
 ## [Unreleased]
 
+### Changed
+- Refresh dependency floors and the Python 3.12 `[full]` container constraints
+  (2026-09-07), including Click 8.5.0, Presidio Analyzer 2.2.364, spaCy 3.8.16,
+  and cryptography 50.0.1. AGT remains at 4.1.0. NumPy resolves to 2.4.6 to
+  respect Presidio's `<2.5.0` requirement.
+- Pin Presidio Anonymizer to 2.2.362: testing 2.2.364 forced cryptography
+  48.0.1 and failed the dependency audit. See SECURITY.md for the upstream
+  compatibility constraint and conditions for revisiting the upgrade.
+- Raise the optional Cisco Skill Scanner floor to 2.1.0, refresh build/test
+  tooling, and require Core 0.2 for the current audit-packet API.
+- Document dependency regeneration and validation; add optional real-scanner
+  fixture tests for Cisco compatibility during future upgrades.
+
+
 ## [0.4.1] — 2026-07-17
 
 ### Fixed
