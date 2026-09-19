@@ -3,18 +3,25 @@
 **The in-process enforcer teams embed in their copilots.** Guard loads an
 agent's policy — a local `governance.toolkit/v1` YAML (open, standalone) *or* a
 compiled Charter — intercepts tool calls at the framework boundary, resolves
-**allow / ask / deny**, prompts the user on *ask*, and streams every decision as
-a signed-able CloudEvent to the Ledger.
+**allow / ask / deny**, prompts the user on *ask*, and records decisions as CloudEvents in memory.
+Configure a file, Ledger or OpenTelemetry sink for external delivery; export a
+signed decision-log packet when needed.
 
-Part of the BlastContain *cage trilogy*: **Verify** proves the cage is built
-right · **Drill** attacks the agent inside it · **Guard** adds the runtime locks.
+Part of the BlastContain *cage trilogy*: **Verify** checks the runtime and source against technical requirements · **Drill** attacks the agent inside it · **Guard** adds the runtime locks.
 Apache-2.0, like Verify and Drill — a security control on your tool-call path
 must be readable.
 
-> **The wedge:** Guard + a local YAML + Verify/Drill is a complete, fully-open
-> governance toolkit on its own. The commercial Platform (which *issues* signed
-> Charters and runs the change-governance machinery) is purely additive — you
-> graduate by changing the policy *source*, not the enforcement.
+Guard works with a local policy without the Platform. Your organization owns
+that policy, its approval authority and exceptions. These tools provide technical
+controls and evidence; they do not establish organizational governance.
+
+**Security boundary:** Guard protects calls routed through its adapters. An agent
+that can execute arbitrary code with the same privileges can bypass an in-process
+wrapper. Separate OS/container containment and externally enforced access controls
+are still required. An HTTP policy decision alone does not create such a boundary.
+
+Start with the [runnable usage guide](docs/usage.md) and the shared
+[technical checklist](../docs/technical-security-checklist.md).
 
 ## Install
 
@@ -26,10 +33,16 @@ pip install -e ./core -e ./guard          # from the blastcontain-oss workspace
 ## Embed it
 
 ```python
-from blastcontain_guard import Guard, GuardDenied
+from blastcontain_guard import AskChoice, Guard
 
-guard = Guard.from_yaml("policy.yaml")     # open, standalone
-guard.on_ask(host_ui.prompt)               # register your approval UI
+# Run from guard/; see docs/usage.md for a complete runnable example.
+guard = Guard.from_yaml("examples/policy.yaml")
+
+def prompt(request):
+    answer = input(f"Allow {request.tool_name} once? [y/N] ").strip().lower()
+    return AskChoice.ALLOW_ONCE if answer == "y" else AskChoice.DENY
+
+guard.on_ask(prompt)
 
 @guard.tool                                # guard a hand-rolled tool
 def delete_invoice(invoice_id): ...        # evaluated on every call
@@ -42,7 +55,7 @@ widens policy itself.
 
 Other entry points: `guard.check(tool, action_type=..., args=...)` (the full
 enforcement round-trip → `EnforcementResult`), `guard.evaluate(...)` /
-`guard.explain(...)` (pure decision), `guard.write_decision_log(path)` (a signed
+`guard.explain(...)` (decision only; may contact AGT, without approval or telemetry), `guard.write_decision_log(path)` (a signed
 audit packet).
 
 ## Same code, config-only modes
@@ -62,7 +75,9 @@ guard = Guard.from_config("mode.yaml")   # identical agent code in every mode
 | **AGT-only** | `enabled: true · mode: sole · endpoint: …` | AGT alone (native is pass-through) |
 
 Runnable: `examples/agent.py` + `examples/mode-*.yaml`, with `examples/demo_agt_server.py`
-standing in for a real AGT. The same `agent.py` yields three different behaviours.
+standing in for an AGT-compatible decision endpoint. These mode demos
+automatically approve self-owned asks; use the usage guide for a real human prompt.
+Validate the request/response contract against your service before production use.
 
 ## The policy
 
@@ -112,18 +127,23 @@ Guard evaluates, Claude Code renders the *ask*. In `.claude/settings.json`:
 
 ## Two fronts
 
-Guard-native is the always-on, in-process **primary** (the only enforcer where
-AGT can't be injected). AGT is an optional, out-of-process **second front**
-behind it — same compiled policy, enforced even if the in-process library is
-bypassed. When AGT is enabled but unreachable, Guard **fails closed** (never a
-silent downgrade). The out-of-process choke points (egress proxy, MCP gateway,
-credential broker) are the second front for the dangerous few.
+Guard can consult an HTTP decision endpoint in `dual` or `sole` mode.
+In `dual`, the stricter decision wins; in `sole`, AGT supplies the decision and
+can override a native deny. With the default outage behavior, native ALLOW becomes
+DENY when AGT is unavailable; native ASK/DENY remains in force. The optional
+`degrade_to_native` setting permits fallback and records degradation. Choose that
+tradeoff explicitly.
 
-Guard and AGT agree *by construction* because Guard's ruleset format already **is**
-AGT's `governance.toolkit/v1` — the same compiled policy drives both. Emit the AGT
-form (BlastContain extensions stripped, the autonomy switch applied so
-`require_approval` → `deny [central]` for unattended agents) and push it to a
-running AGT:
+These calls still depend on the agent using Guard. Bypass-resistant enforcement
+requires a separately deployed gateway, proxy or credential broker that controls
+the actual resource path. This package contains policy helpers for those
+components, **not running enforcement services**.
+
+The exporter emits `governance.toolkit/v1` YAML, strips BlastContain extensions
+and converts approval rules for unattended agents. A shared format is not proof
+of identical semantics in an external implementation. The demo HTTP server
+illustrates the contract; verify compatibility with your chosen deployment.
+Export or push a policy with:
 
 ```bash
 blastcontain-guard export-agt -p policy.yaml                 # -> AGT policy YAML
@@ -146,7 +166,8 @@ export + push seam (`to_agt` / `push_to_agt`) · **config-driven modes**
 enforce; rejects unverifiable or dev-key-signed Charters; paused/quarantined
 agents enforce deny-all).
 
-Planned (guard-spec §13): live AGT delegation/consult at runtime · running
-choke-point sidecars · LangChain / OpenAI-SDK adapters.
+Implemented HTTP consultation is distinct from a validated deployment of a
+specific AGT service. Planned: running enforcement proxies/gateways/credential
+brokers, broader delegation integration, and LangChain / OpenAI-SDK adapters.
 
 See [`docs/architecture.md`](docs/architecture.md).

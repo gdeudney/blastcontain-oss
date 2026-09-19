@@ -48,7 +48,14 @@ podman build -t blastcontain-verify:latest -f verify/Containerfile .
 | **Isolation** | Runs in your shell | Read-only rootfs, no network, dropped caps, non-root UID |
 | **Setup** | `pip install` | `podman build` once |
 
-Rule of thumb: **if you didn't write the code you're scanning, run it in the container.** The container is the same environment the checks are designed for (`--network none`, read-only fs), so results are deterministic.
+**Runtime assessment:** run Verify in the agent's actual environment, with its
+identity and effective permissions. Setting `--env prod` only selects context;
+it does not make your development shell representative of production.
+
+**Isolated source review:** use a separate hardened container for untrusted source
+and configuration. Its filesystem, process and network results describe that
+scanner container. Do not use those results to attest the deployment being reviewed.
+The scanner does not need to execute the scanned application to inspect its source.
 
 ---
 
@@ -64,7 +71,7 @@ The same scan, hardened, in the container:
 
 ```bash
 mkdir -p reports
-podman run --rm \
+podman run --rm --userns=keep-id:uid=10001,gid=10001 \
   --read-only --cap-drop ALL --security-opt no-new-privileges \
   --network none --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   -v "$PWD:/scan:ro,z" -v "$PWD/reports:/reports:rw,z" \
@@ -118,6 +125,9 @@ Three optional machine-readable artifacts (write any combination):
 | `2` | QUARANTINED | at least one CRITICAL |
 | `3` | ERROR | a check group crashed, **or an output file couldn't be written** |
 
+A status reflects configured checks, not full coverage. Review SKIPs and exceptions;
+an APPROVED result is not organizational approval or a security certification.
+
 Two ways to use this in CI:
 
 ```bash
@@ -129,7 +139,9 @@ blastcontain-verify --agent-id my-agent --env prod --search-path ./src \
   --sarif scan.sarif --acknowledge-risk     # forces exit 0
 ```
 
-`--acknowledge-risk` forces exit `0` even on CRITICAL (findings are still reported at full severity in the report/packet/SARIF). It does **not** suppress a code-3 *write* error.
+`--acknowledge-risk` forces exit `0` even on CRITICAL (findings are still reported at full severity in the report/packet/SARIF). It also overrides the final ERROR status from a crashed check group. Configuration,
+required-signing, output-write and Ledger-post failures still exit 3 before that override.
+Use this flag only for report collection, never to establish that checks passed.
 
 ---
 
@@ -145,8 +157,8 @@ blastcontain-verify --agent-id support-bot --env dev \
 ### 6.2 Hardened scan of untrusted code, all outputs
 
 ```bash
-mkdir -p reports && chmod 0777 reports      # writable by the container's scan UID — see §8
-podman run --rm \
+mkdir -p reports      # rootless Podman maps the invoking owner to UID 10001
+podman run --rm --userns=keep-id:uid=10001,gid=10001 \
   --read-only --cap-drop ALL --security-opt no-new-privileges \
   --network none --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   -v "/path/to/agent:/scan:ro,z" -v "$PWD/reports:/reports:rw,z" \
@@ -170,15 +182,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions: { security-events: write, contents: read }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with: { python-version: "3.12" }
       - run: pip install "blastcontain-verify[full]"
       - name: Scan
         run: |
           blastcontain-verify --agent-id "${{ vars.AGENT_ID }}" --env prod \
             --search-path . --sarif scan.sarif --acknowledge-risk
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('scan.sarif') != ''
         with: { sarif_file: scan.sarif }
 ```
 
@@ -207,7 +220,8 @@ blastcontain-verify --config blastcontain-verify.yaml
 
 ### 6.5 Scan specific inputs
 
-Each input flag unlocks the checks that need it (otherwise they SKIP):
+Each input flag unlocks the checks that need it (otherwise they SKIP). MCP-02 checks configuration hints, not live token validation;
+MCP-03 uses declared tool metadata, not proof of effective permissions:
 
 ```bash
 # PII in session/conversation context  -> MEM-01
@@ -228,7 +242,7 @@ blastcontain-verify --agent-id a --model-dir ./models
 
 ### 6.6 Network egress checks (ENV-02 / NET-01)
 
-These check whether the agent's runtime can reach the outside world. Under the recommended `--network none`, egress is blocked, so **ENV-02 and NET-01 PASS** — that's the desired prod posture. To assert that a *less* restricted environment still blocks egress, run with network access and point the probe somewhere reachable:
+These probe the runtime in which Verify is executing. They describe the agent's runtime only when Verify runs with the same effective access. Under the recommended `--network none`, egress is blocked, so **ENV-02 and NET-01 PASS** — that's the desired prod posture. To assert that a *less* restricted environment still blocks egress, run with network access and point the probe somewhere reachable:
 
 ```bash
 # verify egress IS restricted in an environment that has a network
@@ -251,7 +265,8 @@ BLASTCONTAIN_SIGNING_KEY_ID="kms://prod/verify-2026" \
 blastcontain-verify --agent-id a --search-path ./src --output audit.json
 ```
 
-Verify a packet later (Ed25519 packets need nothing but the file):
+Check signature consistency later (also match the signer against a separately
+trusted public key before accepting the packet as attestation):
 
 ```python
 import json
@@ -307,9 +322,10 @@ A group declares the check IDs it `provides` and returns a `CheckGroupResult` fr
 
 Verify runs standalone; extras unlock deeper checks. Missing extras degrade gracefully (the dependent check falls back or SKIPs — it never crashes).
 
-Every augmentation — default and opt-in — is **CVE-clean** (as of 2026-06).
+The pinned sets and resolved optional extras passed the [2026-09-19 audit](https://github.com/gdeudney/blastcontain-oss/actions/runs/35465109852).
+This does not guarantee future resolutions or the absence of unknown vulnerabilities.
 
-| Extra | Unlocks | CVE-clean |
+| Extra | Unlocks | Audited 2026-09-19 |
 |---|---|---|
 | `[pii]`   | Microsoft Presidio NER for MEM-01 (falls back to regex without it) | ✅ |
 | `[agt]`   | Agent Governance Toolkit | ✅ |
@@ -317,26 +333,29 @@ Every augmentation — default and opt-in — is **CVE-clean** (as of 2026-06).
 | `[skill]` / `[cisco]` | Cisco AI Skill Scanner (SKILL-02) | ✅ |
 
 ```bash
-pip install "blastcontain-verify[full]"          # CVE-clean default
+pip install "blastcontain-verify[full]"          # Presidio + AGT
 pip install "blastcontain-verify[full,cisco]"     # + SKILL-02 (Cisco skill scanner)
 ```
 
-The startup banner prints which augmentations are active, and SKILL-02 SKIPs with an enable hint when the `[cisco]` extra is absent. The Cisco **MCP** scanner is not currently packaged (still CVE-bearing; MCP-01 is dormant without a Charter) — see [SECURITY.md](../SECURITY.md).
+The startup banner prints which augmentations are active, and SKILL-02 SKIPs with an enable hint when the `[cisco]` extra is absent. The Cisco **MCP** scanner is not currently packaged (previously excluded following dependency findings; MCP-01 is dormant without a Charter) — see [SECURITY.md](../SECURITY.md).
 
 ---
 
 ## 8. Troubleshooting
 
 **`Error: could not write output file: ... Permission denied` (exit 3).**
-The official image runs as the non-root `verify` user (UID 10001), so the host directory you mount at `/reports` must be writable by that UID. Make it writable before mounting:
+The official image runs as the non-root `verify` user (UID 10001), so the host directory you mount at `/reports` must be writable by that UID. For rootless Podman, create the directory as your own user and map that user's ownership to
+the image's UID 10001 (with a mapped group):
 
 ```bash
-chmod 0777 reports
-# or, with podman, let it chown the volume to the container user:
--v "$PWD/reports:/reports:rw,z,U"
-# or run the container as yourself (least-isolated):
---user "$(id -u):$(id -g)"
+mkdir -p reports
+# Add to podman run:
+--userns=keep-id:uid=10001,gid=10001
 ```
+
+This preserves the image's non-root user and avoids world-writable reports. With
+other runtimes or remote Podman, arrange ownership or a narrow ACL for the mapped
+UID on the machine hosting the volume. Confirm it can write before collecting scans.
 
 (Verify now reports this clearly and exits 3 instead of crashing — but you still need a writable output dir to get the packet.)
 

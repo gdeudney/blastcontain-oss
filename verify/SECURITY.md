@@ -48,13 +48,15 @@ We treat the following as bugs (open a public issue):
 
 Without a configured key, packets are HMAC-signed with the built-in
 `local-verify-default` key and carry `signature.advisory: true`. Because that
-key is public knowledge, an advisory signature proves **integrity only** — the
-payload hasn't changed since signing — and provides **no attestation of who
-produced it**. Treat advisory packets as unattested. For attestation, configure
+key is public knowledge, an advisory signature can detect accidental corruption
+but cannot protect against an attacker modifying and re-signing the payload. It
+provides **no attestation of who produced it**. Treat advisory packets as unattested. For attestation, configure
 an Ed25519 key (`BLASTCONTAIN_SIGNING_KEY_PATH`) and manage it like any other
 production secret; use `--require-signing` in pipelines that must never emit an
 advisory packet. Key management is deliberately out of scope for the OSS tool —
-the signature is only as trustworthy as your key handling.
+the signature is only as trustworthy as your key handling. Consumers must match
+an embedded public key against a separately trusted signer; signature consistency
+alone is not signer authentication.
 
 ## Presidio Anonymizer compatibility hold (2026-09-07)
 
@@ -73,26 +75,20 @@ Do not override upstream metadata with `--no-deps` to force this upgrade.
 
 ## Optional Cisco scanner — dependency posture
 
-`blastcontain-verify` is **secure-by-default**: the standard install
-(`pip install blastcontain-verify` or `[full]`) and the official container image
-carry **no known-vulnerable dependencies** — verified in CI by `pip-audit`
-against [`constraints-full.txt`](constraints-full.txt).
+The [2026-09-19 Security run](https://github.com/gdeudney/blastcontain-oss/actions/runs/35465109852)
+passed the four pinned dependency audits and the separately resolved optional
+extras audit. The gating job audits `constraints-full.txt`; it does not establish
+that every unconstrained pip installation or every container OS package is clean.
+Audit the resolved deployment environment as well.
 
-As of 2026-06 the **opt-in Cisco AI Skill Scanner is also CVE-clean.**
-`cisco-ai-skill-scanner>=2.0.12` (installed via `[skill]` / `[cisco]`) raised its
-`litellm` floor to `>=1.84`, and current `litellm` relaxed its transitive pins to
-ranges (`aiohttp>=3.10`, `python-dotenv>=1.0`), so the fixed versions now resolve
-and the four earlier CVEs (CVE-2026-34993 / -47265 / -40217 / -28684) clear. The
-weekly opt-in audit job in `security.yml` watches this (unpinned) tree for new
-CVEs.
+The `[skill]` / `[cisco]` extras install Cisco AI Skill Scanner. Their unpinned
+transitive dependencies are checked by a weekly, non-gating audit that records
+failures. An earlier clean run is not a continuing security guarantee.
 
-**`cisco-ai-mcp-scanner` (the MCP-01 backend) is deliberately NOT packaged.**
-Every release still exact-pins `litellm==1.83.7`, which drags in the vulnerable
-`aiohttp`/`python-dotenv` above; it also conflicts with `skill>=2.0.12`'s newer
-`litellm`, so the two cannot coexist. And MCP-01 is dormant — it SKIPs without a
-Charter (not yet wired). It will be re-added the day upstream relaxes that pin
-**and** Charter activates MCP-01; until then it would add CVEs for zero active
-coverage.
+`cisco-ai-mcp-scanner` is not packaged. It was excluded after dependency findings
+and conflicts with the skill scanner. Re-evaluate current upstream metadata and
+security advisories before adding it. MCP-01 currently SKIPs without the Charter
+allowlist integration; MCP-02/03 provide configuration checks only.
 
 ## Out of scope
 

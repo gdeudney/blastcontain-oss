@@ -1,11 +1,28 @@
 # blastcontain-verify
 
-Pre-deployment compliance scanner for AI agents. 27 security checks across 14 categories. Outputs Markdown reports, signed JSON audit packets, and SARIF for GitHub Code Scanning.
+Pre-deployment technical security scanner for AI agents. 27 security checks across 14 categories. Outputs Markdown reports, signed JSON audit packets, and SARIF for GitHub Code Scanning.
 
 ```
 pip install blastcontain-verify
 blastcontain-verify --agent-id my-agent --env prod --search-path ./src
 ```
+
+## What a scan establishes
+
+Run Verify **inside the environment being tested**, with the agent's effective
+identity, filesystem access, credentials and network restrictions. `--env` labels
+the deployment context; it does not enter or recreate that environment.
+
+A separate hardened scanner container can inspect mounted source and configuration,
+but its runtime checks describe **the scanner container**, not the agent's host or
+production deployment. A PASS is evidence for an individual probe, not proof of
+complete containment or organizational compliance. Review SKIPs and suppressed
+checks alongside findings.
+
+Today `--mcp-config` checks MCP configuration and declared tool combinations;
+it does not certify a remote server's runtime or authorization. MCP-01 currently
+SKIPs without a Charter allowlist. There is no separate MCP target CLI mode yet.
+See the [technical checklist](../docs/technical-security-checklist.md).
 
 ## What it checks
 
@@ -30,14 +47,15 @@ Every check is mapped to the [MIT AI Risk Repository](https://airisk.mit.edu/) t
 
 > **Two checks are conditional:** SKILL-02 (Cisco AI Skill Scanner) needs the opt-in `[cisco]` extra — see [Augmentation](#augmentation); MCP-01 (unapproved tools) is not yet implemented and currently SKIPs. The rest run out of the box.
 
-## Container (recommended)
+## Isolated source/configuration scan
 
 The official image bundles `[full]` with the spaCy `en_core_web_lg` model. The image copies both `verify/` and the sibling `core/`, so the build context is the `blastcontain-oss` repo root:
 
 ```
 # from the blastcontain-oss/ root
+mkdir -p reports
 podman build -t blastcontain-verify:latest -f verify/Containerfile .
-podman run --rm \
+podman run --rm --userns=keep-id:uid=10001,gid=10001 \
   --read-only --cap-drop ALL --security-opt no-new-privileges \
   --network none --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   -v "$PWD:/scan:ro,z" -v "$PWD/reports:/reports:rw,z" \
@@ -79,17 +97,19 @@ Usage guide & examples: [docs/usage.md](docs/usage.md) · Full spec: [docs/spec.
 # .github/workflows/security.yml
 - name: BlastContain Verify
   run: blastcontain-verify --sarif scan.sarif --agent-id "${{ vars.AGENT_ID }}"
-- uses: github/codeql-action/upload-sarif@v3
+- uses: github/codeql-action/upload-sarif@v4
+  if: always() && hashFiles('scan.sarif') != ''
   with:
     sarif_file: scan.sarif
 ```
 
 ## Augmentation
 
-Verify works standalone; optional packages unlock deeper checks. Every
-augmentation — default and opt-in — is **CVE-clean** as of 2026-06.
+Verify works standalone; optional packages unlock deeper checks. Dependency audits are point-in-time checks. The pinned sets and resolved opt-in
+extras passed the [2026-09-19 Security run](https://github.com/gdeudney/blastcontain-oss/actions/runs/35465109852).
+Unpinned installs can resolve differently; audit the environment you deploy.
 
-| Extra | Adds | Clean |
+| Extra | Adds | Audited 2026-09-19 |
 |---|---|---|
 | `[pii]`   | Microsoft Presidio NER for MEM-01 | ✅ |
 | `[agt]`   | Agent Governance Toolkit | ✅ |
@@ -102,7 +122,7 @@ pip install "blastcontain-verify[full,cisco]"     # + SKILL-02 (Cisco skill scan
 ```
 
 > The Cisco **MCP** scanner (the MCP-01 backend) is not currently packaged — it
-> still pins a CVE-bearing `litellm` and MCP-01 is dormant without a Charter. See
+> was excluded following dependency findings; MCP-01 is dormant without a Charter. See
 > [SECURITY.md](SECURITY.md).
 
 Without the relevant extra, the dependent check SKIPs with a hint on how to enable it.
@@ -129,12 +149,14 @@ packet = json.load(open("audit.json"))
 assert verify_packet(packet)
 ```
 
-Ed25519 packets carry their public key inline — verification needs nothing else. HMAC packets require `BLASTCONTAIN_SIGNING_KEY` in the environment.
+Ed25519 packets carry their public key inline, sufficient for checking signature
+consistency. To trust the signer, compare that key with a separately trusted key;
+an embedded key alone does not establish identity. HMAC packets require `BLASTCONTAIN_SIGNING_KEY` in the environment.
 
 **Be clear about what the default signature means:** with no key configured,
 packets are signed with a built-in key and marked `"advisory": true` — that
-proves *integrity* (the packet wasn't modified), **not attestation** (anyone
-can produce one). Attestation requires an Ed25519 key you manage. CI pipelines
+detects accidental changes, **not malicious tampering or attestation** (anyone
+can modify and re-sign one). Attestation requires an Ed25519 key you manage. CI pipelines
 that must never emit an advisory packet should pass `--require-signing`, which
 exits 3 before scanning if no real key is configured.
 
