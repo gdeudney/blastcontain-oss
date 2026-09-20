@@ -190,6 +190,8 @@ def test_real_denied_file_network_credentials_and_allowed_broker(images, tmp_pat
         ("malformed", ProtocolError, 0),
         ("wrong-id", ProtocolError, 0),
         ("stderr-flood", WorkerError, 0),
+        ("stdout-flood", ProtocolError, 0),
+        ("stderr-sustained", WorkerError, 0),
         ("exit", WorkerError, 0),
         ("hang", BudgetExceeded, 0),
     ],
@@ -207,13 +209,15 @@ def test_faults_fail_closed_and_cleanup(images, mode, error, calls):
                 await worker.reset(scenario(mode))
                 await worker.execute()
         assert len(worker.calls) == calls
-        assert time.monotonic() - started < limits.wall_seconds + 12
+        assert time.monotonic() - started < limits.wall_seconds + 16
         assert_removed(worker)
 
     asyncio.run(run())
 
 
-def test_cancellation_stops_plugin_and_cancels_pending_broker_call(images):
+@pytest.mark.parametrize('mode', ['normal', 'stdout-broker-flood', 'stderr-broker-flood'])
+@pytest.mark.parametrize('stop', ['cancel', 'deadline'])
+def test_cancellation_stops_plugin_and_cancels_pending_broker_call(images, mode, stop):
     async def run():
         started, cancelled = asyncio.Event(), asyncio.Event()
 
@@ -224,17 +228,25 @@ def test_cancellation_stops_plugin_and_cancels_pending_broker_call(images):
             finally:
                 cancelled.set()
 
-        manifest, records, limits = setup(images[1])
+        manifest, records, limits = setup(images[1], wall_seconds=5 if stop == 'deadline' else 30)
         worker = PodmanWorker(manifest, records, bindings={"target": blocking}, limits=limits)
         async with worker:
             await worker.prepare()
-            await worker.reset(scenario())
+            await worker.reset(scenario(mode))
             task = asyncio.create_task(worker.execute())
             await asyncio.wait_for(started.wait(), 5)
+            if 'flood' in mode:
+                await asyncio.sleep(.5)
             with pytest.raises(WorkerError, match="Concurrent"):
                 await worker.execute()
-            await worker.cancel()
-            assert task.cancelled() and cancelled.is_set()
+            if stop == 'deadline':
+                with pytest.raises(BudgetExceeded):
+                    await asyncio.wait_for(task, 20)
+            else:
+                await asyncio.wait_for(worker.cancel(), 16)
+                assert task.cancelled()
+            assert cancelled.is_set()
+            assert worker.process.returncode is not None
         assert len(worker.calls) == 1 and worker.calls[0].error == "CancelledError"
         assert_removed(worker)
 

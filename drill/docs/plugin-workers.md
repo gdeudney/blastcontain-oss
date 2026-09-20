@@ -77,7 +77,11 @@ unavailable. That engine timer uses whole seconds, rounded up from the remaining
 budget before creation; it is a backup, not a millisecond-precise controller deadline.
 
 Cancellation and failure immediately terminate/remove the container without asking
-the plugin to cooperate. Cleanup has its own ten-second control-operation limit;
+the plugin to cooperate. Cleanup drains both output pipes without retaining data,
+including while the container is being removed. Control operations have a ten-second
+execution limit followed by at most two seconds to reap their client; the attached
+worker client has a separate two-second reap limit. Full pipes cannot extend these
+waits indefinitely;
 a cleanup failure is surfaced with the exact container name, never reported as a
 successful cleanup. Successful close, timeout, malformed protocol and cancellation
 paths are checked for leftover containers. Abrupt machine/power loss is outside
@@ -154,3 +158,12 @@ test explicitly deselected. Ruff, contract/worker Mypy and worker Bandit passed.
 Clean wheels retained all 501 attack definitions and passed all five CLI help checks
 plus four installed MCP fixtures. The reference demo made two brokered calls, reported
 registered/compatible/accepted/available independently, and left no worker container.
+
+Review follow-up on September 20: **335** Core/Drill/Scout tests and **35** container
+checks passed after the completion, publication-retry and worker-cleanup fixes; the
+live-model test was deselected. Existing signed-report compatibility fixtures still
+pass without refreshing their hashes. The new checks include sustained 16 MiB
+stdout/stderr floods, floods during broker calls, explicit cancellation and automatic
+deadlines, and real child-process backpressure on the controller's pipes. Cleanup
+suppresses duplicate cancellation while a request is already terminating. Ruff,
+contract/worker Mypy and worker Bandit passed; no test worker containers remained.

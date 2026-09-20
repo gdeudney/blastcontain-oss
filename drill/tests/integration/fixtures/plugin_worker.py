@@ -4,6 +4,7 @@ from pathlib import Path
 import socket
 import sys
 import time
+import threading
 
 from blastcontain_drill.contracts import Injection
 from blastcontain_drill.plugins.protocol import encode
@@ -19,6 +20,20 @@ class HostileFixture:
 
     def execute(self, broker):
         mode = self.scenario.technique
+        if mode in ('stdout-flood', 'stderr-sustained', 'stdout-broker-flood', 'stderr-broker-flood'):
+            fd = 2 if mode.startswith('stderr') else 1
+
+            def flood():
+                # Cross the pipe pause threshold many times, not just one frame.
+                for _ in range(256):
+                    os.write(fd, b'x' * 65536)
+                time.sleep(60)
+
+            if 'broker' in mode:
+                # Start output after the broker call has reached the host binding.
+                threading.Timer(.2, flood).start()
+                return broker.call('target', Injection('user', self.scenario.entry_prompt))
+            flood()
         if mode == 'hang':
             time.sleep(60)
         if mode == 'exit':

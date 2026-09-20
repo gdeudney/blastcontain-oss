@@ -103,17 +103,52 @@ async def _read_capped(stream, limit):
             raise WorkerError("Runtime output exceeded its byte limit")
 
 
+async def _discard(stream):
+    """Drain without retaining data, including while the container is being stopped."""
+    while await stream.read(65536):
+        pass
+
+
+def _drain_pipes(process):
+    return [asyncio.create_task(_discard(stream))
+            for stream in (process.stdout, process.stderr) if stream is not None]
+
+
+async def _reap(process, drains=None):
+    """Bound client termination even when its pipes are full or never reach EOF."""
+    drains = _drain_pipes(process) if drains is None else drains
+    try:
+        if process.stdin is not None:
+            process.stdin.close()
+        if process.returncode is None:
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+        await asyncio.wait_for(asyncio.gather(process.wait(), *drains), 2)
+    except TimeoutError as exc:
+        raise WorkerError('Subprocess cleanup exceeded its two-second limit') from exc
+    finally:
+        for task in drains:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*drains, return_exceptions=True)
+        # Process exposes no public pipe-close API. Close the asyncio transport
+        # as well: a descendant may retain a pipe after its parent has exited.
+        # This is tested on the supported Python 3.11/3.12 platforms.
+        process._transport.close()
+
+
 async def _control(command, timeout=10.0):
     process = await asyncio.create_subprocess_exec(
         *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
+    readers = [asyncio.create_task(_read_capped(process.stdout, 262144)),
+               asyncio.create_task(_read_capped(process.stderr, 16384))]
+    waiter = asyncio.create_task(process.wait())
     try:
         stdout, stderr, code = await asyncio.wait_for(
-            asyncio.gather(
-                _read_capped(process.stdout, 262144),
-                _read_capped(process.stderr, 16384),
-                process.wait(),
-            ),
+            asyncio.gather(*readers, waiter),
             timeout,
         )
         if code:
@@ -122,9 +157,12 @@ async def _control(command, timeout=10.0):
             )
         return stdout
     finally:
-        if process.returncode is None:
-            process.kill()
-            await process.wait()
+        # gather does not cancel siblings when one capped reader fails.
+        for task in [*readers, waiter]:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*readers, waiter, return_exceptions=True)
+        await _reap(process)
 
 
 def local_image_available(image_id: str) -> bool:
@@ -508,7 +546,8 @@ class PodmanWorker:
     async def close(self):
         request_task = self._request_task
         external = request_task is not None and request_task is not asyncio.current_task()
-        if external and not request_task.done():
+        if (external and not request_task.done() and not request_task.cancelling()
+                and self._cleanup_task is None):
             request_task.cancel()
         if self._cleanup_task is None:
             self._closed = True
@@ -522,6 +561,13 @@ class PodmanWorker:
         if self._watchdog is not None and not self._watchdog.done():
             self._watchdog.cancel()
             await asyncio.gather(self._watchdog, return_exceptions=True)
+        if self._stderr_task is not None:
+            if not self._stderr_task.done():
+                self._stderr_task.cancel()
+            await asyncio.gather(self._stderr_task, return_exceptions=True)
+        # Drain before Podman removal: a blocked attach pipe can also prevent
+        # the engine's stop/remove operation from completing.
+        drains = _drain_pipes(self.process) if self.process is not None else []
         cleanup_error = None
         if self._executable:
             try:
@@ -531,16 +577,10 @@ class PodmanWorker:
             except Exception as exc:
                 cleanup_error = exc
         if self.process is not None:
-            if self.process.returncode is None:
-                try:
-                    await asyncio.wait_for(self.process.wait(), 2)
-                except TimeoutError:
-                    self.process.kill()
-                    await self.process.wait()
-        if self._stderr_task is not None:
-            if not self._stderr_task.done():
-                self._stderr_task.cancel()
-            await asyncio.gather(self._stderr_task, return_exceptions=True)
+            try:
+                await _reap(self.process, drains)
+            except Exception as exc:
+                cleanup_error = cleanup_error or exc
         if cleanup_error:
             raise WorkerError(
                 f"Worker cleanup failed; inspect container {self.name}"
