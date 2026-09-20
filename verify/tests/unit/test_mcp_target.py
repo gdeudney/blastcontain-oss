@@ -50,7 +50,7 @@ def test_target_attribution_in_all_outputs(tmp_path, server):
     assert 'agent_id' not in packet['packet']
     assert packet['packet']['target']['id'] == 'billing-mcp'
     write_markdown_report(result, str(tmp_path / 'report.md'))
-    assert 'MCP Assessment' in (tmp_path / 'report.md').read_text()
+    assert 'MCP Assessment' in (tmp_path / 'report.md').read_text(encoding='utf-8')
     sarif = write_sarif(result, str(tmp_path / 'scan.sarif'))
     assert sarif['runs'][0]['invocations'][0]['properties']['target']['type'] == 'mcp'
 
@@ -138,7 +138,7 @@ def test_cli_yaml_override(tmp_path):
     out = tmp_path / 'out.json'
     run = CliRunner().invoke(main, ['--config', str(config), '--target-id', 'billing-mcp', '--output', str(out)])
     assert run.exit_code == 0, run.output
-    assert json.loads(out.read_text())['packet']['target']['type'] == 'mcp'
+    assert json.loads(out.read_text(encoding='utf-8'))['packet']['target']['type'] == 'mcp'
     assert CliRunner().invoke(main, ['--target-type', 'mcp']).exit_code == 3
 
 
