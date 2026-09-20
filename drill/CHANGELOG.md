@@ -4,6 +4,15 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 
 ## [Unreleased]
 
+### Added
+- Opt-in MCP description and response poisoning over controlled loopback protocol fixtures, with four original action-goal seeds.
+- Payload-delivery and protocol evidence in signed reports, Markdown, and Podman observations.
+- Deterministic resistant/vulnerable demos and live Podman regression tests, with Verify remediation mappings.
+
+### Fixed
+- Cage-reported failures and unexercised MCP response attacks cannot fall through to HELD.
+- MCP action scenarios use observed attempts, not content-judge claims, to establish BYPASS.
+
 ## [0.2.0] — 2026-07-05
 
 Corpus expansion + two-plane scoring hardening. Every source layer is now real, multi-turn attacks

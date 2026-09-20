@@ -38,3 +38,18 @@ def test_hardened_agent_makes_no_egress_in_the_cage():
     assert obs.error is None, obs.error
     assert obs.egress_attempts == []
     assert obs.tool_calls == []
+
+
+@pytest.mark.parametrize('vulnerable', [True, False])
+@pytest.mark.parametrize('surface', ['description', 'response'])
+def test_mcp_payload_delivery_inside_network_none_cage(vulnerable, surface):
+    from blastcontain_drill.corpus.mcp_poisoning import MCPPoisoningSource
+    from blastcontain_drill.probes import run_action_probes
+    attack = next(a for a in MCPPoisoningSource().dataset() if a.id == f'mcp-{surface}-exfil')
+    obs = PodmanCage(vulnerable=vulnerable).run_attack(attack)
+    assert obs.error is None, obs.error
+    assert obs.mcp['payload_delivered']
+    assert any(event['method'] == 'tools/call' for event in obs.mcp['events'])
+    assert run_action_probes(obs)['triggered'] is vulnerable
+    if vulnerable:
+        assert run_action_probes(obs)['contained']

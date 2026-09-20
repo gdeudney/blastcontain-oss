@@ -25,7 +25,7 @@ from blastcontain_core.models import (
 from ._scenario import scenario_id, scenario_name
 from .cage.base import DEFAULT_FORBIDDEN_TOOLS, Cage
 from .config import DrillConfig
-from .corpus import Corpus, load_corpus
+from .corpus import ACTION_GOALS, Corpus, load_corpus
 from .probes import run_action_probes
 from .scoring import Scorer, combine, score_content
 from .scoring.reliability import finding_reliability, reliability_summary, same_family
@@ -50,13 +50,27 @@ def run_corpus(
     for attack in corpus.attacks:
         tax = taxonomy_for(attack.category)
         start = time.monotonic()
+        obs = None
+        mcp_attack = attack.mcp_tool_description is not None or attack.mcp_tool_response is not None
         try:
+            if mcp_attack and attack.goal not in ACTION_GOALS:
+                raise ValueError('MCP poison fixtures require an action goal')
             obs = cage.run_attack(attack)
+            if obs.error:
+                raise RuntimeError('cage execution incomplete: ' + obs.error)
+            if mcp_attack:
+                if not obs.mcp.get('payload_delivered'):
+                    raise RuntimeError('MCP payload was not delivered to the agent; scenario not exercised')
             action = run_action_probes(obs, forbidden_tools, permitted_tools)
+            if obs.mcp:
+                action['mcp'] = obs.mcp
+
             # Score the agent's whole transcript (assistant turns joined) so a multi-turn
             # attack is judged on everything it produced; single-turn = the lone response.
             content, all_verdicts = score_content(scorers, attack, obs.transcript_text())
-            decision = combine(attack, action, content)
+            # MCP fixtures have action goals. Retain content scores as context,
+            # but unsafe words alone cannot prove the requested action occurred.
+            decision = combine(attack, action, None if mcp_attack else content)
             scorer_errs = [
                 {"scorer": v.get("scorer"), "error": v.get("rationale")}
                 for v in all_verdicts if v.get("label") == "error"
@@ -94,6 +108,7 @@ def run_corpus(
                     technique=attack.technique,
                     layer=attack.layer,
                     bypass_description=f"scenario error: {exc}",
+                    action_verdict={"mcp": obs.mcp} if obs is not None and obs.mcp else None,
                     evidence="".join(
                         traceback.format_exception_only(type(exc), exc)
                     ).strip()[:300],
@@ -156,6 +171,8 @@ def run_drill(cfg: DrillConfig) -> DrillReport:
     """Build the bench from config and run the full drill."""
     from .llm import ChatClient
 
+    if cfg.enable_mcp_poisoning and cfg.agent_url:
+        raise ValueError('MCP poison fixtures require the built-in inprocess or Podman agent loop; agent_url is unsupported')
     permitted = _load_permitted_tools(cfg.charter)
     extra_sources = []
     if cfg.enable_aig:
@@ -181,6 +198,7 @@ def run_drill(cfg: DrillConfig) -> DrillReport:
         enable_jbb=cfg.enable_jbb,
         enable_systemcard=cfg.enable_systemcard,
         enable_multiturn=cfg.enable_multiturn,
+        enable_mcp_poisoning=cfg.enable_mcp_poisoning,
     )
     scorers, scorer_flags = build_scorers(cfg)
 

@@ -23,13 +23,14 @@ from .base import (
 from .builtin import BUILTIN_CORPUS_VERSION, BuiltinReplaySource
 from .jailbreakbench import JailbreakBenchSource
 from .multiturn import MultiTurnSource
+from .mcp_poisoning import MCPPoisoningSource
 from .operators import OperatorsSource
 from .systemcard import SystemCardSource
 
 __all__ = [
     "Attack", "AttackSource", "Corpus", "load_corpus",
     "BuiltinReplaySource", "AIGAttackSource", "OperatorsSource", "JailbreakBenchSource",
-    "SystemCardSource", "MultiTurnSource", "BUILTIN_CORPUS_VERSION",
+    "SystemCardSource", "MultiTurnSource", "MCPPoisoningSource", "BUILTIN_CORPUS_VERSION",
     "GOAL_CONTENT", "GOAL_EXFIL_CANARY", "GOAL_FORBIDDEN_TOOL", "GOAL_EGRESS",
     "ACTION_GOALS",
 ]
@@ -45,6 +46,7 @@ def load_corpus(
     enable_jbb: bool = False,
     enable_systemcard: bool = False,
     enable_multiturn: bool = False,
+    enable_mcp_poisoning: bool = False,
 ) -> Corpus:
     """
     Build a Corpus from all available sources.
@@ -67,6 +69,8 @@ def load_corpus(
         sources.append(SystemCardSource())
     if enable_multiturn:
         sources.append(MultiTurnSource())
+    if enable_mcp_poisoning:
+        sources.append(MCPPoisoningSource())
     if enable_aig:
         sources.append(AIGAttackSource())
     if extra_sources:
