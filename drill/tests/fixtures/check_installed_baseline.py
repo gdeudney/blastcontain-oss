@@ -75,6 +75,7 @@ assert json.loads(registry.read_text())["schema_version"] == 1
 for command in [
     "blastcontain-drill",
     "blastcontain-drill-diff",
+    "blastcontain-drill-plugins",
     "blastcontain-scout",
     "blastcontain-scout-track",
 ]:
