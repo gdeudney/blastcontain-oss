@@ -99,8 +99,8 @@ ENV XDG_CACHE_HOME=/tmp/.cache \
 USER verify
 
 LABEL org.opencontainers.image.title="blastcontain-verify" \
-      org.opencontainers.image.description="Pre-deployment compliance scanner for AI agents" \
-      org.opencontainers.image.version="0.3.1" \
+      org.opencontainers.image.description="Technical security assessment for AI agents and MCP servers" \
+      org.opencontainers.image.version="0.5.0" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.source="https://github.com/gdeudney/blastcontain-oss"
 

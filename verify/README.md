@@ -1,6 +1,6 @@
 # blastcontain-verify
 
-Pre-deployment technical security scanner for AI agents. 27 security checks across 14 categories. Outputs Markdown reports, signed JSON audit packets, and SARIF for GitHub Code Scanning.
+Pre-deployment technical security scanner for AI agents and MCP servers. The agent profile has 27 security checks across 14 categories. Outputs Markdown reports, signed JSON audit packets, and SARIF for GitHub Code Scanning.
 
 ```
 pip install blastcontain-verify
@@ -21,10 +21,25 @@ checks alongside findings.
 
 Today `--mcp-config` checks MCP configuration and declared tool combinations;
 it does not certify a remote server's runtime or authorization. MCP-01 currently
-SKIPs without a Charter allowlist. There is no separate MCP target CLI mode yet.
+SKIPs without a Charter allowlist. Use `--target-type mcp --target-id NAME` for the new passive MCP assessment
+with a local policy; see [MCP usage](docs/mcp.md).
 See the [technical checklist](../docs/technical-security-checklist.md).
 
-## What it checks
+## MCP server assessment
+
+```bash
+blastcontain-verify --target-type mcp --target-id billing-mcp \
+  --mcp-config verify/examples/mcp/server.json \
+  --policy verify/examples/mcp/policy.json --output mcp-audit.json
+```
+
+Run this example from the repository root. Configuration-only assessment is the
+MCP default; add `--scan-scope runtime` inside the actual server environment for
+local runtime checks. No MCP commands or tools are executed. Missing inventory or
+policy produces incomplete coverage, not approval. See [the MCP guide](docs/mcp.md)
+for evidence limits across all ten planned security areas.
+
+## What the agent profile checks
 
 | Group | Checks |
 |---|---|

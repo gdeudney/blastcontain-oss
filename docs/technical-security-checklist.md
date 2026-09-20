@@ -17,13 +17,15 @@ policy where calls pass through its adapters.
 | Control dependencies | Repository CI audits pinned sets and optional extras; not a Verify runtime check | Same repository audit process | Audit resolved installations and container layers separately |
 | Understand agent-to-agent access | No complete graph or cascade assessment | Single-hop delegation context | Charter graph, observed-vs-declared access and cascade testing are future work |
 
-## Proposed next scope: MCP servers as first-class Verify targets
+## MCP server assessment and subsequent scope
 
-**Proposal, not an implemented CLI.** Keep agents first, add MCP servers next,
-then skills, APIs, CLI tools and code. A target selector such as
-`--target-type agent|mcp` should be distinct from the environment selector; settle
-naming and audit schema before implementation. Current commands still require
-`--agent-id` and have no standalone MCP target mode.
+The first passive MCP profile is implemented with `--target-type mcp`,
+`--target-id`, a declared tool inventory and local allowlist. Optional local runtime
+checks require `--scan-scope runtime` in the server environment. See the
+[MCP guide](../verify/docs/mcp.md) for current coverage and unvalidated areas.
+Agent mode remains the default with `--agent-id`. The control validation below is
+subsequent work, followed by Drill and governance with Charter; skills, APIs, CLI
+tools and code remain later target extensions.
 
 Record each MCP server's identity, transport, execution environment, exposed tools,
 downstream services, effective permissions and evidence source. Run runtime checks

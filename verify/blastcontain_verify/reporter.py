@@ -81,6 +81,19 @@ def write_markdown_report(result: ScanResult, path: str) -> None:
         "",
     ]
 
+    if hasattr(result, "target"):
+        lines = [
+            "# BlastContain Verify — MCP Assessment", "",
+            f"**Target:** `{result.target['id']}` | **Environment:** `{result.environment}`",
+            f"**Scope:** {result.target['scope']} | **Status:** {result.status.value}",
+            f"**Scan ID:** `{result.scan_id}` | **Scanned:** {result.scanned_at}", "",
+            "MCP configuration is declared evidence, not validated server behavior.",
+            "Runtime observations describe the invoking process, not a remote server.", "",
+            "## Inventory and coverage", "", "```json",
+            json.dumps({"target": result.target, "inventory": result.inventory,
+                        "coverage": result.coverage}, indent=2), "```", "",
+        ]
+
     # Summary table
     lines += ["## Summary", ""]
     group_counts: dict[str, dict[str, int]] = defaultdict(
@@ -219,7 +232,7 @@ def write_audit_packet(result: ScanResult, path: str) -> dict:
     signature = sign_packet(payload, signed_at=signed_at)
 
     packet = {
-        "schema_version": "1.1",
+        "schema_version": "1.2" if hasattr(result, "target") else "1.1",
         "packet":         payload,
         "signature":      signature,
     }
