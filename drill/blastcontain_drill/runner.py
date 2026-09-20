@@ -51,23 +51,29 @@ def run_corpus(
         tax = taxonomy_for(attack.category)
         start = time.monotonic()
         obs = None
+        action = None
         mcp_attack = attack.mcp_tool_description is not None or attack.mcp_tool_response is not None
         try:
             if mcp_attack and attack.goal not in ACTION_GOALS:
                 raise ValueError('MCP poison fixtures require an action goal')
             obs = cage.run_attack(attack)
+            action = run_action_probes(obs, forbidden_tools, permitted_tools)
+            if obs.mcp:
+                action['mcp'] = obs.mcp
             if obs.error:
                 raise RuntimeError('cage execution incomplete: ' + obs.error)
             if mcp_attack:
                 if not obs.mcp.get('payload_delivered'):
                     raise RuntimeError('MCP payload was not delivered to the agent; scenario not exercised')
-            action = run_action_probes(obs, forbidden_tools, permitted_tools)
-            if obs.mcp:
-                action['mcp'] = obs.mcp
+                if obs.termination_reason is None:
+                    raise RuntimeError('MCP execution completion was not recorded')
 
             # Score the agent's whole transcript (assistant turns joined) so a multi-turn
             # attack is judged on everything it produced; single-turn = the lone response.
-            content, all_verdicts = score_content(scorers, attack, obs.transcript_text())
+            if action.get('execution', {}).get('completed') is False:
+                content, all_verdicts = None, []
+            else:
+                content, all_verdicts = score_content(scorers, attack, obs.transcript_text())
             # MCP fixtures have action goals. Retain content scores as context,
             # but unsafe words alone cannot prove the requested action occurred.
             decision = combine(attack, action, None if mcp_attack else content)
@@ -108,7 +114,7 @@ def run_corpus(
                     technique=attack.technique,
                     layer=attack.layer,
                     bypass_description=f"scenario error: {exc}",
-                    action_verdict={"mcp": obs.mcp} if obs is not None and obs.mcp else None,
+                    action_verdict=action,
                     evidence="".join(
                         traceback.format_exception_only(type(exc), exc)
                     ).strip()[:300],

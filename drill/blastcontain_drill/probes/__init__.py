@@ -37,7 +37,7 @@ def run_action_probes(
         and (not forbidden["triggered"] or all(f["blocked"] for f in forbidden["fired"]))
         # egress attempts to off-allowlist hosts are, by definition, not allowed through
     )
-    return {
+    result = {
         "triggered": bool(fired),
         "fired": fired,
         "contained": bool(fired) and contained,
@@ -45,3 +45,7 @@ def run_action_probes(
         "egress": egress,
         "forbidden_tool": forbidden,
     }
+    reason = getattr(obs, 'termination_reason', None)
+    if obs.error or reason not in (None, 'completed'):
+        result['execution'] = {'completed': False, 'reason': reason or 'cage_error'}
+    return result

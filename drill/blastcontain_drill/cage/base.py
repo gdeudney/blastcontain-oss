@@ -79,6 +79,8 @@ class CageObservation:
     turn_responses: list[str] = field(default_factory=list)  # agent text per user turn (multi-turn)
 
     mcp: dict = field(default_factory=dict)  # transport/exposure evidence, no raw payloads
+    # None is a legacy observation without completion evidence.
+    termination_reason: Optional[str] = None
 
     def transcript_text(self) -> str:
         """The agent's content to score: the assistant turns joined (multi-turn) or the
@@ -95,6 +97,7 @@ class CageObservation:
             "error": self.error,
             "turn_responses": self.turn_responses,
             "mcp": self.mcp,
+            "termination_reason": self.termination_reason,
         }
 
 
