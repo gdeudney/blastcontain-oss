@@ -5,6 +5,11 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 ## [Unreleased]
 
 ### Added
+- Data-only plugin discovery and `blastcontain-drill-plugins` diagnostics, with acceptance
+  bound to the complete manifest and pinned local container image.
+- Rootless Podman workers with brokered target/model calls, bounded messages/resources,
+  session-wide budgets, cancellation and independent controller/engine deadlines.
+- A stdlib-only container SDK, reference plugin and real hostile-worker conformance tests.
 - Versioned scenario, plugin/acceptance and evidence/result contracts with legacy source,
   cage, attacker and scorer bridges; existing CLI and schema-1.1 reports are unchanged.
 - Frozen compatibility fixtures for all 501 attacks and a 20-case signed report; adapter

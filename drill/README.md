@@ -65,8 +65,9 @@ never into the signed report (which carries only an excerpt).
 
 The [integration redesign](docs/integration-redesign-plan.md) is underway. The
 first [contracts and compatibility adapters](docs/contracts-v1.md) preserve this
-attacker path and the existing CLI; plugin workers and suite execution are later
-milestones. See the [baseline and validation record](docs/redesign-baseline.md).
+attacker path and the existing CLI. [Plugin discovery and bounded container workers](docs/plugin-workers.md)
+are now available as an additive API, with a [reference plugin](plugins/reference/README.md).
+Suite execution and the UI remain later milestones. See the [baseline record](docs/redesign-baseline.md).
 
 ## The cage
 

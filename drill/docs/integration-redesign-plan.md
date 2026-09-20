@@ -2,7 +2,8 @@
 
 Status: implementation started September 20, 2026. The first baseline and contract
 milestone is documented in [redesign-baseline.md](redesign-baseline.md) and
-[contracts-v1.md](contracts-v1.md). The later phases below remain planned functionality.
+[contracts-v1.md](contracts-v1.md). Phase 2 now has a first supported
+[discovery and worker profile](plugin-workers.md). Phases 3–7 remain planned functionality.
 
 ## Outcome
 
@@ -75,10 +76,15 @@ Phase 0 has a local Linux baseline, source hashes, signed-report compatibility
 fixture and packaging checks. The existing cross-platform CI matrix still needs
 to run on the proposed branch. Phase 1 has additive record schemas, role/lifecycle
 interfaces and legacy bridges; the production runner still uses its existing
-observations and reports. Workers, bounded sessions, evidence authority/reduction,
-suite execution and UI are not delivered by these data contracts. The next review
-unit is phase 2; phase 3 must supply the bridge from legacy observations to trusted
-events before suites can consume those observations as evidence.
+observations and reports. The data contracts do not provide evidence authority/reduction,
+suite execution or UI.
+
+Phase 2 adds data-only discovery, metadata-bound acceptance, a strict worker protocol,
+rootless Podman isolation, brokered calls, host/engine deadlines, independent stopping,
+diagnostics and a reference plugin. The first profile accepts empty configuration and
+explicit broker channels only; unsupported access/configuration fails closed. The next
+review unit is phase 3, including the bridge from legacy observations to trusted events,
+suite planning/locks and signed evidence. External tool libraries still await phase 4.
 
 ### Phase 0 — Establish the baseline and migration contract
 
