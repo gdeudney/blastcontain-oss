@@ -23,11 +23,14 @@ class MCPTargetResult(ScanResult):
     target: dict = field(default_factory=dict)
     inventory: dict = field(default_factory=dict)
     coverage: dict = field(default_factory=dict)
+    validation: dict | None = None
 
     def as_dict(self) -> dict:
         data = super().as_dict()
         data.pop("agent_id")
         data.update(target=self.target, inventory=self.inventory, coverage=self.coverage)
+        if self.validation is not None:
+            data["control_validation"] = self.validation
         return data
 
 
@@ -55,6 +58,14 @@ def _identifier(value: object) -> str:
 def validate_target_config(cfg: VerifyConfig) -> None:
     if cfg.target_type not in ("agent", "mcp"):
         raise ValueError("target_type must be agent or mcp")
+    if not isinstance(cfg.allow_live_tests, bool):
+        raise ValueError("allow_live_tests must be a boolean")
+    if bool(cfg.control_manifest) != cfg.allow_live_tests:
+        raise ValueError("--validate-controls and --allow-live-tests must be supplied together")
+    if cfg.control_manifest and cfg.target_type != "mcp":
+        raise ValueError("Control validation currently supports synthetic MCP fixtures only")
+    if cfg.control_manifest and any(c.upper().startswith("CTL-") for c in cfg.skip_checks):
+        raise ValueError("Control validation checks cannot be suppressed")
     if cfg.target_type == "agent":
         if cfg.target_id or cfg.mcp_server or cfg.policy or cfg.scan_scope:
             raise ValueError("--target-id, --mcp-server, --policy and --scan-scope require --target-type mcp")

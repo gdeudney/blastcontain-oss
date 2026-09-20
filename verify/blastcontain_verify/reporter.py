@@ -91,7 +91,8 @@ def write_markdown_report(result: ScanResult, path: str) -> None:
             "Runtime observations describe the invoking process, not a remote server.", "",
             "## Inventory and coverage", "", "```json",
             json.dumps({"target": result.target, "inventory": result.inventory,
-                        "coverage": result.coverage}, indent=2), "```", "",
+                        "coverage": result.coverage,
+                        "control_validation": result.validation}, indent=2), "```", "",
         ]
 
     # Summary table

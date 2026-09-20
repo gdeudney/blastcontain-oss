@@ -133,7 +133,11 @@ def run_scan(cfg: VerifyConfig) -> ScanResult:
     """
     if cfg.target_type == "mcp":
         from .mcp_target import run_mcp_scan
-        return run_mcp_scan(cfg)
+        result = run_mcp_scan(cfg)
+        if cfg.control_manifest:
+            from .control_validation import attach_validation
+            return attach_validation(cfg, result)
+        return result
 
     result = ScanResult(
         agent_id=cfg.agent_id,

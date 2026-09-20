@@ -54,6 +54,8 @@ def _force_utf8_output() -> None:
 
 
 @click.command("blastcontain-verify")
+@click.option("--validate-controls", "control_manifest", default=None, help="Synthetic fixture control-validation manifest JSON")
+@click.option("--allow-live-tests", is_flag=True, default=False, help="Explicitly allow bounded, state-changing fixture validation")
 @click.option("--target-type", type=click.Choice(["agent", "mcp"]), default=None, help="Assessment target (default: agent)")
 @click.option("--target-id", default=None, help="Stable MCP deployment identifier")
 @click.option("--mcp-server", default=None, help="Server name to select from mcpServers")
@@ -84,7 +86,7 @@ def main(
     model_dir, context_file, output, report, blastcontain_url,
     dry_run, acknowledge_risk, max_tier, egress_probe_target,
     skip_checks, api_live_probe, sarif, require_signing,
-    target_type, target_id, mcp_server, scan_scope, policy,
+    target_type, target_id, mcp_server, scan_scope, policy, control_manifest, allow_live_tests,
 ):
     """
     BlastContain Verify — pre-deployment environmental compliance scanner.
@@ -104,6 +106,7 @@ def main(
         config_file=config,
         cli_overrides={
             "target_type": target_type, "target_id": target_id,
+            "control_manifest": control_manifest, "allow_live_tests": allow_live_tests,
             "mcp_server": mcp_server, "scan_scope": scan_scope, "policy": policy,
             "agent_id":         agent_id,
             "environment":      env,
@@ -178,7 +181,10 @@ def main(
 
     if cfg.target_type == "mcp":
         click.echo(f"  Scope: {result.target['scope']} | Declared tools: {len(result.inventory.get('tools', []))}")
-        click.echo("  Configuration evidence only for MCP controls; authentication is not validated.")
+        click.echo("  Passive MCP evidence does not validate authentication. See fixture-validation results when enabled.")
+        if result.validation:
+            for check in result.validation.get("checks", []):
+                click.echo(f"  {check['check_id']}: {check['status']} — {check['title']}")
         click.echo(f"  Required profile coverage complete: {result.coverage['complete']}")
 
     # ── Per-check results table ────────────────────────────────────────────────

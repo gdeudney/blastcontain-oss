@@ -34,6 +34,8 @@ def write_sarif(scan: ScanResult, path: str) -> dict:
         properties = sarif["runs"][0]["invocations"][0]["properties"]
         properties.pop("agent_id", None)
         properties.update(target=scan.target, inventory=scan.inventory, coverage=scan.coverage)
+        if scan.validation is not None:
+            properties["control_validation"] = scan.validation
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(sarif, handle, indent=2)
     return sarif

@@ -65,6 +65,9 @@ class VerifyConfig:
     scan_scope: Optional[str] = None
     policy: Optional[str] = None
 
+    control_manifest: Optional[str] = None
+    allow_live_tests: bool = False
+
     def effective_skills_dir(self) -> str:
         return self.skills_dir or self.search_path
 
@@ -131,6 +134,8 @@ def _apply_dict(cfg: VerifyConfig, data: dict) -> None:
     mapping = {
         "agent_id":         "agent_id",
         "target_type": "target_type",
+        "control_manifest": "control_manifest",
+        "allow_live_tests": "allow_live_tests",
         "target_id": "target_id",
         "mcp_server": "mcp_server",
         "scan_scope": "scan_scope",

@@ -7,6 +7,10 @@ not connect to a server, discover its live tools, launch its configured command,
 invoke tools or validate live authentication. Installed check plugins do not run
 in this profile.
 
+For the separate opt-in synthetic control-validation adapter, see
+[control validation](control-validation.md). The passive profile below remains
+the default; live requests require both explicit flags.
+
 ## Quickstart
 
 From the repository root, after installing `./core` and `./verify` into your Python
