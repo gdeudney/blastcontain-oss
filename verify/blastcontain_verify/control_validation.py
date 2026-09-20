@@ -79,12 +79,15 @@ class FixtureClient:
         if self.count >= (100 if cleanup else 99) or (remaining <= 0 and not cleanup):
             raise ValueError('Validation request/time budget exhausted')
         self.count += 1
-        with self.client.stream(method, url, json=body, headers=headers,
+        request_deadline = time.monotonic() + min(3, max(0.1, remaining)) if not cleanup else time.monotonic() + 3
+        with self.client.stream(method, url, json=body, headers={"Accept-Encoding": "identity", **(headers or {})},
                                 timeout=min(3, max(0.1, remaining)) if not cleanup else 3) as response:
+            if response.headers.get("Content-Encoding", "identity") != "identity":
+                raise ValueError("Compressed fixture responses are not supported")
             chunks = bytearray()
-            for chunk in response.iter_bytes(chunk_size=16384):
+            for chunk in response.iter_bytes():
                 chunks.extend(chunk)
-                if len(chunks) > 65536 or (time.monotonic() > self.deadline and not cleanup):
+                if len(chunks) > 65536 or (time.monotonic() > request_deadline):
                     raise ValueError('Fixture response exceeded bounds')
             data = json.loads(chunks)
             if not isinstance(data, dict):
@@ -152,6 +155,7 @@ def validate_controls(cfg):
     # Proxies and redirects could send fixture credentials outside the approved target.
     with httpx.Client(trust_env=False, follow_redirects=False) as client:
         fixture = FixtureClient(manifest, admin, client)
+        report["fixture_run_id"] = fixture.run_id
         created = False
         try:
             # Mark attempted creation for cleanup even if its response is lost.

@@ -172,3 +172,23 @@ def test_direct_api_requires_consent(tmp_path, monkeypatch):
     with pytest.raises(ValueError):
         validate_controls(cfg)
     forbidden.assert_not_called()
+
+
+def test_response_and_request_bounds_reserve_cleanup():
+    import httpx
+    from blastcontain_verify.control_validation import FixtureClient
+    client = httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(200, json={})))
+    with client:
+        bounded = FixtureClient({}, 'synthetic', client)
+        bounded.count = 99
+        with pytest.raises(ValueError):
+            bounded.request('GET', 'http://127.0.0.1/unused')
+        assert bounded.count == 99
+        assert bounded.request('DELETE', 'http://127.0.0.1/unused', cleanup=True)[0] == 200
+        assert bounded.count == 100
+        with pytest.raises(ValueError):
+            bounded.request('DELETE', 'http://127.0.0.1/unused', cleanup=True)
+    with httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(200, content=b'x' * 65537))) as client:
+        bounded = FixtureClient({}, 'synthetic', client)
+        with pytest.raises(ValueError, match='exceeded bounds'):
+            bounded.request('GET', 'http://127.0.0.1/unused')

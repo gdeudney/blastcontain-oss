@@ -89,9 +89,11 @@ scripts are not supported by this adapter. The admin token must be present in th
 named environment variable, distinct from issued caller credentials. Passive
 coverage must be complete first; existing configuration findings do not block tests.
 
-The validator disables environment proxies and redirects, limits each response to
-64 KiB and individual requests to at most three seconds, and has a 60-second test
-budget plus a bounded cleanup attempt. At most 100 requests, including cleanup,
+The validator disables environment proxies and redirects, limits each uncompressed response to
+64 KiB and HTTP phase timeouts to three seconds, and checks a 60-second test
+budget between requests and response chunks. In-flight I/O can overrun the deadline
+until its timeout; this is not a hard process cancellation deadline. A bounded
+cleanup attempt is reserved. At most 100 requests, including cleanup,
 are allowed. No retry loop repeats a possibly successful write.
 
 Every run creates a unique fixture namespace and deletes only that namespace in a
