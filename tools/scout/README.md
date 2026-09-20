@@ -90,3 +90,87 @@ schtasks /Create /TN "BlastContain arXiv Scout" /SC WEEKLY /D MON /ST 09:00 `
 ```
 
 The task only ever opens a **draft PR** — nothing reaches the corpus without your review.
+
+## Research database: processed, reviewed, implemented
+
+Scout can keep a local SQLite database at `tools/scout/state/scout.sqlite3`.
+SQLite ships with Python; no database service or new dependency is required.
+The existing scan command and JSON ledger remain compatible. Plain scans remain
+read-only; `--record` explicitly saves paper metadata and classifier results:
+
+```bash
+blastcontain-scout --max 200 --record
+blastcontain-scout-track report
+```
+
+Once a database exists, scans skip unchanged papers with recorded classifications.
+Discovery alone does not count as processing. Changed paper metadata is reprocessed;
+prior analyses, review decisions and implementation links remain available. A changed
+paper marks an existing review stale until it is reviewed again. This tracks observed
+metadata revisions, not a complete arXiv version history. The normal scan still fetches
+only `--max` newest results; it does not provide historical pagination.
+
+Import saved research, including the catch-up artifacts:
+
+```bash
+blastcontain-scout-track import docs/demos/scout-catchup-2026-09-20/papers.json \
+  --analyses docs/demos/scout-catchup-2026-09-20/analyses.json
+blastcontain-scout-track import-ledger tools/scout/state/seen-arxiv.json
+```
+
+Both imports are repeatable. Legacy seen dates do not imply classification or human
+review. Import the legacy ledger first when preserving its original first-seen dates
+is important. Without a database, the original JSON ledger still controls deduplication.
+
+Record review decisions separately from implementation progress:
+
+```bash
+blastcontain-scout-track review 2609.18217 --status selected \
+  --note "Abstract reviewed; reproduce fragmented-channel attacks before adoption"
+blastcontain-scout-track link 2609.18217 \
+  --source drill/blastcontain_drill/corpus/example.py --status planned \
+  --note "Proposed scenario; no implementation yet"
+blastcontain-scout-track report --paper-id 2609.18217
+```
+
+Review states: `unreviewed`, `reviewed`, `selected`, `deferred`, `rejected`.
+Implementation states: `planned`, `in_progress`, `implemented`, `validated`, `retired`.
+One paper can link to multiple sources, and a source can cite multiple papers.
+`implemented` and `validated` require `--reference` (PR or commit); `validated` also
+requires `--tests` describing test evidence. References are recorded attestations:
+the tracker does not check GitHub merge state, inspect referenced files, run tests,
+verify licenses, or enable any corpus. Use `in_progress` for an unmerged draft PR.
+An implementation link never changes the paper's review state automatically.
+
+Use `blastcontain-scout-track --database /path/to/scout.sqlite3 ...` for a shared
+location across local checkouts. Scout scanning accepts the same `--database` option.
+Binary databases and journal files are gitignored. Keep the database on local disk;
+for a consistent backup, stop writers and copy it or use SQLite's backup facility.
+Export a readable audit snapshot for review:
+
+```bash
+blastcontain-scout-track report --json-output > scout-tracking-snapshot.json
+```
+
+The snapshot includes metadata, processing/review status, implementation evidence and
+change history; it is an audit export, not a database restore format. No cloud sync or
+scheduled monitoring is enabled. `--record` only records processing; it does not publish
+the generated proposal. Review/import/link commands do not commit or push anything.
+
+### Map Scout papers to Drill coverage
+
+Drill now has a data-only paper registry at
+`drill/blastcontain_drill/corpus/arxiv/registry.json`, seeded from the 20-paper
+implementation audit. Inspect it alongside the local database:
+
+```bash
+blastcontain-scout-track coverage
+blastcontain-scout-track coverage --paper-id 2404.01318 --json-output
+```
+
+`--registry PATH` selects another checkout's mapping. This lookup is read-only:
+it keeps checked-in audit claims and local implementation records separate.
+A missing registry entry means **not audited**, not **not implemented**.
+Scout proposals still go to `corpus/contrib/arxiv/<YYYY-MM>/`; reviewed dedicated
+implementations can live under `corpus/arxiv/`. Existing working modules are linked
+in place. Registry entries never enable attacks or import code automatically.

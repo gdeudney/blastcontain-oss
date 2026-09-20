@@ -15,6 +15,7 @@ from typing import Optional
 from . import arxiv as arxiv_mod
 from .analyze import classify
 from .ledger import Ledger
+from .tracker import Tracker
 from .llm import make_backend
 from .render import render_digest, render_scaffold, scaffold_relpath
 from .repo import FileWrite, PublishPlan
@@ -43,6 +44,8 @@ class ScoutConfig:
     ledger_path: str = "tools/scout/state/seen-arxiv.json"
     contrib_dir: str = "drill/blastcontain_drill/corpus/contrib"
     digest_dir: str = "drill/docs/scout"
+    database: Optional[str] = None
+    record: bool = False
     source: str = "arxiv"          # contrib bucket: contrib/<source>/<YYYY-MM>/
     categories: tuple = arxiv_mod.DEFAULT_CATEGORIES
     terms: tuple = arxiv_mod.DEFAULT_TERMS
@@ -64,11 +67,20 @@ def build_plan(cfg: ScoutConfig, today: str) -> ScoutResult:
         max_results=cfg.max_results, categories=cfg.categories, terms=cfg.terms
     )
     ledger = Ledger.load(os.path.join(root, cfg.ledger_path))
-    new_papers = ledger.filter_new(papers, today)
+    if cfg.database and os.path.exists(cfg.database):
+        with Tracker(cfg.database, readonly=True) as tracker:
+            new_papers = [p for p in papers if tracker.needs_processing(p)]
+    else:
+        new_papers = ledger.filter_new(papers, today)
 
     backend = make_backend(cfg.base_url, cfg.model)
     analyses = [classify(p, cfg.terms, backend, cfg.threshold) for p in new_papers]
     keepers = [a for a in analyses if a.relevant]
+    if cfg.record:
+        if not cfg.database:
+            raise ValueError("Recording requires a database path")
+        with Tracker(cfg.database) as tracker:
+            tracker.ingest(papers, analyses)
 
     if not new_papers:
         return ScoutResult(len(papers), 0, 0, analyses, None, "no new papers since last run")
