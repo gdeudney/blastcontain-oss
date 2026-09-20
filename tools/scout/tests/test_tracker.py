@@ -75,7 +75,8 @@ def test_pipeline_preview_no_writes_and_record_deduplication(tmp_path, monkeypat
     assert build_plan(cfg, '2026-09-20').new == 1
     cfg.record = False
     before = path.read_bytes()
-    assert build_plan(cfg, '2026-09-20').new == 0
+    repeated = build_plan(cfg, '2026-09-20')
+    assert repeated.new == 0 and repeated.plan is not None
     assert path.read_bytes() == before
     with Tracker(path, readonly=True) as db:
         assert db.snapshot()['papers'][0]['review_status'] == 'unreviewed'

@@ -103,7 +103,24 @@ blastcontain-scout --max 200 --record
 blastcontain-scout-track report
 ```
 
-Once a database exists, scans skip unchanged papers with recorded classifications.
+Once a database exists, scans reuse unchanged papers' recorded classifications.
+Classification does not consume proposal eligibility: recorded previews and imported
+analyses can still be published with `--apply` or `--open-pr`. Successful publication
+marks only the exact paper revision as proposed, without changing its review or
+implementation status. Existing version-1 databases are read without modification
+by previews and upgraded additively on the next write; old publication state is
+unknown and is not inferred from classification or the legacy seen ledger.
+
+Publishing saves an exact pending draft in the database before Git changes. A failed
+commit, push or PR creation can be retried with the same command, including on a later
+day or while arXiv is unavailable. Retry reuses the original branch and any completed
+commit; it refuses unrelated changes or edits to the proposal files. Keep the same
+checkout and database for retries. `--apply` and `--open-pr` also record classifications
+and publication state; ordinary previews remain read-only. A pending draft is retried
+before fetching newer papers. Once complete, the next scan resumes normal discovery.
+Successful `--apply` means committed locally; `--open-pr` requires a PR URL before
+marking the draft published. External pushes and PR creation still require those flags.
+
 Discovery alone does not count as processing. Changed paper metadata is reprocessed;
 prior analyses, review decisions and implementation links remain available. A changed
 paper marks an existing review stale until it is reviewed again. This tracks observed

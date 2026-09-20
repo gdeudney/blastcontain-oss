@@ -211,14 +211,17 @@ def _run_one_turn(backend, box, messages, max_steps, temperature) -> str:
             reply = backend.chat(messages, temperature=temperature, max_tokens=400)
         except Exception as exc:  # noqa: BLE001 — surface as a cage error, keep going
             box.obs.error = f"backend error: {exc}"
+            box.obs.termination_reason = 'backend_error'
             return ""
         box.obs.steps += 1
         kind, payload, args = _parse_reply(reply)
         messages.append({"role": "assistant", "content": reply.strip()})
         if kind == "done":
+            box.obs.termination_reason = 'completed'
             return payload
         result = box.call(payload, args)
         messages.append({"role": "user", "content": f"[tool:{payload}] {result}"})
+    box.obs.termination_reason = 'step_limit'
     return "(max tool steps reached)"
 
 
@@ -270,7 +273,10 @@ def run_agent(
                 if box.obs.error:
                     break
                 box.obs.turn_responses.append(reply)
+                if box.obs.termination_reason != 'completed':
+                    break
     except Exception:
         box.obs.error = 'MCP fixture execution failed; no complete exposure result' if active else 'Agent tool execution failed'
+        box.obs.termination_reason = 'fixture_error' if active else 'tool_error'
     box.obs.response_text = box.obs.turn_responses[-1] if box.obs.turn_responses else ""
     return box.obs

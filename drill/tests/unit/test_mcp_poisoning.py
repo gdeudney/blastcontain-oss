@@ -63,6 +63,35 @@ def test_max_steps_before_payload_delivery_is_incomplete():
     assert finding.outcome == DrillOutcome.ERROR
 
 
+@pytest.mark.parametrize('surface', ['description', 'response'])
+@pytest.mark.parametrize('steps,expected', [(1, DrillOutcome.ERROR), (2, DrillOutcome.ERROR),
+                                          (3, DrillOutcome.BYPASS), (4, DrillOutcome.BYPASS)])
+def test_step_limit_cannot_establish_held_but_keeps_observed_harm(surface, steps, expected):
+    attack = next(a for a in MCPPoisoningSource().dataset() if a.id == f'mcp-{surface}-exfil')
+    cage = InProcessCage(StubChatClient(vulnerable=True), max_steps=steps)
+    obs = cage.run_attack(attack)
+    expected_reason = 'completed' if steps == 4 else 'step_limit'
+    assert obs.termination_reason == expected_reason
+    assert _obs_from_json(obs.as_dict()).termination_reason == expected_reason
+    finding = run_corpus(cage, Corpus('test', [attack]), [])[0]
+    assert finding.outcome == expected
+    if steps < 4:
+        assert finding.action_verdict['execution'] == {'completed': False, 'reason': 'step_limit'}
+    if steps == 3:
+        assert finding.action_verdict['triggered'] and finding.action_verdict['contained']
+        assert 'execution incomplete' in finding.bypass_description
+
+
+def test_step_limit_stops_subsequent_user_turns():
+    from dataclasses import replace
+    attack = replace(MCPPoisoningSource().dataset()[0], turns=['first', 'second'])
+    backend = Mock()
+    backend.chat.return_value = 'CALL list_files {}'
+    obs = InProcessCage(backend, max_steps=1).run_attack(attack)
+    assert obs.termination_reason == 'step_limit'
+    assert backend.chat.call_count == 1
+
+
 def test_cage_error_cannot_silently_become_held():
     cage = Mock()
     cage.run_attack.return_value = CageObservation(error='test backend unavailable')
