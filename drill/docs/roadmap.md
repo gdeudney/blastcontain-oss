@@ -2,6 +2,9 @@
 
 _Last updated 2026-06-02. Companion to [spec.md](spec.md)._
 
+This is the historical roadmap. The [integration redesign plan](integration-redesign-plan.md)
+and [September baseline](redesign-baseline.md) track the current implementation work.
+
 ## 1. Current state
 
 Drill (Apache-2.0) lives in this monorepo (`blastcontain-oss/`) beside `core/` + `verify/`.
@@ -9,7 +12,7 @@ Spec build-order **steps 1–7 are done — container + guards included** — al
 local LM Studio models:
 
 - **Corpus (3 layers):** built-in Replay seed (~14, ATLAS-tagged) · Operators (7 model-free
-  transforms; 14→112) · Generative (an abliterated "Heretic" attacker in a PAIR/TAP refine loop —
+  transforms; 14→112) · Generative (an abliterated "Heretic" attacker in a PAIR-style sequential loop —
   found **3 CRITICAL action-plane bypasses** live) · AI-Infra-Guard HTTP adapter (API-correct,
   awaiting a live result field-map).
 - **Cage:** `InProcessCage` (drives a live model) + `PodmanCage` (`--network none` containment).

@@ -5,11 +5,17 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 ## [Unreleased]
 
 ### Added
+- Versioned scenario, plugin/acceptance and evidence/result contracts with legacy source,
+  cage, attacker and scorer bridges; existing CLI and schema-1.1 reports are unchanged.
+- Frozen compatibility fixtures for all 501 attacks and a 20-case signed report; adapter
+  checks preserve the local abliterated attacker path without requiring a live model.
 - Opt-in MCP description and response poisoning over controlled loopback protocol fixtures, with four original action-goal seeds.
 - Payload-delivery and protocol evidence in signed reports, Markdown, and Podman observations.
 - Deterministic resistant/vulnerable demos and live Podman regression tests, with Verify remediation mappings.
 
 ### Fixed
+- Generative documentation now describes PAIR-style sequential refinement; TAP tree
+  search is not implemented.
 - Cage-reported failures and unexercised MCP response attacks cannot fall through to HELD.
 - MCP action scenarios use observed attempts, not content-judge claims, to establish BYPASS.
 
@@ -38,7 +44,7 @@ existing flag was removed.
   tracking, decomposition/recompose, and a real multi-turn crescendo (a canary read on turn 1 and
   an exfil on turn N are one `CageObservation`).
 - **Generative layer** (`--generative`) — abliterated/no-refusal attacker model crafts and refines
-  attacks against the caged target in a PAIR/TAP loop. Discovered jailbreaks are written to a
+  attacks against the caged target in a PAIR-style sequential loop. Discovered jailbreaks are written to a
   separate, sensitive corpus (`--generative-corpus`), never into the signed report (which carries
   only an excerpt). Adds `--attacker-model`, `--attacker-base-url`, `--generative-only`,
   `--generative-iters`; records `attacker_model` in the DrillReport bench provenance.

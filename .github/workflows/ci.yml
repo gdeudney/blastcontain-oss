@@ -44,6 +44,7 @@ jobs:
               - 'core/**'
             scout:
               - 'tools/scout/**'
+              - 'drill/blastcontain_drill/corpus/arxiv/**'
 
   lint:
     runs-on: ubuntu-latest

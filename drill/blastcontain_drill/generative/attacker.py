@@ -3,7 +3,8 @@ Generative attacker — crafts and refines jailbreaks (drill-spec §4.1/§4.2).
 
 The attacker is a no-refusal model (an abliterated / "Heretic" model) prompted as
 a red-team prompt engineer: given a goal and the target's previous refusals, it
-writes a fresh attack prompt that tries to get past them — PAIR/TAP-style. A
+writes a fresh attack prompt using PAIR-style sequential refinement. TAP tree
+search is not implemented. A
 deterministic StubAttacker stands in for tests so the loop is verifiable without
 a model.
 """

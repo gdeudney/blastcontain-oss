@@ -1,6 +1,8 @@
 # Drill integration redesign — implementation plan
 
-Status: proposed implementation sequence, not delivered functionality. Prepared September 20, 2026.
+Status: implementation started September 20, 2026. The first baseline and contract
+milestone is documented in [redesign-baseline.md](redesign-baseline.md) and
+[contracts-v1.md](contracts-v1.md). The later phases below remain planned functionality.
 
 ## Outcome
 
@@ -66,6 +68,17 @@ provide several roles. Existing `AttackSource`, `Attacker`, `Cage` and `Scorer`
 implementations get compatibility wrappers rather than wholesale rewrites.
 
 ## Delivery phases and acceptance gates
+
+### Progress at the first milestone
+
+Phase 0 has a local Linux baseline, source hashes, signed-report compatibility
+fixture and packaging checks. The existing cross-platform CI matrix still needs
+to run on the proposed branch. Phase 1 has additive record schemas, role/lifecycle
+interfaces and legacy bridges; the production runner still uses its existing
+observations and reports. Workers, bounded sessions, evidence authority/reduction,
+suite execution and UI are not delivered by these data contracts. The next review
+unit is phase 2; phase 3 must supply the bridge from legacy observations to trusted
+events before suites can consume those observations as evidence.
 
 ### Phase 0 — Establish the baseline and migration contract
 
