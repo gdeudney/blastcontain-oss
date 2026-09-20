@@ -108,7 +108,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e "./core"
-      - run: pip install -e "./verify[dev]"
+      - run: pip install -c verify/constraints-validation.txt -e "./verify[dev,validation-test]"
       - run: pytest
         working-directory: verify
 

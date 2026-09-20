@@ -5,6 +5,10 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 ## [Unreleased]
 
 ### Added
+- Practical `mcp-scenarios-v1` adapter: negotiated MCP tool calls, operator-authored
+  cases and exact external state comparisons, with explicit gaps and bounded cleanup.
+- Official MCP SDK reference server with signed JWT validation and positive/negative
+  control scenarios; included in the Verify CI matrix via the validation-test extra.
 - Explicitly opted-in loopback fixture control validation: authentication, scoped
   authorization, bound approvals, replay protection, cumulative budget and revocation.
 - Positive/negative case evidence with state observations and bounded cleanup.

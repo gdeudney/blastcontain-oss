@@ -186,3 +186,11 @@ exits 3 before scanning if no real key is configured.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions require a DCO sign-off (`git commit -s`).
+
+### Practical MCP control checks
+
+The [scenario adapter](docs/practical-validation.md) maps explicit live checks to
+your server’s tools, credentials and trusted state observer. An official-SDK
+reference server demonstrates JWT validation and all six control groups. Live writes
+require `--validate-controls` and explicit `--allow-live-tests`; coverage is limited
+to the supplied cases and supported stateless JSON transport.
