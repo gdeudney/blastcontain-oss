@@ -228,9 +228,11 @@ in the other direction.
 the "too cautious" failure mode is a first-class result, not an afterthought.
 
 ### 9. The generative attacker is *just another `Attacker`*
-The PAIR/TAP refinement loop (an uncensored model that invents new attacks and learns from failures) is
+The PAIR-style sequential refinement loop (an uncensored model that invents new attacks and learns from failures) is
 not special-cased — it implements the same `Attacker` socket as the deterministic `StubAttacker` used in
 tests.
+
+TAP branching and pruning are not implemented.
 
 *Why it matters:* the expensive, non-deterministic, "needs a GPU" part is isolated behind an interface,
 so the whole loop is testable with a fake attacker, and the real one drops in unchanged.

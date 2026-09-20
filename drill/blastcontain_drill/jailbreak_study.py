@@ -1,8 +1,8 @@
 """
 Jailbreak-resistance study — automate Drill pitting an abliterated / Heretic ATTACKER
 model against a TARGET model (both hosted by LM Studio), across the full Drill corpus
-(built-in replay + JailbreakBench + technique operators) plus the generative PAIR/TAP
-refinement loop. Answers, per target: how well does it resist jailbreaking?
+(built-in replay + JailbreakBench + technique operators) plus generative PAIR-style
+sequential refinement. Answers, per target: how well does it resist jailbreaking?
 
     python -m blastcontain_drill.jailbreak_study \
         --attacker-model qwen3.6-35b-a3b-uncensored-heretic-native-mtp-preserved \

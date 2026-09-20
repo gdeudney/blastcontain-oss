@@ -38,7 +38,7 @@ that blocked it. An action-plane bypass is **CRITICAL** and blocks prod promotio
 |---|---|---|
 | **Replay** | built-in seeds · JailbreakBench · system-card checks · multi-turn vectors · AI-Infra-Guard curated sets | *known* attacks — a regression suite |
 | **Operators** | arXiv techniques as transforms (PyRIT/DeepTeam encoders, framing, obfuscation, homoglyph…) | known *methods* on fresh seeds |
-| **Generative** | an abliterated attacker model in a PAIR/TAP loop | *novel* jailbreaks |
+| **Generative** | an abliterated attacker model using PAIR-style sequential refinement | *novel* jailbreaks |
 
 Every run is pinned to a corpus version (e.g. `v2026.06.1`) and recorded in the
 DrillReport, so reports are reproducible and regression-comparable.
@@ -58,9 +58,15 @@ to every seed, expanding each into fresh variants while preserving its
 category/goal. No model required — fast and reproducible.
 
 **Generative (`--generative`)** runs an abliterated/no-refusal attacker model
-against the caged target in a PAIR/TAP loop (`--attacker-model`). Discovered
+against the caged target using PAIR-style sequential refinement (`--attacker-model`).
+TAP branching and pruning are not implemented. Discovered
 jailbreaks are written to a separate, sensitive corpus (`--generative-corpus`),
 never into the signed report (which carries only an excerpt).
+
+The [integration redesign](docs/integration-redesign-plan.md) is underway. The
+first [contracts and compatibility adapters](docs/contracts-v1.md) preserve this
+attacker path and the existing CLI; plugin workers and suite execution are later
+milestones. See the [baseline and validation record](docs/redesign-baseline.md).
 
 ## The cage
 
