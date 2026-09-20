@@ -118,7 +118,7 @@ def test_failed_push_reuses_commit_and_retries_pr(tmp_path, monkeypatch):
             return subprocess.CompletedProcess(args, 0, '[]', '')
         if args[:3] == ['gh', 'pr', 'create']:
             assert '--draft' in args and '--body-file' in args
-            assert Path(args[args.index('--body-file') + 1]).read_text()
+            assert Path(args[args.index('--body-file') + 1]).read_text(encoding='utf-8')
             return subprocess.CompletedProcess(args, 0, 'https://example.invalid/pr/1\n', '')
         return real_run(args, cwd)
 
