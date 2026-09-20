@@ -39,6 +39,10 @@ local runtime checks. No MCP commands or tools are executed. Missing inventory o
 policy produces incomplete coverage, not approval. See [the MCP guide](docs/mcp.md)
 for evidence limits across all ten planned security areas.
 
+An opt-in [control-validation fixture](docs/control-validation.md) now exercises
+allowed/denied cases with state observations. It requires both
+`--validate-controls` and `--allow-live-tests`; ordinary MCP scans stay passive.
+
 ## What the agent profile checks
 
 | Group | Checks |

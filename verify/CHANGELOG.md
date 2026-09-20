@@ -4,6 +4,11 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 
 ## [Unreleased]
 
+### Added
+- Explicitly opted-in loopback fixture control validation: authentication, scoped
+  authorization, bound approvals, replay protection, cumulative budget and revocation.
+- Positive/negative case evidence with state observations and bounded cleanup.
+
 ## [0.5.0] — unreleased
 
 ### Added
