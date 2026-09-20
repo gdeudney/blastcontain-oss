@@ -133,7 +133,11 @@ def test_revocation_and_scope_cannot_reuse_old_acceptance(tmp_path):
         read_acceptances(document)
 
 
-@pytest.mark.parametrize("content", [b'{"id":"a","id":"b"}', b'{"n":NaN}', b"\xff", b"[]" * 40000])
+@pytest.mark.parametrize(
+    "content",
+    [b'{"id":"a","id":"b"}', b'{"n":NaN}', b"\xff", b"[]" * 40000],
+    ids=["duplicate-key", "nonfinite-number", "invalid-utf8", "oversized-file"],
+)
 def test_hostile_metadata_is_not_loaded(tmp_path, content):
     path = tmp_path / "bad.drill-plugin.json"
     path.write_bytes(content)
