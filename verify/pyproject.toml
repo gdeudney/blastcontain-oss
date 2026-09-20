@@ -66,6 +66,9 @@ agt   = ["agent-governance-toolkit>=4.1.0"]
 skill = ["cisco-ai-skill-scanner>=2.1.0"]
 cisco = ["cisco-ai-skill-scanner>=2.1.0"]
 
+# Official SDK is used only by the practical validation reference server/tests.
+validation-test = ["mcp==2.2.0"]
+
 dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",

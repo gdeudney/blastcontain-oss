@@ -6,6 +6,9 @@ denied responses and the resulting data state. This is the first control-validat
 slice after passive Verify assessment. It is not a general production MCP scanner,
 an OAuth conformance suite, or an adversarial Drill run.
 
+For an existing MCP server, use the [practical scenario adapter](practical-validation.md).
+It supports explicit tool/caller/state mappings and official-SDK protocol negotiation.
+
 ## Run the complete demonstration
 
 From the repository root, with this Verify checkout and Core installed in your
@@ -109,7 +112,7 @@ not cryptographic attestation by an independent witness.
 
 ## Still to come
 
-Production adapters; agent control validation; actual OAuth token validation;
+Additional production integration adapters; agent control validation; actual OAuth token validation;
 concurrent/distributed budget and replay tests; egress/redirect tests; delegation;
 queued and in-flight revocation; and independently observed production effects.
 Drill's adversarial tests and Charter governance remain later stages.

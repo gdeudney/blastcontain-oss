@@ -54,7 +54,7 @@ def _force_utf8_output() -> None:
 
 
 @click.command("blastcontain-verify")
-@click.option("--validate-controls", "control_manifest", default=None, help="Synthetic fixture control-validation manifest JSON")
+@click.option("--validate-controls", "control_manifest", default=None, help="Opt-in MCP control-validation manifest JSON")
 @click.option("--allow-live-tests", is_flag=True, default=False, help="Explicitly allow bounded, state-changing fixture validation")
 @click.option("--target-type", type=click.Choice(["agent", "mcp"]), default=None, help="Assessment target (default: agent)")
 @click.option("--target-id", default=None, help="Stable MCP deployment identifier")

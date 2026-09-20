@@ -63,7 +63,7 @@ def validate_target_config(cfg: VerifyConfig) -> None:
     if bool(cfg.control_manifest) != cfg.allow_live_tests:
         raise ValueError("--validate-controls and --allow-live-tests must be supplied together")
     if cfg.control_manifest and cfg.target_type != "mcp":
-        raise ValueError("Control validation currently supports synthetic MCP fixtures only")
+        raise ValueError("Control validation currently supports MCP targets only")
     if cfg.control_manifest and any(c.upper().startswith("CTL-") for c in cfg.skip_checks):
         raise ValueError("Control validation checks cannot be suppressed")
     if cfg.target_type == "agent":

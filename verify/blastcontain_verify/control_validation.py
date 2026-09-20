@@ -145,6 +145,10 @@ def validate_controls(cfg):
     validate_target_config(cfg)
     if not cfg.control_manifest or not cfg.allow_live_tests:
         raise ValueError("Live fixture validation requires explicit opt-in")
+    selected, _ = _read_json(cfg.control_manifest)
+    if selected.get('adapter') == 'mcp-scenarios-v1':
+        from .mcp_scenarios import validate_scenarios
+        return validate_scenarios(cfg)
     manifest, digest, admin = load_manifest(cfg)
     report = {'adapter': manifest['adapter'], 'manifest_sha256': digest,
               'checks': [], 'cleanup_complete': False,
@@ -255,26 +259,30 @@ def attach_validation(cfg, result):
             result.findings.append(InfraFinding(
                 check_id=check['check_id'], finding_type='blastcontain.control.validation_failed',
                 severity=Severity.HIGH, title=check['title'] + ' validation failed',
-                detail='One or more bounded fixture cases violated the expected response or trusted state transition.',
+                detail='One or more bounded validation cases violated the expected response or trusted state transition.',
                 remediation='Inspect the recorded cases and fix the enforcement boundary before retesting.',
-                evidence='Live fixture validation; response bodies and credentials omitted',
+                evidence='Live control validation; response bodies and credentials omitted',
             ))
     result.coverage['required_checks'].extend(CHECKS)
     observed = {c['check_id'] for c in result.validation.get('checks', []) if c['status'] != 'ERROR'}
     result.coverage['missing_required_checks'].extend(sorted(set(CHECKS) - observed))
-    result.coverage['check_evidence'].update({check: 'live_fixture_validation' for check in observed})
-    result.coverage['profile'] = 'mcp-passive-v1+customer-record-v1'
+    practical = result.validation.get('adapter') == 'mcp-scenarios-v1'
+    evidence = 'live_operator_scenarios' if practical else 'live_fixture_validation'
+    scope = 'operator scenarios' if practical else 'synthetic fixture'
+    result.coverage['check_evidence'].update({check: evidence for check in observed})
+    result.coverage['profile'] = 'mcp-passive-v1+' + result.validation.get('adapter', 'unknown')
     statuses = {c['check_id']: c['status'] for c in result.validation.get('checks', [])}
     mapping = {'scoped_authorization': ['CTL-02'], 'identity_and_credentials': ['CTL-01'],
                'exact_action_approval': ['CTL-03'], 'replay_and_cumulative_limits': ['CTL-04', 'CTL-05'],
                'audit_and_independent_stopping': ['CTL-06']}
     for feature, checks in mapping.items():
         if any(check in statuses for check in checks):
-            result.coverage['feature_coverage'][feature] = 'Passive: ' + result.coverage['feature_coverage'][feature] + '; synthetic fixture: ' + ', '.join(
+            result.coverage['feature_coverage'][feature] = 'Passive: ' + result.coverage['feature_coverage'][feature] + '; ' + scope + ': ' + ', '.join(
                 check + '=' + statuses.get(check, 'NOT_RUN') for check in checks)
-    result.coverage['fixture_authentication_validated'] = statuses.get('CTL-01') == 'PASS'
+    result.coverage['fixture_authentication_validated'] = not practical and statuses.get('CTL-01') == 'PASS'
+    result.coverage['scenario_authentication_validated'] = practical and statuses.get('CTL-01') == 'PASS'
     result.coverage['control_validation_complete'] = result.validation['complete']
     result.coverage['tools_invoked'] = result.validation.get('tool_requests_attempted', 0) > 0
-    result.coverage['complete'] = result.coverage['complete'] and result.validation['complete']
+    result.coverage['complete'] = result.coverage['complete'] and result.validation['complete'] and not result.coverage['missing_required_checks']
     result.status = result.derive_status() if result.coverage['complete'] else ScanStatus.ERROR
     return result
