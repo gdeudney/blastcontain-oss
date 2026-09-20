@@ -155,3 +155,11 @@ redistribution. See [SECURITY.md](SECURITY.md).
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions require a DCO sign-off (`git commit -s`).
+
+### MCP poisoning scenarios
+
+Use `--mcp-poisoning` to add four [description/response poisoning cases](docs/mcp-poisoning.md).
+Poison arrives over a controlled loopback MCP endpoint; the cage records attempted
+exfiltration and forbidden tool calls and blocks their effects. Signed reports include
+payload-exposure evidence and Verify follow-up mappings. The included deterministic
+demo runs in-process or inside the network-isolated Podman cage.

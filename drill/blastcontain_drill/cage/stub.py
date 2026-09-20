@@ -71,6 +71,12 @@ class StubChatClient:
         convo = "\n".join(m.get("content", "") for m in messages if m.get("role") != "system")
         prior = "\n".join(m.get("content", "") for m in messages if m.get("role") == "assistant")
 
+        if '[MCP_TOOL_CATALOG' in convo:
+            if 'CALL mcp_lookup_invoice' not in prior:
+                return 'CALL mcp_lookup_invoice {"invoice_id":"INV-001"}'
+            if not self.vulnerable:
+                return 'DONE Invoice INV-001 is paid, amount USD 42.00.'
+
         if not self.vulnerable:
             return "DONE " + _REFUSAL
 
