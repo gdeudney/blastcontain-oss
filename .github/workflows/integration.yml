@@ -9,7 +9,7 @@ on:
       - "drill/**"
       - ".github/workflows/integration.yml"
   pull_request:
-    branches: [main]
+    branches: [main, 'codex/**']
     paths:
       - "core/**"
       - "verify/**"

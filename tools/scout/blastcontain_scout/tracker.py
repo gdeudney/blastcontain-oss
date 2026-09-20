@@ -27,7 +27,7 @@ class Tracker:
         self.db.row_factory = sqlite3.Row
         self.db.execute('PRAGMA foreign_keys=ON')
         version = self.db.execute('PRAGMA user_version').fetchone()[0]
-        if version not in (0, 1) or (readonly and version != 1):
+        if version not in (0, 1, 2) or (readonly and version == 0):
             self.db.close()
             raise ValueError(f'Unsupported Scout database version: {version}')
         if not readonly:
@@ -49,8 +49,15 @@ class Tracker:
                 CREATE TABLE IF NOT EXISTS events (
                     id INTEGER PRIMARY KEY, paper_id TEXT NOT NULL REFERENCES papers(id),
                     recorded_at TEXT NOT NULL, action TEXT NOT NULL, data TEXT NOT NULL);
-                PRAGMA user_version=1;
             ''')
+            with self.db:
+                columns = {r[1] for r in self.db.execute('PRAGMA table_info(papers)')}
+                if 'proposed_fingerprint' not in columns:
+                    self.db.execute('ALTER TABLE papers ADD COLUMN proposed_fingerprint TEXT')
+                self.db.execute('''CREATE TABLE IF NOT EXISTS pending_publications (
+                    repo_root TEXT PRIMARY KEY, data TEXT NOT NULL)''')
+                self.db.execute('PRAGMA user_version=2')
+        self.version = 2 if not readonly else version
 
     def close(self):
         self.db.close()
@@ -73,6 +80,47 @@ class Tracker:
         row = self.db.execute('SELECT processed_fingerprint FROM papers WHERE id=?',
                               (paper.arxiv_id,)).fetchone()
         return row is None or row[0] != fingerprint(paper)
+
+    def needs_proposal(self, paper):
+        if self.version < 2:
+            return True
+        row = self.db.execute('SELECT proposed_fingerprint FROM papers WHERE id=?',
+                              (paper.arxiv_id,)).fetchone()
+        return row is None or row[0] != fingerprint(paper)
+
+    def saved_analysis(self, paper):
+        from .analyze import Analysis
+        row = self.db.execute('''SELECT data FROM analyses WHERE paper_id=? AND fingerprint=?
+                              ORDER BY id DESC LIMIT 1''', (paper.arxiv_id, fingerprint(paper))).fetchone()
+        if row is None:
+            return None
+        data = json.loads(row[0])
+        data['paper'] = paper
+        return Analysis(**data)
+
+    def pending_publication(self, root):
+        if self.version < 2:
+            return None
+        row = self.db.execute('SELECT data FROM pending_publications WHERE repo_root=?',
+                              (str(Path(root).resolve()),)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def save_publication(self, root, data):
+        with self.db:
+            self.db.execute('INSERT OR REPLACE INTO pending_publications VALUES(?,?)',
+                            (str(Path(root).resolve()), json.dumps(data, sort_keys=True)))
+
+    def finish_publication(self, root, analyses, reference):
+        with self.db:
+            for analysis in analyses:
+                paper = analysis.paper
+                fp = fingerprint(paper)
+                # Do not mark a newer metadata revision as proposed by an older draft.
+                self.db.execute('''UPDATE papers SET proposed_fingerprint=?
+                    WHERE id=? AND fingerprint=?''', (fp, paper.arxiv_id, fp))
+                self._event(paper.arxiv_id, 'proposed', {'fingerprint': fp, 'reference': reference})
+            self.db.execute('DELETE FROM pending_publications WHERE repo_root=?',
+                            (str(Path(root).resolve()),))
 
     def ingest(self, papers, analyses=()):
         """Atomic, repeatable ingestion; retain decisions and all prior analyses."""
@@ -141,6 +189,7 @@ class Tracker:
             item['metadata'] = json.loads(item['metadata'])
             item['needs_processing'] = item['fingerprint'] != item['processed_fingerprint']
             item['review_stale'] = bool(item['review_fingerprint'] and item['review_fingerprint'] != item['fingerprint'])
+            item['needs_proposal'] = item['fingerprint'] != item.get('proposed_fingerprint')
             result['papers'].append(item)
         queries = {
             'analyses': 'SELECT * FROM analyses ORDER BY id',

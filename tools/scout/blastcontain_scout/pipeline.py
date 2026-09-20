@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from . import arxiv as arxiv_mod
-from .analyze import classify
+from .analyze import Analysis, classify
 from .ledger import Ledger
 from .tracker import Tracker
 from .llm import make_backend
@@ -60,21 +60,42 @@ class ScoutResult:
     plan: Optional[PublishPlan] = None
     note: str = ""
 
+    @classmethod
+    def from_dict(cls, data):
+        data = dict(data)
+        data['analyses'] = [Analysis(**{**a, 'paper': arxiv_mod.Paper(**a['paper'])})
+                            for a in data['analyses']]
+        if data['plan'] is not None:
+            data['plan'] = PublishPlan(**{**data['plan'],
+                'files': [FileWrite(**f) for f in data['plan']['files']]})
+        return cls(**data)
+
 
 def build_plan(cfg: ScoutConfig, today: str) -> ScoutResult:
     root = cfg.repo_root
+    if cfg.database and os.path.exists(cfg.database):
+        with Tracker(cfg.database, readonly=True) as tracker:
+            pending = tracker.pending_publication(root)
+        if pending:
+            # Retry the exact draft, including its date and branch, without refetching.
+            return ScoutResult.from_dict(pending)
     papers = arxiv_mod.fetch(
         max_results=cfg.max_results, categories=cfg.categories, terms=cfg.terms
     )
     ledger = Ledger.load(os.path.join(root, cfg.ledger_path))
+    cached = {}
     if cfg.database and os.path.exists(cfg.database):
         with Tracker(cfg.database, readonly=True) as tracker:
-            new_papers = [p for p in papers if tracker.needs_processing(p)]
+            candidates = [p for p in papers if tracker.needs_proposal(p)]
+            cached = {p.arxiv_id: tracker.saved_analysis(p) for p in candidates}
+            new_papers = [p for p in candidates if cached[p.arxiv_id] is None]
     else:
         new_papers = ledger.filter_new(papers, today)
+        candidates = new_papers
 
     backend = make_backend(cfg.base_url, cfg.model)
-    analyses = [classify(p, cfg.terms, backend, cfg.threshold) for p in new_papers]
+    analyses = [cached.get(p.arxiv_id) or classify(p, cfg.terms, backend, cfg.threshold)
+                for p in candidates]
     keepers = [a for a in analyses if a.relevant]
     if cfg.record:
         if not cfg.database:
@@ -82,7 +103,7 @@ def build_plan(cfg: ScoutConfig, today: str) -> ScoutResult:
         with Tracker(cfg.database) as tracker:
             tracker.ingest(papers, analyses)
 
-    if not new_papers:
+    if not analyses:
         return ScoutResult(len(papers), 0, 0, analyses, None, "no new papers since last run")
 
     # ── Build the files the PR will add ──────────────────────────────────────
@@ -110,10 +131,10 @@ def build_plan(cfg: ScoutConfig, today: str) -> ScoutResult:
     plan = PublishPlan(
         branch=f"scout/arxiv-{today}",
         base=cfg.base_branch,
-        commit_message=f"scout: {len(keepers)} new jailbreak paper(s) — {today}",
-        pr_title=f"Corpus scout: {len(keepers)} new jailbreak paper(s) ({today})",
+        commit_message=f"scout: {len(keepers)} pending jailbreak paper(s) — {today}",
+        pr_title=f"Corpus scout: {len(keepers)} pending jailbreak paper(s) ({today})",
         pr_body=digest_text,
         files=files,
     )
     return ScoutResult(len(papers), len(new_papers), len(keepers), analyses, plan,
-                       f"{len(keepers)} relevant of {len(new_papers)} new")
+                       f"{len(keepers)} relevant proposals; {len(new_papers)} newly classified")

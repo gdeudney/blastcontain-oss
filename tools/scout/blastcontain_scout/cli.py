@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime
 import sys
 from pathlib import Path
+from dataclasses import asdict
 
 import click
 
@@ -55,7 +56,7 @@ def main(repo_root, base_branch, max_results, model, base_url, threshold, ledger
         threshold=threshold, base_url=base_url, model=model,
         ledger_path=ledger or ScoutConfig.ledger_path,
         database=str(Path(database).resolve()) if database else str(Path(root) / "tools/scout/state/scout.sqlite3"),
-        record=record,
+        record=record or apply or open_pr,
     )
 
     click.echo("=" * 60)
@@ -84,17 +85,26 @@ def main(repo_root, base_branch, max_results, model, base_url, threshold, ledger
         click.echo(text)
         return
 
+    from .tracker import Tracker
+    with Tracker(cfg.database) as tracker:
+        tracker.save_publication(root, asdict(result))
     res = publish(result.plan, root, open_pr=open_pr)
     if not res.get("ok"):
         click.echo(f"  ✗ failed at {res.get('step')}: {res.get('error')}")
         raise SystemExit(1)
+    if not open_pr or res.get('pr'):
+        with Tracker(cfg.database) as tracker:
+            tracker.finish_publication(root, result.analyses, res.get('pr') or res['commit'])
     click.echo(f"  ✓ branch {res['branch']} — committed {len(res['committed'])} file(s)")
     if res.get("pr"):
         click.echo(f"  ✓ PR: {res['pr']}")
     elif res.get("pr_error"):
         click.echo(f"  ⚠ PR not opened: {res['pr_error']}")
+        click.echo('Pending proposal saved; rerun the same command to retry.')
+        raise SystemExit(1)
     elif open_pr:
         click.echo("  ⚠ PR step skipped.")
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
