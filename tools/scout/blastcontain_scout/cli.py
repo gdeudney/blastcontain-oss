@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime
 import sys
 from pathlib import Path
+from dataclasses import asdict
 
 import click
 
@@ -36,9 +37,11 @@ def _default_root() -> str:
 @click.option("--base-url", default="http://localhost:1234/v1", help="OpenAI-compatible base URL")
 @click.option("--threshold", default=0.5, type=float, help="Relevance threshold 0..1 (default 0.5)")
 @click.option("--ledger", default=None, help="Path to the seen-ledger JSON (relative to repo root)")
+@click.option("--database", default=None, help="Research SQLite database (default: tools/scout/state/scout.sqlite3)")
+@click.option("--record", is_flag=True, help="Persist fetched metadata/classifications locally; does not publish")
 @click.option("--apply", is_flag=True, default=False, help="Write files + commit on a new branch (default: dry-run)")
 @click.option("--open-pr", is_flag=True, default=False, help="Also push and open the PR via gh (implies --apply)")
-def main(repo_root, base_branch, max_results, model, base_url, threshold, ledger, apply, open_pr):
+def main(repo_root, base_branch, max_results, model, base_url, threshold, ledger, apply, open_pr, database, record):
     """Scan arXiv for new jailbreak/agent-attack papers and draft a PR to feed the Drill corpus."""
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -52,6 +55,8 @@ def main(repo_root, base_branch, max_results, model, base_url, threshold, ledger
         repo_root=root, base_branch=base_branch, max_results=max_results,
         threshold=threshold, base_url=base_url, model=model,
         ledger_path=ledger or ScoutConfig.ledger_path,
+        database=str(Path(database).resolve()) if database else str(Path(root) / "tools/scout/state/scout.sqlite3"),
+        record=record or apply or open_pr,
     )
 
     click.echo("=" * 60)
@@ -60,6 +65,8 @@ def main(repo_root, base_branch, max_results, model, base_url, threshold, ledger
     click.echo(f"  Classifier:  {model or 'keyword heuristic (no model)'}")
 
     result = build_plan(cfg, today)
+    if record:
+        click.echo(f"  Recorded in: {cfg.database}")
     click.echo(f"  Scanned:     {result.scanned}   New: {result.new}   Relevant: {result.relevant}")
     click.echo()
 
@@ -72,20 +79,32 @@ def main(repo_root, base_branch, max_results, model, base_url, threshold, ledger
         return
 
     if not apply and not open_pr:
-        click.echo(preview(result.plan, root))
+        text = preview(result.plan, root)
+        if record:
+            text = text.replace("DRY RUN — no files written, no git operations.", "PROPOSAL PREVIEW — database recorded; no proposal files written or git operations.")
+        click.echo(text)
         return
 
+    from .tracker import Tracker
+    with Tracker(cfg.database) as tracker:
+        tracker.save_publication(root, asdict(result))
     res = publish(result.plan, root, open_pr=open_pr)
     if not res.get("ok"):
         click.echo(f"  ✗ failed at {res.get('step')}: {res.get('error')}")
         raise SystemExit(1)
+    if not open_pr or res.get('pr'):
+        with Tracker(cfg.database) as tracker:
+            tracker.finish_publication(root, result.analyses, res.get('pr') or res['commit'])
     click.echo(f"  ✓ branch {res['branch']} — committed {len(res['committed'])} file(s)")
     if res.get("pr"):
         click.echo(f"  ✓ PR: {res['pr']}")
     elif res.get("pr_error"):
         click.echo(f"  ⚠ PR not opened: {res['pr_error']}")
+        click.echo('Pending proposal saved; rerun the same command to retry.')
+        raise SystemExit(1)
     elif open_pr:
         click.echo("  ⚠ PR step skipped.")
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

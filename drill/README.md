@@ -163,3 +163,12 @@ Poison arrives over a controlled loopback MCP endpoint; the cage records attempt
 exfiltration and forbidden tool calls and blocks their effects. Signed reports include
 payload-exposure evidence and Verify follow-up mappings. The included deterministic
 demo runs in-process or inside the network-isolated Podman cage.
+### Research provenance
+
+[arXiv coverage registry](blastcontain_drill/corpus/arxiv/README.md) maps audited papers to
+Drill sources, partial coverage, draft work and gaps using Scout paper IDs.
+[Open-source integration candidates](docs/open-source-integrations.md) documents
+PyRIT, AgentDojo, garak and DeepTeam options.
+
+[Integration redesign implementation plan](docs/integration-redesign-plan.md) defines
+phased deliverables, validation gates and migration to suites, plugin adapters and a local UI.

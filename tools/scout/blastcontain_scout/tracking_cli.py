@@ -1,0 +1,137 @@
+"""Research tracker commands, separate from Scout's backward-compatible scan CLI."""
+import json
+from collections import Counter
+from pathlib import Path
+
+import click
+
+from .analyze import Analysis
+from .arxiv import Paper
+from .cli import _default_root
+from .tracker import IMPLEMENTATION_STATES, REVIEW_STATES, Tracker
+
+
+@click.group()
+@click.option('--database', type=click.Path(path_type=Path), default=None)
+@click.pass_context
+def main(ctx, database):
+    """Track paper processing, review decisions and Drill implementation evidence."""
+    ctx.obj = database or Path(_default_root()) / 'tools/scout/state/scout.sqlite3'
+
+
+@main.command('import')
+@click.argument('papers_file', type=click.Path(exists=True, path_type=Path))
+@click.option('--analyses', type=click.Path(exists=True, path_type=Path))
+@click.pass_obj
+def ingest(database, papers_file, analyses):
+    """Import saved Scout paper metadata and optional classifier results."""
+    papers = [Paper(**p) for p in json.loads(papers_file.read_text())]
+    results = []
+    if analyses:
+        for raw in json.loads(analyses.read_text()):
+            raw['paper'] = Paper(**raw['paper'])
+            results.append(Analysis(**raw))
+    with Tracker(database) as tracker:
+        tracker.ingest(papers, results)
+    click.echo(f'Imported {len(papers)} papers and {len(results)} classifications; review states preserved.')
+
+
+@main.command('import-ledger')
+@click.argument('ledger_file', type=click.Path(exists=True, path_type=Path))
+@click.pass_obj
+def import_ledger(database, ledger_file):
+    """Preserve legacy seen dates without claiming papers were reviewed."""
+    raw = json.loads(ledger_file.read_text())
+    seen = raw.get('seen', raw)
+    if not isinstance(seen, dict) or not all(isinstance(v, str) for v in seen.values()):
+        raise click.ClickException('Expected an ID-to-date ledger mapping')
+    with Tracker(database) as tracker:
+        for pid, date in seen.items():
+            if tracker.db.execute('SELECT 1 FROM papers WHERE id=?', (pid,)).fetchone():
+                continue
+            tracker.ingest([Paper(pid, '', '', '', '')])
+            with tracker.db:
+                tracker.db.execute('UPDATE papers SET first_seen=? WHERE id=?', (date, pid))
+                tracker._event(pid, 'legacy_seen', {'date': date})
+    click.echo(f'Imported legacy ledger ({len(seen)} entries); metadata-only records still need processing.')
+
+
+@main.command()
+@click.argument('paper_id')
+@click.option('--status', type=click.Choice(REVIEW_STATES), required=True)
+@click.option('--note', required=True)
+@click.pass_obj
+def review(database, paper_id, status, note):
+    """Record a human review decision."""
+    with Tracker(database) as tracker:
+        tracker.review(paper_id, status, note)
+    click.echo('Review recorded.')
+
+
+@main.command()
+@click.argument('paper_id')
+@click.option('--source', required=True, help='Drill source/module path or feature identifier')
+@click.option('--status', type=click.Choice(IMPLEMENTATION_STATES), required=True)
+@click.option('--reference', default='', help='Commit or PR reference; required for implemented/validated')
+@click.option('--tests', default='', help='Test evidence; required for validated')
+@click.option('--note', default='')
+@click.pass_obj
+def link(database, paper_id, source, status, reference, tests, note):
+    """Link research to an implementation. Evidence is recorded, not auto-verified."""
+    with Tracker(database) as tracker:
+        tracker.link(paper_id, source, status, reference, tests, note)
+    click.echo('Implementation link recorded.')
+
+
+@main.command()
+@click.option('--paper-id', default=None)
+@click.option('--json-output', is_flag=True)
+@click.pass_obj
+def report(database, paper_id, json_output):
+    """Show processing/review totals, or a paper's evidence and history."""
+    if not database.exists():
+        raise click.ClickException('Database does not exist; import a digest or run Scout with --record.')
+    with Tracker(database, readonly=True) as tracker:
+        data = tracker.snapshot()
+    if paper_id:
+        data['papers'] = [p for p in data['papers'] if p['id'] == paper_id]
+        for table in ('analyses', 'implementations', 'events'):
+            data[table] = [r for r in data[table] if r['paper_id'] == paper_id]
+        if not data['papers']:
+            raise click.ClickException('Unknown paper')
+    if json_output or paper_id:
+        click.echo(json.dumps(data, indent=2))
+    else:
+        click.echo(f"Papers: {len(data['papers'])}")
+        click.echo(f"Need processing: {sum(p['needs_processing'] for p in data['papers'])}")
+        click.echo(f"Stale reviews: {sum(p['review_stale'] for p in data['papers'])}")
+        click.echo('Review states: ' + json.dumps(Counter(p['review_status'] for p in data['papers'])))
+        click.echo('Implementation states: ' + json.dumps(Counter(p['status'] for p in data['implementations'])))
+
+
+@main.command()
+@click.option('--registry', type=click.Path(exists=True, path_type=Path), default=None)
+@click.option('--paper-id', default=None)
+@click.option('--json-output', is_flag=True)
+@click.pass_obj
+def coverage(database, registry, paper_id, json_output):
+    """Join Drill's paper coverage registry to Scout's local records (read-only)."""
+    from .coverage import read_coverage
+
+    registry = registry or Path(_default_root()) / 'drill/blastcontain_drill/corpus/arxiv/registry.json'
+    try:
+        data = read_coverage(registry, database, paper_id)
+    except (OSError, ValueError, KeyError) as error:
+        raise click.ClickException(str(error)) from error
+    if json_output:
+        click.echo(json.dumps(data, indent=2))
+        return
+    click.echo(f"Drill coverage audit: {data['audited_at']} at {data['main_commit'][:12]}")
+    for row in data['entries']:
+        click.echo(f"{row['paper_id']}  {row['coverage']}  {row['status'] or 'no implementation claim'}  {row['title']}")
+    if data.get('note'):
+        click.echo(data['note'])
+
+
+if __name__ == '__main__':
+    main()
