@@ -24,6 +24,10 @@ pip install blastcontain-verify
 
 ---
 
+For the separate MCP target profile, configuration schema, checks MCP-04/05/06
+and target-aware packet schema 1.2, see [MCP assessment](mcp.md). This reference
+describes the existing agent profile unless stated otherwise.
+
 ## 1. Purpose
 
 BlastContain Verify runs inside the agent's environment to collect pre-deployment evidence. It probes 27 security checks across 14 check groups, produces a cryptographically signed Audit Packet, and writes a Markdown compliance report.

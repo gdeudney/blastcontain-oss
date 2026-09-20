@@ -4,6 +4,16 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 
 ## [Unreleased]
 
+## [0.5.0] — unreleased
+
+### Added
+- Passive MCP target assessment (`--target-type mcp`, `--target-id`), explicit
+  server selection, local tool allowlists, declared inventory and scope reporting.
+- Opt-in local runtime checks; no MCP command launch, tool calls or network probes.
+- MCP packet schema 1.2 and target/coverage metadata in Markdown and SARIF.
+- Explicit coverage limits for the ten MCP/tool security feature areas.
+
+
 ### Changed
 - Refresh dependency floors and the Python 3.12 `[full]` container constraints
   (2026-09-07), including Click 8.5.0, Presidio Analyzer 2.2.364, spaCy 3.8.16,

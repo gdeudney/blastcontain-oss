@@ -21,6 +21,9 @@ This guide is the **how-do-I** layer: the common scenarios, end to end.
 
 ---
 
+For MCP servers, use the separate [MCP target guide](mcp.md). The examples below
+use the existing agent profile.
+
 ## 1. Install
 
 ```bash

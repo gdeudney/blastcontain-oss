@@ -58,6 +58,13 @@ class VerifyConfig:
     # GitLab Security Dashboard, and most IDE extensions.
     sarif: Optional[str] = None
 
+    # Target selection (agent remains the default).
+    target_type: str = "agent"
+    target_id: str = ""
+    mcp_server: Optional[str] = None
+    scan_scope: Optional[str] = None
+    policy: Optional[str] = None
+
     def effective_skills_dir(self) -> str:
         return self.skills_dir or self.search_path
 
@@ -123,6 +130,11 @@ def _apply_dict(cfg: VerifyConfig, data: dict) -> None:
     """Apply a flat dict of config values onto a VerifyConfig instance."""
     mapping = {
         "agent_id":         "agent_id",
+        "target_type": "target_type",
+        "target_id": "target_id",
+        "mcp_server": "mcp_server",
+        "scan_scope": "scan_scope",
+        "policy": "policy",
         "environment":      "environment",
         "search_path":      "search_path",
         "skills_dir":       "skills_dir",
