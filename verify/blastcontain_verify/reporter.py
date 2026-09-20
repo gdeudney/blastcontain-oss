@@ -52,6 +52,7 @@ _CHECK_GROUPS = {
     "TLS":   "Transport",
     "LOCAL": "Local",
     "SCAN":  "Scanner",
+    "SBX":   "Live sandbox validation",
 }
 
 
@@ -94,6 +95,10 @@ def write_markdown_report(result: ScanResult, path: str) -> None:
                         "coverage": result.coverage,
                         "control_validation": result.validation}, indent=2), "```", "",
         ]
+
+    if hasattr(result, "sandbox_validation"):
+        lines += ["## Live agent sandbox validation", "", "```json",
+                  json.dumps(result.sandbox_validation, indent=2), "```", ""]
 
     # Summary table
     lines += ["## Summary", ""]
@@ -233,7 +238,7 @@ def write_audit_packet(result: ScanResult, path: str) -> dict:
     signature = sign_packet(payload, signed_at=signed_at)
 
     packet = {
-        "schema_version": "1.2" if hasattr(result, "target") else "1.1",
+        "schema_version": "1.3" if hasattr(result, "sandbox_validation") else ("1.2" if hasattr(result, "target") else "1.1"),
         "packet":         payload,
         "signature":      signature,
     }

@@ -38,4 +38,8 @@ def write_sarif(scan: ScanResult, path: str) -> dict:
             properties["control_validation"] = scan.validation
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(sarif, handle, indent=2)
+    if hasattr(scan, "sandbox_validation"):
+        sarif["runs"][0]["invocations"][0]["properties"]["sandbox_validation"] = scan.sandbox_validation
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(sarif, handle, indent=2)
     return sarif

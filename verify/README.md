@@ -194,3 +194,10 @@ your server’s tools, credentials and trusted state observer. An official-SDK
 reference server demonstrates JWT validation and all six control groups. Live writes
 require `--validate-controls` and explicit `--allow-live-tests`; coverage is limited
 to the supplied cases and supported stateless JSON transport.
+
+### Live agent sandbox checks
+
+The [agent sandbox profile](docs/agent-sandbox-validation.md) validates workspace
+writes, protected storage, dummy credential access, privilege restrictions and one
+controlled network boundary from inside the agent runtime. Run the included Podman
+demo to compare hardened and broken containers. Explicit live consent is required.
