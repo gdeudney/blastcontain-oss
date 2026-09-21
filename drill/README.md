@@ -71,6 +71,8 @@ are now available as an additive API, with a [reference plugin](plugins/referenc
 `blastcontain-drill-suite plan` and `check-lock`, with Agent and MCP examples.
 [Evidence collection and offline reduction](docs/evidence-reduction.md) now provide
 an additive API for trusted observations, proof integrity and separate outcome dimensions.
+[Durable run lifecycle services](docs/suite-runs.md) add signed results, private
+evidence, cancellation and explicit reruns.
 [Fixture suite execution](docs/suite-execution.md) is available as a development API,
 with replay/adaptive attacks, shared model budgets, up to eight concurrent cases and
 independent stopping. Local abliterated attackers and isolated external strategies use

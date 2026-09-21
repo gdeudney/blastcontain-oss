@@ -97,11 +97,13 @@ class ModelBroker:
         credentials: Callable[[str], str] | None = None,
         transport=None,
         authorize=None,
+        trace=None,
     ):
         self.settings = {m.channel: m for m in settings}
         self.credentials = credentials
         self.transport = transport or http_completion
         self.authorize = authorize
+        self.trace = trace
         self.calls: list[ModelCall] = []
 
     async def chat(self, case_id: str, ledger: Ledger, channel: str, messages, *, max_tokens: int):
@@ -169,6 +171,12 @@ class ModelBroker:
                 or len(reply.text.encode()) > MAX_OUTPUT
             ):
                 raise ModelError("model_output_invalid")
+            # A provider may echo its Authorization value in content. Never pass
+            # the resolved credential to a fixture/worker or a retained trace.
+            if secret:
+                reply = replace(reply, text=reply.text.replace(secret, "[credential removed]"))
+                if len(reply.text.encode()) > MAX_OUTPUT:
+                    raise ModelError("model_output_invalid")
             counts = [
                 v if type(v) is int and 0 <= v <= 10**12 else None
                 for v in (reply.input_tokens, reply.output_tokens)
@@ -180,6 +188,25 @@ class ModelBroker:
                 output_tokens=counts[1],
                 status="completed",
             )
+            if self.trace is not None:
+                self.trace(
+                    {
+                        "case_id": case_id,
+                        "channel": channel,
+                        "request_digest": self.calls[index].request_digest,
+                        "response_digest": self.calls[index].response_digest,
+                        "messages": [
+                            {
+                                **m,
+                                "content": m["content"].replace(secret, "[credential removed]")
+                                if secret
+                                else m["content"],
+                            }
+                            for m in messages
+                        ],
+                        "response": reply.text,
+                    }
+                )
             return reply.text
         except asyncio.CancelledError:
             self.calls[index] = replace(self.calls[index], status="cancelled")

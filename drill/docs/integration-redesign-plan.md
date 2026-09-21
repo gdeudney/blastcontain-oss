@@ -8,7 +8,8 @@ milestone is documented in [redesign-baseline.md](redesign-baseline.md) and
 [trusted evidence collection and offline reduction](evidence-reduction.md).
 Phases 3C/3D add [suite execution](suite-execution.md) with fresh fixture processes,
 brokered adaptive strategies, shared budgets and concurrent cases. Run lifecycle
-work in 3E–3F and phases 4–7 remain planned functionality.
+services are available in [3E](suite-runs.md). CLI work in 3F and phases 4–7
+remain planned functionality.
 
 ## Outcome
 
@@ -92,7 +93,7 @@ locks. Phase 3B adds trusted producer registration, scoped proof artifacts, dete
 reduction and a conservative legacy observation bridge. Phase 3C adds replay and
 materialized operator execution with serial scheduling, budgets and independently
 stopped fixture processes. Phase 3D adds brokered adaptive execution and shared
-budgets across target, attacker and evaluator models. Signed evidence follows in 3E;
+budgets across target, attacker and evaluator models. [Signed evidence and run lifecycle services](suite-runs.md) are available in 3E;
 external tools await phase 4.
 
 ### Phase 0 — Establish the baseline and migration contract
@@ -177,7 +178,7 @@ isolation profiles fail explicitly; they never silently fall back to host execut
 ### Phase 3 — Suite planner, lock file and unified execution
 
 The [detailed delivery plan](suite-execution-plan.md) splits this phase into 3A–3F.
-3A–3D are implemented; the [planning guide](suite-planning.md),
+3A–3E are implemented; the [planning guide](suite-planning.md),
 [evidence guide](evidence-reduction.md) and [execution guide](suite-execution.md)
 document their commands/APIs and the distinction between planning readiness,
 observations and execution/security results.

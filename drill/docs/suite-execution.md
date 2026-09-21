@@ -3,7 +3,7 @@
 `blastcontain_drill.suites.service.run_suite` executes an accepted lock through one
 budgeted path: replay, materialized operators, PAIR refinement and an accepted
 external strategy. Existing Drill commands and signed report formats are unchanged.
-Durable signed runs and an execution CLI remain 3E/3F deliverables.
+[Durable signed runs](suite-runs.md) are available in 3E; an execution CLI follows in 3F.
 
 Targets run in **trusted simulations**, with actual loopback MCP transport when
 selected. Live models can drive those simulations; the fixture tools do not delete
@@ -135,7 +135,7 @@ claim-digest metadata. Exhaustion retains a truncated evidence prefix; if the in
 bundle cannot fit, no bundle is returned. Attempt scenarios, receipts, model-call
 summaries and Python object memory are not a durable storage quota. Raw generated
 prompts remain in memory for replay, so applications should not log entire run objects.
-Protected persistence and retention are phase 3E.
+Use the [3E durable service](suite-runs.md) for protected persistence and retention.
 
 Global/case deadlines include setup, I/O, all rounds and cleanup. Native process
 cleanup has a separate two-second allowance; the existing worker profile adds a
@@ -147,7 +147,8 @@ Pass an `asyncio.Event` as `cancel=` and set it to stop an in-memory run. Active
 requests and case/worker processes are cancelled and cleaned up, and the returned
 roster retains terminal outcomes for pending cases. Cancelling the caller coroutine
 also cleans up but propagates `CancelledError`; `progress=` receives its final
-snapshot. There is no durable cancellation command, crash recovery or run store yet.
+snapshot. The [durable service](suite-runs.md) adds persistent stop requests,
+signed results and conservative crash inspection; CLI commands follow in 3F.
 
 ## Evidence and outcomes
 
@@ -181,7 +182,7 @@ Every normally returned run contains a terminal disposition per planned case:
 gate requires all required cases to complete with a `HELD` projection and no measured
 utility failure. If all cases are optional, all non-excluded cases must meet it.
 Cleanup failure anywhere prevents a pass. Receipts are unsigned host anchors;
-authenticated run envelopes and signing remain phase 3E.
+the [durable service](suite-runs.md) signs these anchors in authenticated envelopes.
 
 ## Validation record
 
