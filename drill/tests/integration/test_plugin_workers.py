@@ -215,8 +215,8 @@ def test_faults_fail_closed_and_cleanup(images, mode, error, calls):
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('mode', ['normal', 'stdout-broker-flood', 'stderr-broker-flood'])
-@pytest.mark.parametrize('stop', ['cancel', 'deadline'])
+@pytest.mark.parametrize("mode", ["normal", "stdout-broker-flood", "stderr-broker-flood"])
+@pytest.mark.parametrize("stop", ["cancel", "deadline"])
 def test_cancellation_stops_plugin_and_cancels_pending_broker_call(images, mode, stop):
     async def run():
         started, cancelled = asyncio.Event(), asyncio.Event()
@@ -228,18 +228,18 @@ def test_cancellation_stops_plugin_and_cancels_pending_broker_call(images, mode,
             finally:
                 cancelled.set()
 
-        manifest, records, limits = setup(images[1], wall_seconds=5 if stop == 'deadline' else 30)
+        manifest, records, limits = setup(images[1], wall_seconds=5 if stop == "deadline" else 30)
         worker = PodmanWorker(manifest, records, bindings={"target": blocking}, limits=limits)
         async with worker:
             await worker.prepare()
             await worker.reset(scenario(mode))
             task = asyncio.create_task(worker.execute())
             await asyncio.wait_for(started.wait(), 5)
-            if 'flood' in mode:
-                await asyncio.sleep(.5)
+            if "flood" in mode:
+                await asyncio.sleep(0.5)
             with pytest.raises(WorkerError, match="Concurrent"):
                 await worker.execute()
-            if stop == 'deadline':
+            if stop == "deadline":
                 with pytest.raises(BudgetExceeded):
                     await asyncio.wait_for(task, 20)
             else:
@@ -441,8 +441,13 @@ def test_plugin_claim_alone_cannot_pass_suite(images):
     assert "strategy_produced_no_target_evidence" in case.diagnostics
 
 
-def test_suite_cancellation_cleans_actual_worker_and_active_target(images, monkeypatch):
+@pytest.mark.parametrize("persist", [False, True])
+def test_suite_cancellation_cleans_actual_worker_and_active_target(
+    images, monkeypatch, tmp_path, persist
+):
     from blastcontain_drill.suites import adaptive
+    from blastcontain_drill.suites.durable import execute_run, verify_run
+    from blastcontain_drill.suites.run_store import request_cancel
     from blastcontain_drill.suites.service import run_suite
 
     workers = []
@@ -465,12 +470,31 @@ def test_suite_cancellation_cleans_actual_worker_and_active_target(images, monke
             finally:
                 stopped.set()
 
-        task = asyncio.create_task(
-            run_suite(lock, current_inputs=lambda: inputs, transport=transport, cancel=cancel)
+        directories = []
+        operation = (
+            execute_run(
+                lock,
+                tmp_path / "runs",
+                current_inputs=lambda: inputs,
+                transport=transport,
+                on_created=directories.append,
+                raw_retention_seconds=120,
+            )
+            if persist
+            else run_suite(lock, current_inputs=lambda: inputs, transport=transport, cancel=cancel)
         )
+        task = asyncio.create_task(operation)
         await asyncio.wait_for(started.wait(), 30)
-        cancel.set()
+        if persist:
+            assert request_cancel(directories[0])
+        else:
+            cancel.set()
         result = await asyncio.wait_for(task, 20)
+        if persist:
+            result = result.run
+            verified = verify_run(directories[0], allow_advisory=True)
+            assert verified.replayed and not verified.security_passed
+            assert verified.run.cases[0].disposition == "cancelled"
         assert stopped.is_set() and result.cases[0].disposition == "cancelled", result
         assert result.usage.model_calls == 1 and not result.passed
 

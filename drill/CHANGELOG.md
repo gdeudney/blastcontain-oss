@@ -5,6 +5,10 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 ## [Unreleased]
 
 ### Added
+- Durable suite runs with private evidence storage, signed full-roster envelopes,
+  explicit trusted verification, opt-in raw retention, scoped cancellation, fresh
+  reruns and an unsigned legacy report projection. Interrupted or unverifiable runs
+  cannot pass; required signing never falls back to an advisory key.
 - Adaptive suite execution with host-owned target/attacker/evaluator model routing,
   PAIR prompt/history compatibility, shared atomic budgets, bounded concurrency and
   in-memory cancellation. The reference Podman strategy now runs through this path;

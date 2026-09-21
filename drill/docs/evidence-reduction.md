@@ -10,7 +10,8 @@ This is an additive API. The existing runner, CLI, signed legacy report schema a
 `EvidenceRecord`/`EvidenceBundle` schema 1 records provide the stricter payload
 conventions needed by the collector. [Fixture suite execution](suite-execution.md) is
 available as a development API in 3C/3D;
-durable run storage, cancellation and signed envelopes follow in 3E.
+[durable run storage, cancellation and signed envelopes](suite-runs.md) are
+available as services in 3E.
 
 ## Authority comes from the host
 
@@ -168,7 +169,7 @@ Model output records contain a digest and character count. The legacy bridge sto
 no raw responses, tool arguments, canaries, destinations or exception strings; worker
 claims also retain only digests/counts. An observer explicitly retaining proof must
 provide normalized, non-secret data. This API does not automatically redact arbitrary
-proof dictionaries. Protected raw traces and retention policy remain in 3E.
+proof dictionaries. The [3E durable service](suite-runs.md) adds protected raw traces and retention.
 
 ## Legacy cage bridge
 

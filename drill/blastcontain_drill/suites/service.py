@@ -511,6 +511,7 @@ async def run_suite(
     progress=None,
     credentials=None,
     transport=None,
+    model_trace=None,
     cancel: asyncio.Event | None = None,
 ) -> SuiteRun:
     """Execute accepted cases with bounded concurrency and shared pre-dispatch budgets.
@@ -522,7 +523,9 @@ async def run_suite(
 
     lock.to_dict()
     pool = Ledger(lock.plan.spec.global_limits)
-    broker = ModelBroker(lock.plan.spec.models, credentials=credentials, transport=transport)
+    broker = ModelBroker(
+        lock.plan.spec.models, credentials=credentials, transport=transport, trace=model_trace
+    )
     cases = [CaseRun(c.id, c.required, "pending") for c in lock.plan.cases]
     cancelled = cancel or asyncio.Event()
     aborted = None

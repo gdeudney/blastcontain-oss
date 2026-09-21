@@ -11,7 +11,8 @@ has a functioning runtime. There is no suite `run` command yet.
 [Evidence authority and offline reduction](evidence-reduction.md) are available as an
 additive API in 3B. [Fixture execution and shared budgets](suite-execution.md) are available
 as a development API in 3C/3D, including adaptive execution and in-memory cancellation.
-Durable cancellation, signing and the suite execution CLI follow in 3E–3F.
+[Durable cancellation and signing](suite-runs.md) are available as services in 3E.
+The suite execution CLI follows in 3F.
 The existing Drill CLI and local abliterated attacker remain unchanged.
 
 ## First plan
