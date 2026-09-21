@@ -1,8 +1,8 @@
-"""Serial development execution of accepted locks using fixed trusted fixtures.
+"""Budgeted development execution of accepted locks using fixed trusted fixtures.
 
-No plugin code, arbitrary commands, credential resolution or live model adapters.
-Case processes provide independent stopping, not OS containment. Durable runs and
-authenticated cancellation belong to phase 3E.
+Model routing and credentials stay in the host. External strategies use isolated
+Podman workers. Trusted case processes provide independent stopping, not OS
+containment. Durable runs and authenticated cancellation belong to phase 3E.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from typing import Callable
 
 import blastcontain_core
 
-from ..contracts import AcceptanceRecord, ContractError, ScenarioResult
+from ..contracts import AcceptanceRecord, ContractError, ScenarioResult, ScenarioSpec
 from ..evidence import EvidenceBundle, EvidenceCollector, EvidenceReceipt, Producer, reduce_evidence
 from ..evidence.records import (
     Action,
@@ -29,10 +29,12 @@ from ..evidence.records import (
     Output,
     Terminal,
 )
+from ..evidence.reducer import ReductionPolicy
 from ..plugins.catalog import parse_json
 from ..plugins.runtime import _read_capped, _reap
 from .artifacts import canonical, digest
 from .budgets import BudgetExceeded, Ledger, Usage
+from .broker import ModelBroker, ModelCall, ModelError
 from .catalog import Catalog, RuntimeProbe, builtin_catalog
 from .lock import SuiteLock, validate_lock
 from .planner import PlannedCase
@@ -62,6 +64,10 @@ class CaseRun:
     lifecycle: tuple[str, ...] = ()
     environment_identity: str | None = None
     execution_identity: str | None = None
+    plugin_claim_digest: str | None = None
+    attempts: tuple[CaseRun, ...] = ()
+    scenario: ScenarioSpec | None = None
+    reduction_policy: ReductionPolicy = ReductionPolicy()
 
     @property
     def passed(self):
@@ -78,6 +84,7 @@ class SuiteRun:
     lock_digest: str
     cases: tuple[CaseRun, ...]
     usage: Usage
+    model_calls: tuple[ModelCall, ...] = ()
 
     @property
     def passed(self):
@@ -123,18 +130,22 @@ def _support(lock, case, actual):
     allowed = {
         "builtin.target.resistant",
         "builtin.target.vulnerable",
+        "builtin.target.llm",
         "builtin.environment.fixture",
         "builtin.evaluator.heuristic",
+        "builtin.evaluator.llm",
     }
-    if spec.concurrency != 1:
-        return "serial_execution_only"
-    if any(name not in allowed for name in bindings) or spec.models:
+    if spec.concurrency > 8:
+        return "maximum_eight_concurrent_cases"
+    if any(name not in allowed for name in bindings):
         return "runtime_binding_unsupported"
-    if spec.environment != "builtin.environment.fixture" or spec.evaluators != (
-        "builtin.evaluator.heuristic",
+    if spec.environment != "builtin.environment.fixture":
+        return "runtime_binding_unsupported"
+    if spec.target.binding not in (
+        "builtin.target.resistant",
+        "builtin.target.vulnerable",
+        "builtin.target.llm",
     ):
-        return "runtime_binding_unsupported"
-    if spec.target.binding not in ("builtin.target.resistant", "builtin.target.vulnerable"):
         return "runtime_binding_unsupported"
     # Caller-supplied metadata cannot impersonate a built-in runtime's code/capabilities.
     for name in bindings:
@@ -144,8 +155,16 @@ def _support(lock, case, actual):
         if identity is None or identity.content_digest != digest(expected[name].to_dict()):
             return "runtime_identity_mismatch"
     scenario = case.scenario
-    if scenario is None or case.strategy is not None or scenario.layer == "generative":
-        return "adaptive_execution_requires_3d"
+    if scenario is None:
+        return "missing_scenario"
+    if case.strategy and (scenario.turns or scenario.injections or spec.target.kind != "agent"):
+        return "adaptive_single_prompt_only"
+    if scenario.layer == "generative" and not case.strategy:
+        return "adaptive_strategy_required"
+    if case.strategy == "builtin.strategy.pair":
+        identity = next((i for i in lock.plan.identities if i.id == case.strategy), None)
+        if identity is None or identity.content_digest != digest(expected[case.strategy].to_dict()):
+            return "runtime_identity_mismatch"
     if scenario.fixture_refs or scenario.task_checks:
         return "fixture_adapter_unsupported"
     surfaces = {i.surface for i in scenario.injections}
@@ -192,11 +211,14 @@ async def _spawn(directory):
     )
 
 
-async def _execute_case(lock, case, ledger):
+async def _execute_case(lock, case, ledger, *, broker=None, feedback=None):
     scenario = case.scenario
     if scenario is None:
         raise ContractError("Execution requires a materialized scenario")
     collector = EvidenceCollector(case.id, scenario)
+    reduction_policy = ReductionPolicy(
+        lock.plan.spec.evaluators if scenario.security.goal == "content" else ()
+    )
     handles = {
         "environment": collector.register(
             Producer(
@@ -206,11 +228,19 @@ async def _execute_case(lock, case, ledger):
                 ("model_output", "tool_actions", "payload_delivery"),
             )
         ),
-        "evaluator": collector.register(
-            Producer("builtin.evaluator.heuristic", "evaluator", "host", axes=("harm", "refusal"))
-        ),
         "runtime": collector.register(Producer("suite-runtime", "runtime", "host")),
     }
+    for evaluator in lock.plan.spec.evaluators:
+        handles[evaluator] = collector.register(
+            Producer(
+                evaluator,
+                "evaluator",
+                "host",
+                axes=("harm", "refusal", "freeform")
+                if evaluator == "builtin.evaluator.llm"
+                else ("harm", "refusal"),
+            )
+        )
     lifecycle: list[str] = []
     diagnostics: list[str] = []
     identity = None
@@ -223,15 +253,16 @@ async def _execute_case(lock, case, ledger):
     artifact_exhausted = False
     cleanup_ok = True
     retained_size = len(canonical(collector.snapshot()[0].to_dict()))
+    initial_retained = False
 
     def record(emitter, payload):
         nonlocal retained_size
         sequence = len(collector.snapshot()[0].records)
         names = {
             "environment": "fixture",
-            "evaluator": "builtin.evaluator.heuristic",
             "runtime": "suite-runtime",
         }
+        names.update({name: name for name in lock.plan.spec.evaluators})
         size = len(canonical(EvidenceRecord(sequence, names[emitter], payload).to_dict())) + 1
         ledger.reserve("artifact_bytes", size)
         result = collector.record(handles[emitter], payload)
@@ -253,6 +284,9 @@ async def _execute_case(lock, case, ledger):
                 {
                     "scenario": scenario.to_dict(),
                     "vulnerable": lock.plan.spec.target.binding == "builtin.target.vulnerable",
+                    "live": lock.plan.spec.target.binding == "builtin.target.llm",
+                    "evaluators": list(lock.plan.spec.evaluators),
+                    "feedback": feedback is not None,
                 }
             )
             + b"\n"
@@ -271,7 +305,43 @@ async def _execute_case(lock, case, ledger):
             if type(data) is not dict:
                 raise ContractError("Invalid fixture frame")
             kind = data.get("kind")
-            if kind == "reserve" and set(data) == {"kind", "resource"}:
+            if kind == "model" and set(data) == {"kind", "channel", "messages", "max_tokens"}:
+                permitted = (
+                    data["channel"] == "target"
+                    and lock.plan.spec.target.binding == "builtin.target.llm"
+                ) or (
+                    data["channel"] == "evaluator"
+                    and "builtin.evaluator.llm" in lock.plan.spec.evaluators
+                )
+                if not permitted or broker is None:
+                    raise ContractError("Model channel not bound for this case")
+                try:
+                    answer = await broker.chat(
+                        case.id,
+                        ledger,
+                        data["channel"],
+                        data["messages"],
+                        max_tokens=data["max_tokens"],
+                    )
+                except BudgetExceeded as exc:
+                    exhausted = True
+                    diagnostics.append(str(exc))
+                    await acknowledge(False)
+                except ModelError:
+                    record("runtime", Error("backend_error"))
+                    await acknowledge(False)
+                else:
+                    await acknowledge(reference=answer)
+            elif kind == "feedback" and set(data) == {"kind", "response"}:
+                if (
+                    feedback is None
+                    or type(data["response"]) is not str
+                    or len(data["response"]) > 4096
+                ):
+                    raise ContractError("Unexpected fixture feedback")
+                feedback["response"] = data["response"]
+                await acknowledge()
+            elif kind == "reserve" and set(data) == {"kind", "resource"}:
                 if data["resource"] not in ("model_calls", "tool_steps"):
                     raise ContractError("Unsupported fixture reservation")
                 try:
@@ -286,9 +356,9 @@ async def _execute_case(lock, case, ledger):
                 emitter = data["emitter"]
                 allowed = {
                     "environment": (Action, Coverage, Delivery, Output),
-                    "evaluator": (Evaluation,),
                     "runtime": (Error,),
                 }
+                allowed.update({name: (Evaluation,) for name in lock.plan.spec.evaluators})
                 payload = EvidenceRecord.from_dict(
                     {
                         "schema_version": 1,
@@ -336,6 +406,7 @@ async def _execute_case(lock, case, ledger):
 
     try:
         ledger.reserve("artifact_bytes", retained_size)
+        initial_retained = True
         directory = tempfile.TemporaryDirectory(prefix="drill-case-")
         # The independent parent deadline bounds launch, all I/O and the case body.
         async with asyncio.timeout(ledger.remaining()):
@@ -347,6 +418,9 @@ async def _execute_case(lock, case, ledger):
             # while the child is silent on stdout or blocked on a full error pipe.
             await asyncio.gather(conversation, stderr)
             ledger.check_time()
+    except asyncio.CancelledError:
+        terminal = Terminal("cancelled")
+        diagnostics.append("cancelled")
     except (BudgetExceeded, TimeoutError) as exc:
         exhausted = True
         if isinstance(exc, BudgetExceeded):
@@ -398,7 +472,7 @@ async def _execute_case(lock, case, ledger):
         collector.truncate()
     except ContractError:
         collector.truncate()
-    bundle, receipt = collector.snapshot() if ledger.case["artifact_bytes"] else (None, None)
+    bundle, receipt = collector.snapshot() if initial_retained else (None, None)
     reduced_diagnostics: tuple[str, ...]
     if bundle is None or receipt is None:
         result, outcome, reduced_diagnostics = (
@@ -407,7 +481,7 @@ async def _execute_case(lock, case, ledger):
             (),
         )
     else:
-        reduced = reduce_evidence(scenario, bundle, receipt)
+        reduced = reduce_evidence(scenario, bundle, receipt, policy=reduction_policy)
         result, outcome, reduced_diagnostics = (
             reduced.result,
             reduced.legacy_outcome,
@@ -425,68 +499,137 @@ async def _execute_case(lock, case, ledger):
         lifecycle=tuple(lifecycle),
         environment_identity=identity,
         execution_identity=execution_identity(case),
+        scenario=scenario if feedback is not None else None,
+        reduction_policy=reduction_policy,
     )
 
 
 async def run_suite(
-    lock: SuiteLock, *, current_inputs: Callable[[], ExecutionInputs], progress=None
+    lock: SuiteLock,
+    *,
+    current_inputs: Callable[[], ExecutionInputs],
+    progress=None,
+    credentials=None,
+    transport=None,
+    cancel: asyncio.Event | None = None,
 ) -> SuiteRun:
-    """Execute a fixed in-memory roster, revalidating current acceptance before every case.
+    """Execute accepted cases with bounded concurrency and shared pre-dispatch budgets.
 
-    Progress receives immutable pending/running/terminal snapshots. There is no retry,
-    crash resume, durable storage, plugin import or implicit external model call.
+    Inputs, credential resolver and optional async transport are trusted host bindings.
+    The cancel event is in-memory only; durable cancellation remains phase 3E.
     """
+    from .adaptive import execute_adaptive
+
     lock.to_dict()
-    ledger = Ledger(lock.plan.spec.global_limits)
+    pool = Ledger(lock.plan.spec.global_limits)
+    broker = ModelBroker(lock.plan.spec.models, credentials=credentials, transport=transport)
     cases = [CaseRun(c.id, c.required, "pending") for c in lock.plan.cases]
+    cancelled = cancel or asyncio.Event()
+    aborted = None
+
+    def snapshot():
+        return SuiteRun(lock.lock_digest, tuple(cases), pool.usage(), tuple(broker.calls))
 
     def publish():
         if progress is not None:
-            progress(SuiteRun(lock.lock_digest, tuple(cases), ledger.usage()))
+            progress(snapshot())
 
     def revalidate():
         inputs = current_inputs()
         validate_lock(lock, inputs.catalog, records=inputs.records, probes=inputs.probes)
-        return builtin_catalog()
+        return inputs
+
+    broker.authorize = revalidate
 
     publish()
-    aborted = None
     try:
         revalidate()
     except Exception:
         aborted = "acceptance_revalidation_failed"
-    for index, case in enumerate(lock.plan.cases):
-        if case.disposition == "excluded":
-            cases[index] = CaseRun(case.id, case.required, "skipped", case.diagnostics)
-        elif aborted:
-            cases[index] = _failure(case, "error", aborted)
-        else:
-            try:
-                actual = revalidate()
-            except Exception:
-                aborted = "acceptance_revalidation_failed"
+    indices = iter(range(len(cases)))
+
+    async def work():
+        nonlocal aborted
+        for index in indices:
+            case = lock.plan.cases[index]
+            if case.disposition == "excluded":
+                cases[index] = CaseRun(case.id, case.required, "skipped", case.diagnostics)
+            elif aborted:
                 cases[index] = _failure(case, "error", aborted)
+            elif cancelled.is_set():
+                cases[index] = _failure(case, "cancelled", "cancelled")
             else:
-                unsupported = _support(lock, case, actual)
-                if unsupported:
-                    cases[index] = _failure(case, "unsupported", unsupported)
+                try:
+                    inputs = revalidate()
+                except Exception:
+                    aborted = "acceptance_revalidation_failed"
+                    cases[index] = _failure(case, "error", aborted)
                 else:
-                    ledger.begin(lock.plan.spec.case_limits)
-                    try:
-                        ledger.check_time()
-                        for resource in ("model_calls", "artifact_bytes"):
-                            if ledger.total[resource] >= getattr(ledger.limits, resource):
-                                raise BudgetExceeded("global", resource)
-                        cases[index] = replace(cases[index], disposition="running")
-                        publish()
-                        cases[index] = await _execute_case(lock, case, ledger)
-                    except BudgetExceeded as exc:
-                        cases[index] = _failure(case, "incomplete", str(exc))
-                    except Exception:
-                        cases[index] = _failure(case, "error", "evidence_reduction_failed")
-                    finally:
-                        cases[index] = replace(cases[index], usage=ledger.end())
-                    if "cleanup_failed" in cases[index].diagnostics:
-                        aborted = "prior_case_cleanup_failed"
+                    unsupported = _support(lock, case, builtin_catalog())
+                    if unsupported:
+                        cases[index] = _failure(case, "unsupported", unsupported)
+                    else:
+                        ledger = pool.fork(lock.plan.spec.case_limits)
+                        try:
+                            ledger.check_time()
+                            for resource in ("model_calls", "artifact_bytes"):
+                                if ledger.total[resource] >= getattr(ledger.limits, resource):
+                                    raise BudgetExceeded("global", resource)
+                            cases[index] = replace(cases[index], disposition="running")
+                            publish()
+                            if case.strategy is not None:
+                                cases[index] = await execute_adaptive(
+                                    lock, case, ledger, broker, inputs, revalidate
+                                )
+                            else:
+                                cases[index] = await _execute_case(
+                                    lock, case, ledger, broker=broker
+                                )
+                        except asyncio.CancelledError:
+                            cases[index] = _failure(case, "cancelled", "cancelled")
+                        except BudgetExceeded as exc:
+                            cases[index] = _failure(case, "incomplete", str(exc))
+                        except Exception:
+                            cases[index] = _failure(case, "error", "evidence_reduction_failed")
+                        finally:
+                            cases[index] = replace(cases[index], usage=ledger.end())
+                        if "cleanup_failed" in cases[index].diagnostics:
+                            aborted = "prior_case_cleanup_failed"
+            publish()
+
+    workers = [asyncio.create_task(work()) for _ in range(min(8, lock.plan.spec.concurrency))]
+
+    async def stop():
+        await cancelled.wait()
+        for task in workers:
+            task.cancel()
+
+    watcher = asyncio.create_task(stop())
+    joined = asyncio.gather(*workers, return_exceptions=True)
+    try:
+        # Event-driven cancellation still returns a complete terminal roster. A
+        # cancellation of the caller itself is propagated after child cleanup.
+        await asyncio.shield(joined)
+    except asyncio.CancelledError:
+        # Shield the join so we can set the stop flag before workers suppress
+        # cancellation to finalize evidence, then try to dispatch another case.
+        watcher.cancel()
+        cancelled.set()
+        for task in workers:
+            if not task.cancelling():
+                task.cancel()
+        await asyncio.shield(joined)
+        raise
+    finally:
+        watcher.cancel()
+        await asyncio.gather(watcher, return_exceptions=True)
+        for index, case in enumerate(lock.plan.cases):
+            if cases[index].disposition in ("pending", "running"):
+                if case.disposition == "excluded":
+                    cases[index] = CaseRun(case.id, case.required, "skipped", case.diagnostics)
+                elif cancelled.is_set():
+                    cases[index] = _failure(case, "cancelled", "cancelled")
+                else:
+                    cases[index] = _failure(case, "error", "execution_worker_failed")
         publish()
-    return SuiteRun(lock.lock_digest, tuple(cases), ledger.usage())
+    return snapshot()

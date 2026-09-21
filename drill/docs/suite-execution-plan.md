@@ -1,9 +1,10 @@
 # Drill suites — phase 3 delivery plan
 
-Status: PRs #62–67 and the prerequisite review fixes are merged. Phases 3A
+Status: PRs #62–68 and the prerequisite review fixes are merged. Phases 3A
 (schema, resolution and locking) and 3B (evidence authority/reduction) are merged.
-Phase 3C's [fixture execution API](suite-execution.md) is implemented;
-adaptive execution and run lifecycle work in 3D–3F remain planned.
+Phases 3C/3D provide the [execution API](suite-execution.md), including adaptive
+strategies, shared broker budgets and concurrent cases. Durable run lifecycle and
+execution CLI work in 3E–3F remain planned.
 See [suite-planning.md](suite-planning.md) for the supported offline commands,
 examples, acceptance flow and current limitations. This document expands
 phase 3 of the [integration redesign](integration-redesign-plan.md).

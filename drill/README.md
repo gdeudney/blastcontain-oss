@@ -72,8 +72,9 @@ are now available as an additive API, with a [reference plugin](plugins/referenc
 [Evidence collection and offline reduction](docs/evidence-reduction.md) now provide
 an additive API for trusted observations, proof integrity and separate outcome dimensions.
 [Fixture suite execution](docs/suite-execution.md) is available as a development API,
-with serial budgets, fresh cases and independently stopped processes. Adaptive suite
-execution, durable signed runs and the UI remain later milestones. See the [baseline record](docs/redesign-baseline.md).
+with replay/adaptive attacks, shared model budgets, up to eight concurrent cases and
+independent stopping. Local abliterated attackers and isolated external strategies use
+the same host broker. Durable signed runs and the UI remain later milestones. See the [baseline record](docs/redesign-baseline.md).
 
 ## The cage
 

@@ -625,3 +625,19 @@ def test_external_cannot_shadow_builtins(catalog):
     plugin = PluginManifest("builtin.target.resistant", "v1", SHA, ("target",), (), "MIT")
     with pytest.raises(ContractError, match="binding/plugin IDs"):
         builtin_catalog(plugins=(plugin,))
+
+
+def test_external_evaluator_grant_requires_explicit_model_settings(catalog):
+    cat, suite, _, probes = external(catalog)
+    plugin = replace(cat.plugins[0], access_requests=("broker.evaluator",))
+    cat = replace(cat, plugins=(plugin,))
+    source = next(s for s in cat.sources if s.id == "research")
+    records = (
+        decision(source.id, "content", source.content_digest),
+        decision(plugin.id, "plugin", review_digest(plugin), granted_access=plugin.access_requests),
+    )
+    plan = plan_suite(suite, cat, records=records, probes=probes)
+    assert not plan.ready
+    assert any("missing evaluator model settings" in d for c in plan.cases for d in c.diagnostics)
+    configured = replace(suite, models=(ModelSettings("evaluator", ENDPOINT, "judge"),))
+    assert plan_suite(configured, cat, records=records, probes=probes).ready

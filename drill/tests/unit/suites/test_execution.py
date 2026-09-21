@@ -19,7 +19,7 @@ from blastcontain_drill.suites.catalog import builtin_catalog
 from blastcontain_drill.suites.lock import create_lock
 from blastcontain_drill.suites.planner import plan_suite
 from blastcontain_drill.suites.runner import execute
-from blastcontain_drill.suites.schema import Limits, ModelSettings, Selection, SuiteSpec, TargetSpec
+from blastcontain_drill.suites.schema import Limits, Selection, SuiteSpec, TargetSpec
 from blastcontain_drill.suites.service import ExecutionInputs, run_suite
 
 
@@ -84,7 +84,9 @@ def test_one_lock_runs_both_mcp_surfaces_with_fresh_cases(catalog, kind, vulnera
     assert all(c.disposition == "pending" for c in snapshots[0].cases)
     assert all(sum(c.disposition == "running" for c in snap.cases) <= 1 for snap in snapshots)
     for planned, case in zip(lock.plan.cases, result.cases):
-        reduced = reduce_evidence(planned.scenario, case.evidence, case.receipt)
+        reduced = reduce_evidence(
+            planned.scenario, case.evidence, case.receipt, policy=case.reduction_policy
+        )
         assert reduced.result == case.result
         assert case.usage.artifact_bytes == len(canonical(case.evidence.to_dict()))
         assert case.usage.model_calls > 0 and case.usage.tool_steps > 0
@@ -209,16 +211,23 @@ def test_current_acceptance_revalidated_before_run_and_each_case(catalog, monkey
     )
 
 
-@pytest.mark.parametrize("option", ["concurrency", "live_target"])
+@pytest.mark.parametrize("option", ["concurrency", "unknown_target"])
 def test_unsupported_runtime_does_not_silently_fall_back(catalog, option, monkeypatch):
     changes = (
-        {"concurrency": 2}
+        {"concurrency": 9}
         if option == "concurrency"
         else {
-            "target": TargetSpec("agent", "builtin.target.llm"),
-            "models": (ModelSettings("target", "http://localhost:1234/v1", "local-model"),),
+            "target": TargetSpec("agent", "unsupported.target"),
         }
     )
+    if option == "unknown_target":
+        catalog = replace(
+            catalog,
+            bindings=(
+                *catalog.bindings,
+                replace(catalog.bindings[0], id="unsupported.target"),
+            ),
+        )
     lock, inputs = locked(catalog, **changes)
 
     async def forbidden(*args):

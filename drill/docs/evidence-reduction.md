@@ -9,7 +9,7 @@ This is an additive API. The existing runner, CLI, signed legacy report schema a
 `EvidenceEvent`/`EvidenceTrace` v1 transport records are unchanged. Typed
 `EvidenceRecord`/`EvidenceBundle` schema 1 records provide the stricter payload
 conventions needed by the collector. [Fixture suite execution](suite-execution.md) is
-available as a development API in 3C;
+available as a development API in 3C/3D;
 durable run storage, cancellation and signed envelopes follow in 3E.
 
 ## Authority comes from the host
