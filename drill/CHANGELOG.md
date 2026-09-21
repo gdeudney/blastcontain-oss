@@ -5,6 +5,9 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 ## [Unreleased]
 
 ### Added
+- Optional pinned PyRIT 1.1.0 static container adapter using the existing target
+  broker, with real upstream parity, reset/budget/cancellation checks and isolated
+  hashed dependencies. Crescendo and other multi-turn strategies remain pending.
 - Suite CLI acceptance, key generation, run/inspect/verify/cancel/rerun, raw purge
   and explicit legacy export, with resistant/vulnerable Agent/MCP examples and
   clean-wheel lifecycle CI on Linux/Windows, Python 3.11/3.12.

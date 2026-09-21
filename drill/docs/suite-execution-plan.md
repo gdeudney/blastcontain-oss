@@ -101,7 +101,9 @@ validate. A milestone is complete only after its checks pass on its actual PR he
 Sequence: 0 → 3A → 3B → 3C → 3D → 3E → 3F. Define collector and ledger interfaces
 before 3C so early execution cannot become an unbudgeted alternate path. Until 3E,
 execution is a development API, not the advertised production suite command.
-After this phase, integrate a pinned PyRIT release as the first real external tool.
+The optional [4A static PyRIT adapter](../plugins/pyrit/README.md) now exercises the
+first real external framework. Crescendo requires conversation-aware broker support
+and remains a separate 4B milestone.
 
 ## Execution and outcome rules
 

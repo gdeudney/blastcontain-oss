@@ -9,7 +9,8 @@ milestone is documented in [redesign-baseline.md](redesign-baseline.md) and
 Phases 3C/3D add [suite execution](suite-execution.md) with fresh fixture processes,
 brokered adaptive strategies, shared budgets and concurrent cases. Run lifecycle
 services are available in [3E](suite-runs.md). The [3F CLI](suite-cli.md) adds lifecycle commands and
-clean-wheel validation. Live-model validation and phases 4–7 remain pending.
+clean-wheel validation. The [4A static PyRIT adapter](../plugins/pyrit/README.md) adds a real pinned upstream
+strategy; adaptive PyRIT, live-model validation and phases 5–7 remain pending.
 
 ## Outcome
 
@@ -94,7 +95,7 @@ reduction and a conservative legacy observation bridge. Phase 3C adds replay and
 materialized operator execution with serial scheduling, budgets and independently
 stopped fixture processes. Phase 3D adds brokered adaptive execution and shared
 budgets across target, attacker and evaluator models. [Signed evidence and run lifecycle services](suite-runs.md) are available in 3E;
-external tools await phase 4.
+phase 4A adds the [static PyRIT adapter](../plugins/pyrit/README.md).
 
 ### Phase 0 — Establish the baseline and migration contract
 
@@ -216,6 +217,22 @@ required coverage is missing or errored. Keep attempted blocked harm distinct fr
 completed harm; legacy BYPASS summaries must explain that mapping.
 
 ### Phase 4 — First production adapter: bounded PyRIT integration
+
+Delivery is split into independently reviewed units:
+
+- **4A — Static upstream integration:** pinned PyRIT 1.1.0 `PromptSendingAttack`,
+  one reviewed prompt, broker-only target access, isolated hashed dependencies,
+  direct/adapted parity and real container tests. Implemented as the optional
+  [static adapter](../plugins/pyrit/README.md); no core runner/CLI changes.
+- **4B — Conversation-aware broker and Crescendo:** preserve native conversation
+  history, scoped backtracking, reset boundaries and all charged/observed attempts.
+  The 1.1.0 upstream Crescendo implementation requires native multi-turn and editable
+  history. The current single-prompt SDK route cannot claim that behavior. Add
+  generic protocol/service support with replay and adversarial tests before exposing
+  this strategy. This work remains pending.
+- **4C — Bounded live validation:** three repetitions with recorded model identities,
+  caps, security/utility results and limitations. Pending an available local endpoint.
+
 
 **Deliverables**
 
