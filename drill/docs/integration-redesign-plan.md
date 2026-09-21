@@ -3,7 +3,9 @@
 Status: implementation started September 20, 2026. The first baseline and contract
 milestone is documented in [redesign-baseline.md](redesign-baseline.md) and
 [contracts-v1.md](contracts-v1.md). Phase 2 now has a first supported
-[discovery and worker profile](plugin-workers.md). Phases 3–7 remain planned functionality.
+[discovery and worker profile](plugin-workers.md). Phase 3A adds
+[offline suite planning and locking](suite-planning.md). Execution/evidence work in
+3B–3F and phases 4–7 remain planned functionality.
 
 ## Outcome
 
@@ -24,11 +26,10 @@ a bounded external attack strategy is now in scope, while Drill remains the suit
 
 ## Starting point and boundaries
 
-The inspected main baseline is `bd8d93c3a20098baac43e8a139e9bb10f2bde298`.
-Draft PR #62 at `a98993bca535e37c17cc08cdd90ea3a65719b18c` adds MCP poisoning
-scenarios and exposure checks; it was open at the last audit. Scout's SQLite tracker
-and arXiv coverage registry are local work on `codex/scout-research-tracker`, not
-assumed merged. Phase 0 verifies these states again before implementation.
+The original inspected baseline was `bd8d93c3a20098baac43e8a139e9bb10f2bde298`.
+PRs #62–65 are now merged: MCP poisoning, Scout tracking/provenance, contracts,
+and bounded workers, including the reviewed completion, publication-retry and cleanup
+fixes. Phase 3A starts from main `0dac0701a3c56c51882f678e6086b83da5838851`.
 
 Existing sources include 14 built-in cases, 200 JBB behaviors, 19 deterministic
 operators, five multi-turn cases and 12 system-card cases. The generative loop is
@@ -70,11 +71,11 @@ implementations get compatibility wrappers rather than wholesale rewrites.
 
 ## Delivery phases and acceptance gates
 
-### Progress at the first milestone
+### Progress through planning and locking
 
 Phase 0 has a local Linux baseline, source hashes, signed-report compatibility
-fixture and packaging checks. The existing cross-platform CI matrix still needs
-to run on the proposed branch. Phase 1 has additive record schemas, role/lifecycle
+fixture and packaging checks, with the merged changes passing applicable CI.
+Phase 1 has additive record schemas, role/lifecycle
 interfaces and legacy bridges; the production runner still uses its existing
 observations and reports. The data contracts do not provide evidence authority/reduction,
 suite execution or UI.
@@ -82,9 +83,10 @@ suite execution or UI.
 Phase 2 adds data-only discovery, metadata-bound acceptance, a strict worker protocol,
 rootless Podman isolation, brokered calls, host/engine deadlines, independent stopping,
 diagnostics and a reference plugin. The first profile accepts empty configuration and
-explicit broker channels only; unsupported access/configuration fails closed. The next
-review unit is phase 3, including the bridge from legacy observations to trusted events,
-suite planning/locks and signed evidence. External tool libraries still await phase 4.
+explicit broker channels only; unsupported access/configuration fails closed. Phase 3A
+adds strict suite schemas, deterministic resolution, complete case rosters and acceptance-bound
+locks. The next unit is 3B, the bridge from legacy observations to trusted events and
+evidence reduction. Execution and signed evidence follow; external tools await phase 4.
 
 ### Phase 0 — Establish the baseline and migration contract
 
@@ -167,6 +169,10 @@ isolation profiles fail explicitly; they never silently fall back to host execut
 
 ### Phase 3 — Suite planner, lock file and unified execution
 
+The [detailed delivery plan](suite-execution-plan.md) splits this phase into 3A–3F.
+3A is implemented; the [planning guide](suite-planning.md) documents its actual commands
+and the distinction between planning readiness and execution/security results.
+
 **Deliverables**
 
 - Strict suite schema selecting target, plugins, scenarios, required/optional coverage,
@@ -182,8 +188,8 @@ isolation profiles fail explicitly; they never silently fall back to host execut
 - Signed result envelope covering the plan identity and evidence hashes; sanitized
   summaries plus separately controlled raw traces. Stop/rerun commands; automatic
   resume only for cases proven resettable, never blind replay of uncertain side effects.
-- CLI equivalents of plan, run, inspect and cancel. Command names are proposed, not
-  existing interfaces.
+- CLI equivalents of plan, run, inspect and cancel. `blastcontain-drill-suite plan`
+  and `check-lock` exist; execution/result commands remain proposed.
 
 **Tests and validation**
 

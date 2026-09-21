@@ -67,6 +67,8 @@ The [integration redesign](docs/integration-redesign-plan.md) is underway. The
 first [contracts and compatibility adapters](docs/contracts-v1.md) preserve this
 attacker path and the existing CLI. [Plugin discovery and bounded container workers](docs/plugin-workers.md)
 are now available as an additive API, with a [reference plugin](plugins/reference/README.md).
+[Offline suite planning and locking](docs/suite-planning.md) are available through
+`blastcontain-drill-suite plan` and `check-lock`, with Agent and MCP examples.
 Suite execution and the UI remain later milestones. See the [baseline record](docs/redesign-baseline.md).
 
 ## The cage

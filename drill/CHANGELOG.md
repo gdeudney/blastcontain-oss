@@ -5,6 +5,9 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 ## [Unreleased]
 
 ### Added
+- Offline Agent/MCP suite planning and content-bound locks, with complete required/optional
+  coverage rosters, explicit model settings, reviewed external snapshots, current acceptance
+  checks, and `blastcontain-drill-suite plan` / `check-lock`. Suite execution remains future work.
 - Data-only plugin discovery and `blastcontain-drill-plugins` diagnostics, with acceptance
   bound to the complete manifest and pinned local container image.
 - Rootless Podman workers with brokered target/model calls, bounded messages/resources,

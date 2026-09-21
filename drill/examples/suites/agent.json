@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "id": "agent-fixture-review",
+  "target": {"kind": "agent", "binding": "builtin.target.resistant"},
+  "environment": "builtin.environment.fixture",
+  "evaluators": ["builtin.evaluator.heuristic"],
+  "selections": [{"id": "baseline", "source": "builtin", "scenarios": ["*"]}],
+  "seeds": [0, 1],
+  "concurrency": 1
+}

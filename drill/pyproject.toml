@@ -58,6 +58,7 @@ dev = [
 blastcontain-drill = "blastcontain_drill.cli:main"
 blastcontain-drill-diff = "blastcontain_drill.diff:main"
 blastcontain-drill-plugins = "blastcontain_drill.plugins.cli:main"
+blastcontain-drill-suite = "blastcontain_drill.suites.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["blastcontain_drill"]
