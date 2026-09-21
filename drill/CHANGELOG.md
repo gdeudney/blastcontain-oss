@@ -46,6 +46,9 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 - Deterministic resistant/vulnerable demos and live Podman regression tests, with Verify remediation mappings.
 
 ### Fixed
+- Allow ten seconds for cold Podman host discovery and retain explicit bounded
+  readiness diagnostics. This resolves the observed three-second host-query
+  timeout in PyRIT CI without changing worker limits or isolation requirements.
 - Commit signed retention metadata before storing raw suite inputs, so interrupted
   startup cannot orphan sensitive inputs without an expiry record. Expired private
   partial raw writes can also be purged from interrupted runs.

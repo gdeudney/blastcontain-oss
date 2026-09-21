@@ -67,7 +67,7 @@ def prepared(image, tmp_path):
         decision(manifest.id, "plugin", review_digest(manifest), manifest.access_requests),
         decision(source.id, "content", source.content_digest),
     ]
-    assert probe.available
+    assert probe.available, read_document(tmp_path / "inputs" / "review.json")["runtime_diagnostic"]
     return manifest, source, probe, records
 
 
