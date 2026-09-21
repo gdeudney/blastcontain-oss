@@ -1,18 +1,16 @@
 # Drill suites — phase 3 delivery plan
 
-Status: PRs #62–69 and the prerequisite review fixes are merged. Phases 3A
+Status: PRs #62–70 and the prerequisite review fixes are merged. Phases 3A
 (schema, resolution and locking) and 3B (evidence authority/reduction) are merged.
 Phases 3C/3D provide the [execution API](suite-execution.md), including adaptive
 strategies, shared broker budgets and concurrent cases. Durable
-[run lifecycle services](suite-runs.md) are implemented in 3E; execution CLI work
-in 3F remains planned.
+[run lifecycle services](suite-runs.md) are implemented in 3E. The [3F CLI](suite-cli.md)
+adds commands, examples and clean-wheel validation; live-model validation remains pending.
 See [suite-planning.md](suite-planning.md) for the supported offline commands,
 examples, acceptance flow and current limitations. This document expands
 phase 3 of the [integration redesign](integration-redesign-plan.md).
 
-Planning readiness is not an execution or security result. The current commands
-are `blastcontain-drill-suite plan` and `check-lock`; other commands below remain
-proposals. The first catalog supports the existing controlled fixture environment
+Planning readiness is not an execution or security result. The [suite CLI](suite-cli.md) now provides the commands listed below. The first catalog supports the existing controlled fixture environment
 and external strategy metadata, not arbitrary target/environment worker adapters.
 
 ## Delivery outcome
@@ -192,9 +190,9 @@ legacy projection and a suite-native envelope. Do not label absent utility check
 success or map partial action evidence to a completed effect. Freeze representative
 old reports; review any intended result change rather than blindly refreshing hashes.
 
-## Proposed operator flow and acceptance checklist
+## Operator flow and acceptance checklist
 
-Proposed command group: `blastcontain-drill-suite` with `plan`, `accept`, `run`,
+Command group: `blastcontain-drill-suite` with `plan`, `accept`, `run`,
 `inspect`, `verify`, `cancel` and `rerun`. `accept` records a local explicit decision
 on the reviewed digest and scope; it is not an organizational approval policy.
 Planning emits human-readable diagnostics plus machine-readable data; failures have

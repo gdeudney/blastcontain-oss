@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+import hashlib
+import re
 import time
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -16,7 +18,7 @@ from .adaptive import aggregate
 from .artifacts import digest
 from .budgets import RESOURCES
 from .lock import SuiteLock, validate_lock
-from .privacy import lease, read_json, private
+from .privacy import lease, read_json, read_private, private
 from .run_store import (
     RunDocument,
     RunStore,
@@ -477,18 +479,42 @@ async def rerun_run(
 
 def purge_expired_raw(directory, *, clock=time.time):
     store = RunStore(directory, clock=clock)
-    document, _, _ = _load_final(store, allow_advisory=True)
-    if document.raw_expires_at is None or clock() < document.raw_expires_at:
-        return 0
-    removed = 0
-    for ref in document.files:
-        if ref.kind != "evidence":
-            path = store.path(ref)
-            if path.exists() or path.is_symlink():
-                private(path)
-                path.unlink()
-                removed += 1
-    return removed
+    with lease(store.directory / "lease.lock") as acquired:
+        if not acquired:
+            raise ContractError("Cannot purge an active run")
+        if (store.directory / "envelope.json").exists():
+            document, _, _ = _load_final(store, allow_advisory=True)
+        else:
+            initial = read_json(store.directory / "initial.json")
+            verify_signature(initial, allow_advisory=True)
+            document = RunDocument.from_dict(initial["payload"])
+            if document.run_id != store.directory.name or document.status != "running":
+                raise ContractError("Invalid interrupted-run identity")
+        if document.raw_expires_at is None or clock() < document.raw_expires_at:
+            return 0
+        # A crash can leave raw blobs newer than the signed initial inventory.
+        # Only remove validated content-addressed raw files inside this private run.
+        from ..plugins.catalog import parse_json
+
+        raw = store.directory / "raw"
+        private(raw, directory=True)
+        paths = []
+        for path in raw.iterdir():
+            if not re.fullmatch(r"[a-f0-9]{64}\.json", path.name):
+                continue
+            data = read_private(path)
+            value = parse_json(data)
+            if (
+                hashlib.sha256(data).hexdigest() != path.stem
+                or type(value) is not dict
+                or set(value) != {"kind", "data"}
+                or value["kind"] not in ("raw_lock", "raw_scenario", "raw_trace")
+            ):
+                raise ContractError("Unexpected raw artifact; purge refused")
+            paths.append(path)
+        for path in paths:
+            path.unlink()
+        return len(paths)
 
 
 def legacy_projection(directory, **verify_options):

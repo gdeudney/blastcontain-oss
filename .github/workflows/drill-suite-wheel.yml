@@ -1,0 +1,45 @@
+name: Drill suite wheels
+
+on:
+  pull_request:
+    paths:
+      - 'core/**'
+      - 'drill/**'
+      - '.github/workflows/drill-suite-wheel.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'drill/**'
+      - '.github/workflows/drill-suite-wheel.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  suite-wheel:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build clean wheels
+        run: python -m pip wheel --no-deps --wheel-dir .wheel-dist ./core ./drill
+      - name: Validate installed wheel lifecycle
+        shell: python
+        run: |
+          import os, pathlib, subprocess, sys, tempfile, venv
+          root = pathlib.Path.cwd()
+          with tempfile.TemporaryDirectory() as folder:
+              environment = pathlib.Path(folder) / 'environment'
+              venv.create(environment, with_pip=True)
+              python = environment / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
+              wheels = sorted((root / '.wheel-dist').glob('*.whl'))
+              subprocess.run([str(python), '-m', 'pip', 'install', '-c', str(root / 'drill/constraints.txt'), *map(str, wheels)], check=True)
+              subprocess.run([str(python), str(root / 'drill/scripts/validate_suite_release.py')], cwd=folder, check=True, timeout=180)

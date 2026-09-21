@@ -5,14 +5,15 @@ anything executes. `check-lock` checks a saved lock against current planning inp
 and local decisions. Both commands are offline: no model calls, plugin imports,
 worker launches, runtime probes, package installs or image pulls.
 
-This milestone provides planning and locking only. A `ready` case means its declared
+This guide covers the offline planning boundary. A `ready` case means its declared
 planning requirements are satisfied, **not** that it ran, passed a security check or
-has a functioning runtime. There is no suite `run` command yet.
+has a functioning runtime. See the [suite CLI walkthrough](suite-cli.md) for
+explicit acceptance, execution and verification.
 [Evidence authority and offline reduction](evidence-reduction.md) are available as an
 additive API in 3B. [Fixture execution and shared budgets](suite-execution.md) are available
 as a development API in 3C/3D, including adaptive execution and in-memory cancellation.
 [Durable cancellation and signing](suite-runs.md) are available as services in 3E.
-The suite execution CLI follows in 3F.
+The [3F suite CLI](suite-cli.md) exposes these services.
 The existing Drill CLI and local abliterated attacker remain unchanged.
 
 ## First plan
@@ -78,7 +79,8 @@ blastcontain-drill-suite check-lock agent-lock.json --acceptances acceptances.js
 
 The planner re-resolves the inputs before writing the lock. It requires acceptance of
 the exact content digest. This is a local technical decision record, not an invented
-organizational governance policy. There is no interactive `accept` command in 3A.
+organizational governance policy. The [3F `accept` command](suite-cli.md) writes
+this history with an explicitly reviewed digest and scope.
 Files are created exclusively; existing outputs are never overwritten. Choose a new
 filename when replanning. Without `--output`, plan JSON goes to stdout; the summary and
 errors go to stderr. Failure to create a lock can still leave the reviewable plan output.
@@ -125,9 +127,9 @@ rubric. Target `mcp` requires a controlled MCP poisoning scenario.
 
 `global_limits` and `case_limits` each contain `model_calls`, `tool_steps`,
 `strategy_iterations`, `wall_seconds`, and `artifact_bytes`, all positive integers.
-Per-case limits cannot exceed global limits. These are declarations, not enforced
-budgets in this milestone. Global limits may be lower than the sum of per-case maxima;
-the future runner must account for cases that cannot finish within the global budget.
+Per-case limits cannot exceed global limits. Planning validates these declarations;
+execution enforces them through a shared ledger. Global limits may be lower than
+the sum of per-case maxima; unstarted or unfinished cases remain explicit outcomes.
 
 Optional `models` is a list with one entry per selected `target`, `attacker` or
 `evaluator` channel. For example, a local abliterated attacker can be planned with:

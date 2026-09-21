@@ -1,7 +1,7 @@
 # Durable suite runs (phase 3E)
 
 The `blastcontain_drill.suites.durable` API adds persistent results to the
-[execution service](suite-execution.md). CLI lifecycle commands follow in 3F.
+[execution service](suite-execution.md). The [3F CLI](suite-cli.md) exposes these lifecycle services.
 The same accepted lock and current acceptance checks apply before any dispatch.
 
 ## Execute and verify
@@ -66,7 +66,8 @@ or provider exception text, and capture successful model calls only.
 
 Set `raw_retention_seconds` explicitly (1 second through 31 days) to retain raw
 inputs. Expiry is signed into the run, and readers refuse expired raw inputs.
-`purge_expired_raw(directory)` explicitly deletes expired indexed raw files; there
+`purge_expired_raw(directory)` explicitly deletes expired validated raw files
+from completed or interrupted runs while refusing an active controller; there
 is no background deletion scheduler. Evidence hashes remain signed after deletion.
 Operators must arrange purge calls if physical deletion at expiry is required.
 

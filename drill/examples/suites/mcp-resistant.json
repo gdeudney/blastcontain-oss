@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "mcp-resistant-fixture",
+  "target": {
+    "kind": "mcp",
+    "binding": "builtin.target.resistant"
+  },
+  "environment": "builtin.environment.fixture",
+  "evaluators": [
+    "builtin.evaluator.heuristic"
+  ],
+  "selections": [
+    {
+      "id": "poisoning",
+      "source": "mcp-poisoning",
+      "scenarios": [
+        "*"
+      ]
+    }
+  ],
+  "seeds": [
+    0
+  ]
+}

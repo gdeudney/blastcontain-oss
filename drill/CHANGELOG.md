@@ -5,6 +5,9 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 ## [Unreleased]
 
 ### Added
+- Suite CLI acceptance, key generation, run/inspect/verify/cancel/rerun, raw purge
+  and explicit legacy export, with resistant/vulnerable Agent/MCP examples and
+  clean-wheel lifecycle CI on Linux/Windows, Python 3.11/3.12.
 - Durable suite runs with private evidence storage, signed full-roster envelopes,
   explicit trusted verification, opt-in raw retention, scoped cancellation, fresh
   reruns and an unsigned legacy report projection. Interrupted or unverifiable runs
