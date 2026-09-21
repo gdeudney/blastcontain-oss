@@ -31,7 +31,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install host test tools
-        run: python -m pip install ./core './drill[dev]' pip-audit
+        run: python -m pip install ./core './drill[dev]' pip-audit bandit
+      - name: Analyze adapter code
+        run: bandit -r drill/plugins/pyrit --severity-level medium
       - name: Audit isolated plugin dependencies
         run: pip-audit --disable-pip --no-deps -r drill/plugins/pyrit/requirements.lock
       - name: Build pinned plugin image
