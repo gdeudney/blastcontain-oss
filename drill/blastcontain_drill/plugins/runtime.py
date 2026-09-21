@@ -165,15 +165,23 @@ async def _control(command, timeout=10.0):
         await _reap(process)
 
 
-def local_image_available(image_id: str) -> bool:
+@dataclass(frozen=True)
+class LocalImageProbe:
+    available: bool
+    diagnostic: str
+
+
+def probe_local_image(image_id: str) -> LocalImageProbe:
+    """Read-only availability with bounded, non-sensitive failure diagnostics."""
     from ..contracts.plugins import artifact_digest
 
     artifact_digest(image_id)
     if sys.platform != "linux":
-        return False
+        return LocalImageProbe(False, "unsupported_platform")
     executable = shutil.which("podman")
     if not executable:
-        return False
+        return LocalImageProbe(False, "podman_unavailable")
+    stage = "host_info"
     try:
         # Trusted binary and fixed read-only arguments.
         info = subprocess.run(  # nosec B603
@@ -184,25 +192,42 @@ def local_image_available(image_id: str) -> bool:
             check=True,
         )
         host = json.loads(info.stdout)
-        if (
-            not host.get("security", {}).get("rootless")
-            or not host.get("security", {}).get("seccompEnabled")
-            or host.get("cgroupVersion") != "v2"
-            or not {"memory", "pids"} <= set(host.get("cgroupControllers", []))
-        ):
-            return False
+        if type(host) is not dict or type(host.get("security")) is not dict:
+            return LocalImageProbe(False, "host_info_invalid")
+        controllers = host.get("cgroupControllers", [])
+        if type(controllers) is not list or any(type(c) is not str for c in controllers):
+            return LocalImageProbe(False, "host_info_invalid")
+        checks = {
+            "rootless_unavailable": host["security"].get("rootless") is True,
+            "seccomp_unavailable": host["security"].get("seccompEnabled") is True,
+            "cgroups_v2_unavailable": host.get("cgroupVersion") == "v2",
+            "memory_controller_unavailable": "memory" in controllers,
+            "pids_controller_unavailable": "pids" in controllers,
+        }
+        for diagnostic, available in checks.items():
+            if not available:
+                return LocalImageProbe(False, diagnostic)
         # Validated sha256 ID; no shell or caller-supplied command.
-        return (
-            subprocess.run(  # nosec B603
-                [executable, "--remote=false", "image", "exists", image_id],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=3,
-            ).returncode
-            == 0
+        stage = "image_exists"
+        exists = subprocess.run(  # nosec B603
+            [executable, "--remote=false", "image", "exists", image_id],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=3,
         )
+        available = exists.returncode == 0
+        diagnostic = "available"
+        if not available:
+            diagnostic = "image_missing" if exists.returncode == 1 else "image_exists_failed"
+        return LocalImageProbe(available, diagnostic)
+    except subprocess.TimeoutExpired:
+        return LocalImageProbe(False, stage + "_timeout")
     except (OSError, subprocess.SubprocessError, ValueError):
-        return False
+        return LocalImageProbe(False, stage + "_failed")
+
+
+def local_image_available(image_id: str) -> bool:
+    return probe_local_image(image_id).available
 
 
 def validate_isolation(info, image_id, timeout_seconds):
