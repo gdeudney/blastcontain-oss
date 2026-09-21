@@ -6,8 +6,9 @@ an additive API and diagnostic command. The existing agent/MCP CLI, generative
 attacker and signed reports still use their current execution path.
 [Suite planning](suite-planning.md) and [evidence reduction](evidence-reduction.md)
 are now additive APIs; [fixture suite execution](suite-execution.md) is available in
-3C/3D, including the reference external strategy. Real upstream adapters and the acceptance UI
-remain later phases.
+3C/3D, including the reference external strategy. The [static PyRIT adapter](../plugins/pyrit/README.md)
+adds a pinned real upstream strategy in 4A; adaptive upstream integration and the
+acceptance UI remain later work.
 
 ## Discovery and acceptance
 
