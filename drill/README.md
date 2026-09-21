@@ -71,7 +71,9 @@ are now available as an additive API, with a [reference plugin](plugins/referenc
 `blastcontain-drill-suite plan` and `check-lock`, with Agent and MCP examples.
 [Evidence collection and offline reduction](docs/evidence-reduction.md) now provide
 an additive API for trusted observations, proof integrity and separate outcome dimensions.
-Suite execution and the UI remain later milestones. See the [baseline record](docs/redesign-baseline.md).
+[Fixture suite execution](docs/suite-execution.md) is available as a development API,
+with serial budgets, fresh cases and independently stopped processes. Adaptive suite
+execution, durable signed runs and the UI remain later milestones. See the [baseline record](docs/redesign-baseline.md).
 
 ## The cage
 

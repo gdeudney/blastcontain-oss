@@ -5,7 +5,8 @@ explicitly selected external plugin in a bounded local Podman container. This is
 an additive API and diagnostic command. The existing agent/MCP CLI, generative
 attacker and signed reports still use their current execution path.
 [Suite planning](suite-planning.md) and [evidence reduction](evidence-reduction.md)
-are now additive APIs; suite execution, real upstream adapters and the acceptance UI
+are now additive APIs; [fixture suite execution](suite-execution.md) is available in
+3C. External-worker suite execution, real upstream adapters and the acceptance UI
 remain later phases.
 
 ## Discovery and acceptance

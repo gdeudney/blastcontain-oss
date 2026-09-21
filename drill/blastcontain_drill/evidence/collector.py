@@ -205,6 +205,10 @@ class EvidenceCollector:
     def finish(self, reason="completed"):
         return self.record(self._runtime, Terminal(reason))
 
+    def truncate(self):
+        """Host supervisor stopped retention; preserve the prefix without claiming completion."""
+        self._truncated = self._closed = True
+
     def snapshot(self) -> tuple[EvidenceBundle, EvidenceReceipt]:
         bundle = EvidenceBundle(
             self.case_id,

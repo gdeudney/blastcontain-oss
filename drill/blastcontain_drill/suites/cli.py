@@ -44,7 +44,7 @@ def load_inputs(source, plugin, probe, acceptances):
 
 @click.group()
 def main():
-    """Review Agent/MCP suite plans and content-bound locks (execution is not yet available)."""
+    """Review Agent/MCP suite plans and locks. Fixture execution is a development API."""
 
 
 @main.command("plan")

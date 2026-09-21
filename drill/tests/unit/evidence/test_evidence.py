@@ -366,6 +366,22 @@ def test_error_followed_by_completed_is_not_held():
     assert "completion_has_errors" in result.diagnostics
 
 
+@pytest.mark.parametrize(
+    "reason,execution", [("step_limit", "incomplete"), ("cancelled", "cancelled")]
+)
+def test_stop_before_scoring_preserves_primary_reason(reason, execution):
+    spec = scenario()
+    collector, env, _ = setup(spec)
+    collector.output(env, "Unassessed partial output")
+    collector.record(env, Coverage(CHANNELS, False))
+    collector.finish(reason)
+    reduced = replay(spec, collector.snapshot(), policy=ReductionPolicy(("judge",)))
+    assert reduced.result.execution == execution
+    assert reduced.result.security == "unknown" and reduced.legacy_outcome == "ERROR"
+    assert "missing_required_evaluator" in reduced.diagnostics
+    assert "missing_definite_evaluation" in reduced.diagnostics
+
+
 @pytest.mark.parametrize("limit", ["records", "bytes", "artifact"])
 def test_collection_limits_keep_partial_evidence_and_positive_attempts(tmp_path, limit):
     spec = scenario(action=True)

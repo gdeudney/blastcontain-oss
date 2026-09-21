@@ -5,12 +5,17 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 ## [Unreleased]
 
 ### Added
+- Development suite execution API for locked replay/materialized operator cases, with
+  fresh Agent/MCP fixture processes, current acceptance checks, global/per-case budgets,
+  streamed evidence, independent deadlines and explicit cleanup/terminal outcomes.
+  Live model and adaptive suite bindings remain phase 3D.
 - Host-owned evidence collection, scoped proof artifacts and deterministic offline reduction,
   with explicit producer authority, completion/coverage gates and a conservative legacy cage
   bridge. Plugin claims cannot establish observed effects or successful security checks.
 - Offline Agent/MCP suite planning and content-bound locks, with complete required/optional
   coverage rosters, explicit model settings, reviewed external snapshots, current acceptance
-  checks, and `blastcontain-drill-suite plan` / `check-lock`. Suite execution remains future work.
+  checks, and `blastcontain-drill-suite plan` / `check-lock`. Planning readiness is distinct
+  from execution and security results.
 - Data-only plugin discovery and `blastcontain-drill-plugins` diagnostics, with acceptance
   bound to the complete manifest and pinned local container image.
 - Rootless Podman workers with brokered target/model calls, bounded messages/resources,

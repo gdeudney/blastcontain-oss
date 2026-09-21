@@ -79,8 +79,9 @@ def create_lock(plan: ResolvedPlan, catalog: Catalog, *, records=(), probes=()) 
 def validate_lock(lock: SuiteLock, catalog: Catalog, *, records=(), probes=()) -> None:
     """Require current decisions and data, not the historical acceptance/probe snapshots.
 
-    Future execution MUST also reprobe actual artifacts/isolation and call this at run
-    start and before each case. Reading a self-consistent JSON lock is insufficient.
+    Execution calls this at run start and before each case, and separately binds
+    actual runtime code. Future external workers must reprobe isolation too.
+    Reading a self-consistent JSON lock is insufficient.
     """
     lock.to_dict()  # Recheck wire integrity, including nested records.
     create_lock(lock.plan, catalog, records=records, probes=probes)

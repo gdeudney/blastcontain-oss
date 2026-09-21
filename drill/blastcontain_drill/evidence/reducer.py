@@ -225,7 +225,9 @@ def reduce_evidence(
     assessed = {emitter for emitter, e in eligible if e.matched is not None}
     if set(policy.required_evaluators) - assessed:
         diagnostics.add("missing_required_evaluator")
-        has_error = True
+        # A budget/cancellation stop before evaluation remains incomplete/cancelled.
+        # Missing assessments fail a completed run but cannot erase its stop reason.
+        has_error = execution == "completed" or has_error
     matched = None
     if scenario.security.goal == "content":
         decisions = {e.matched for _, e in eligible if e.matched is not None}
@@ -235,7 +237,7 @@ def reduce_evidence(
             diagnostics.add(
                 "contradictory_evaluations" if decisions else "missing_definite_evaluation"
             )
-            has_error = True
+            has_error = bool(decisions) or execution == "completed" or has_error
         if any(e.matched is None for _, e in eligible):
             diagnostics.add("indefinite_evaluation")
             has_error = True

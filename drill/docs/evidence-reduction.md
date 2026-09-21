@@ -8,7 +8,8 @@ assessments, task utility and execution completeness.
 This is an additive API. The existing runner, CLI, signed legacy report schema and
 `EvidenceEvent`/`EvidenceTrace` v1 transport records are unchanged. Typed
 `EvidenceRecord`/`EvidenceBundle` schema 1 records provide the stricter payload
-conventions needed by the collector. Suite scheduling and execution follow in 3C;
+conventions needed by the collector. [Fixture suite execution](suite-execution.md) is
+available as a development API in 3C;
 durable run storage, cancellation and signed envelopes follow in 3E.
 
 ## Authority comes from the host
@@ -160,7 +161,8 @@ Defaults are 2,048 records, 4 MiB of encoded record data, 8 MiB of total proof a
 and 1 MiB per proof artifact. Limits are configurable within hard ceilings; producer
 registration is also bounded. Exhaustion closes collection, marks the retained prefix
 truncated and prevents a held result. Artifact persistence failure likewise marks the
-prefix partial. Appending after a terminal or closed collection is rejected.
+prefix partial. A host supervisor can call `truncate()` after stopping a process or
+exhausting an outer storage budget. Appending after a terminal or closed collection is rejected.
 
 Model output records contain a digest and character count. The legacy bridge stores
 no raw responses, tool arguments, canaries, destinations or exception strings; worker
@@ -192,5 +194,5 @@ Intentional conservative changes in this new path:
   the host's deny list and permitted-tool policy; adapter defaults cannot omit it.
 
 These rules do not silently change existing CLI reports or their compatibility
-fixtures. Native execution adapters in 3C must provide actual exposure and complete
-observation records before the new suite path can claim successful coverage.
+fixtures. The native 3C fixture adapter provides actual exposure and complete
+observation records; missing delivery still prevents a successful coverage claim.

@@ -1,4 +1,4 @@
-"""Offline suite planning. Execution and evidence reduction are later milestones."""
+"""Suite planning/locking; development fixture execution lives in suites.service."""
 
 from .schema import SuiteSpec
 from .planner import plan_suite
