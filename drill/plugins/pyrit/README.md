@@ -54,7 +54,10 @@ python drill/plugins/pyrit/prepare.py \
 
 The preparation script performs a read-only runtime probe and creates a manifest,
 original controlled source, probe and resistant/vulnerable fixture suites. It
-prints their review digests, also saved in `review.json`. It does **not** accept
+records a fixed `runtime_diagnostic` code in `review.json` if readiness fails;
+for example, `host_info_timeout` identifies a host-query deadline rather than a
+missing image. The host query is bounded to ten seconds to allow cold startup.
+The script prints their review digests, also saved in `review.json`. It does **not** accept
 content, launch a worker or alter a registry. Inspect these files before recording
 separate plugin, content and suite decisions:
 

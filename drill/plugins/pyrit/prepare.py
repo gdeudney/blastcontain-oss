@@ -14,7 +14,7 @@ from blastcontain_drill.contracts import (
     SourceRef,
 )
 from blastcontain_drill.plugins.catalog import review_digest
-from blastcontain_drill.plugins.runtime import local_image_available
+from blastcontain_drill.plugins.runtime import probe_local_image
 from blastcontain_drill.suites.artifacts import safe_path, write_document
 from blastcontain_drill.suites.catalog import RuntimeProbe, SourceSnapshot
 from blastcontain_drill.suites.schema import Limits, Selection, SuiteSpec, TargetSpec
@@ -44,10 +44,11 @@ def prepare(image_id, output):
         attack_objective="Exercise the synthetic target; no external victim or effect",
     )
     source = SourceSnapshot(scenario.source.name, scenario.source.revision, image_id, (scenario,))
+    availability = probe_local_image(image_id)
     probe = RuntimeProbe(
         manifest.id,
         image_id,
-        local_image_available(image_id),
+        availability.available,
         datetime.now(timezone.utc).isoformat(),
     )
     safe_path(output)
@@ -70,6 +71,7 @@ def prepare(image_id, output):
         "plugin_review_digest": review_digest(manifest),
         "source_content_digest": source.content_digest,
         "runtime_available": probe.available,
+        "runtime_diagnostic": availability.diagnostic,
     }
     write_document(output / "review.json", review)
     return manifest, source, probe
