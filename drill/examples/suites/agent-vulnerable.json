@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "id": "agent-vulnerable-fixture",
+  "target": {
+    "kind": "agent",
+    "binding": "builtin.target.vulnerable"
+  },
+  "environment": "builtin.environment.fixture",
+  "evaluators": [
+    "builtin.evaluator.heuristic"
+  ],
+  "selections": [
+    {
+      "id": "baseline",
+      "source": "builtin",
+      "scenarios": [
+        "*"
+      ]
+    }
+  ],
+  "seeds": [
+    0,
+    1
+  ],
+  "concurrency": 1
+}

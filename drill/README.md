@@ -76,7 +76,8 @@ evidence, cancellation and explicit reruns.
 [Fixture suite execution](docs/suite-execution.md) is available as a development API,
 with replay/adaptive attacks, shared model budgets, up to eight concurrent cases and
 independent stopping. Local abliterated attackers and isolated external strategies use
-the same host broker. Durable signed runs and the UI remain later milestones. See the [baseline record](docs/redesign-baseline.md).
+the same host broker. The [suite CLI](docs/suite-cli.md) exposes review, acceptance,
+run, stop and verified results. The UI remains a later milestone. See the [baseline record](docs/redesign-baseline.md).
 
 ## The cage
 

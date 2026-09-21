@@ -1,4 +1,4 @@
-"""Plan and lock offline. Does not install, probe, pull, contact models or run attacks."""
+"""Plan offline; explicitly execute, stop and verify accepted fixture suites."""
 
 from pathlib import Path
 
@@ -44,7 +44,7 @@ def load_inputs(source, plugin, probe, acceptances):
 
 @click.group()
 def main():
-    """Review Agent/MCP suite plans and locks. Fixture execution is a development API."""
+    """Review, run and verify accepted Agent/MCP fixture suites."""
 
 
 @main.command("plan")
@@ -103,6 +103,11 @@ def check_lock_command(lock_path, source, plugin, probe, acceptances):
         click.echo(f"Lock {lock.lock_digest} matches current planning inputs and acceptance.")
     except (ContractError, OSError) as exc:
         raise click.ClickException(str(exc)) from exc
+
+
+from .commands import register  # noqa: E402
+
+register(main, inputs, load_inputs)
 
 
 if __name__ == "__main__":

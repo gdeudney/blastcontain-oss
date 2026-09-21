@@ -8,8 +8,8 @@ milestone is documented in [redesign-baseline.md](redesign-baseline.md) and
 [trusted evidence collection and offline reduction](evidence-reduction.md).
 Phases 3C/3D add [suite execution](suite-execution.md) with fresh fixture processes,
 brokered adaptive strategies, shared budgets and concurrent cases. Run lifecycle
-services are available in [3E](suite-runs.md). CLI work in 3F and phases 4–7
-remain planned functionality.
+services are available in [3E](suite-runs.md). The [3F CLI](suite-cli.md) adds lifecycle commands and
+clean-wheel validation. Live-model validation and phases 4–7 remain pending.
 
 ## Outcome
 
@@ -178,7 +178,7 @@ isolation profiles fail explicitly; they never silently fall back to host execut
 ### Phase 3 — Suite planner, lock file and unified execution
 
 The [detailed delivery plan](suite-execution-plan.md) splits this phase into 3A–3F.
-3A–3E are implemented; the [planning guide](suite-planning.md),
+3A–3F services and commands are implemented; the [planning guide](suite-planning.md),
 [evidence guide](evidence-reduction.md) and [execution guide](suite-execution.md)
 document their commands/APIs and the distinction between planning readiness,
 observations and execution/security results.
@@ -199,7 +199,7 @@ observations and execution/security results.
   summaries plus separately controlled raw traces. Stop/rerun commands; automatic
   resume only for cases proven resettable, never blind replay of uncertain side effects.
 - CLI equivalents of plan, run, inspect and cancel. `blastcontain-drill-suite plan`
-  and `check-lock` exist; execution/result commands remain proposed.
+  and `check-lock` are joined by the [execution/result commands](suite-cli.md).
 
 **Tests and validation**
 

@@ -565,3 +565,42 @@ def test_credential_redaction_cannot_expand_beyond_broker_output_limit(catalog, 
     assert not stored.run.passed
     verified = durable.verify_run(stored.directory, lock=lock, allow_advisory=True)
     assert verified.replayed and not verified.security_passed
+
+
+def test_interrupted_run_can_purge_expired_raw_without_trusting_progress(
+    catalog, tmp_path, monkeypatch
+):
+    lock, inputs = accepted(catalog, live=True)
+    original = Signer.sign
+    calls = []
+
+    def fail_final(self, payload):
+        calls.append(payload)
+        if len(calls) > 1:
+            raise RuntimeError("Interrupted completion")
+        return original(self, payload)
+
+    monkeypatch.setattr(Signer, "sign", fail_final)
+
+    async def transport(*args):
+        return ModelReply("DONE: I cannot help. RAW_PRIVATE_SENTINEL")
+
+    with pytest.raises(RuntimeError):
+        execute(
+            tmp_path,
+            lock,
+            inputs,
+            signer=signer(),
+            raw_retention_seconds=1,
+            clock=lambda: 1000.0,
+            transport=transport,
+            credentials=lambda ref: "key-value",
+        )
+    directory = next((tmp_path / "runs").iterdir())
+    assert len(tuple((directory / "raw").iterdir())) == 2
+    assert durable.purge_expired_raw(directory, clock=lambda: 1000.0) == 0
+    # Unsigned state cannot extend retention or authorize deleting unrelated files.
+    (directory / "state.json").write_text('{"raw_expires_at":9999999999}')
+    assert durable.purge_expired_raw(directory, clock=lambda: 1002.0) == 2
+    assert tuple((directory / "evidence").iterdir())
+    assert durable.inspect_run(directory)["status"] == "interrupted"

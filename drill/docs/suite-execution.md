@@ -3,7 +3,7 @@
 `blastcontain_drill.suites.service.run_suite` executes an accepted lock through one
 budgeted path: replay, materialized operators, PAIR refinement and an accepted
 external strategy. Existing Drill commands and signed report formats are unchanged.
-[Durable signed runs](suite-runs.md) are available in 3E; an execution CLI follows in 3F.
+[Durable signed runs](suite-runs.md) are available in 3E; the [3F CLI](suite-cli.md) exposes their lifecycle.
 
 Targets run in **trusted simulations**, with actual loopback MCP transport when
 selected. Live models can drive those simulations; the fixture tools do not delete
@@ -148,7 +148,7 @@ requests and case/worker processes are cancelled and cleaned up, and the returne
 roster retains terminal outcomes for pending cases. Cancelling the caller coroutine
 also cleans up but propagates `CancelledError`; `progress=` receives its final
 snapshot. The [durable service](suite-runs.md) adds persistent stop requests,
-signed results and conservative crash inspection; CLI commands follow in 3F.
+signed results and conservative crash inspection, exposed through the [suite CLI](suite-cli.md).
 
 ## Evidence and outcomes
 
