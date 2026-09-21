@@ -16,6 +16,12 @@ acceptance UI remain later work.
 reads only `*.drill-plugin.json` files in explicit directories. It never imports
 Python entry points, starts a plugin, installs a package or pulls an image.
 `--probe-runtime` only checks local runtime requirements and image presence.
+The read-only host-information query allows up to ten seconds for a cold rootless
+engine, and the image-existence query allows three seconds. Neither is retried.
+`probe_local_image()` returns fixed diagnostic codes for timeouts, absent images,
+incompatible host controls and query failures; `local_image_available()` retains
+its boolean API. Actual worker startup independently rechecks isolation within
+its existing execution deadline.
 
 Each file contains a [schema-1 PluginManifest](contracts-v1.md). In this profile,
 `artifact_digest` is a complete local Podman **image ID** (`sha256:` plus 64 lowercase

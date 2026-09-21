@@ -188,7 +188,9 @@ def probe_local_image(image_id: str) -> LocalImageProbe:
             [executable, "--remote=false", "info", "--format={{json .Host}}"],
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            timeout=3,
+            # A cold rootless engine can take more than three seconds on CI.
+            # This is a read-only discovery query, not a worker execution grant.
+            timeout=10,
             check=True,
         )
         host = json.loads(info.stdout)
