@@ -5,6 +5,9 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 ## [Unreleased]
 
 ### Added
+- Host-owned attacker/evaluator conversation service with scoped checkpoints,
+  opt-in branching, bounded history, cumulative budgets and sanitized audit events.
+  Plugin routing, Agent/MCP checkpoints and Crescendo integration remain pending.
 - Optional pinned PyRIT 1.1.0 static container adapter using the existing target
   broker, with real upstream parity, reset/budget/cancellation checks and isolated
   hashed dependencies. Crescendo and other multi-turn strategies remain pending.
