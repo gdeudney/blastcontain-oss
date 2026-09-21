@@ -5,10 +5,13 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 ## [Unreleased]
 
 ### Added
+- Adaptive suite execution with host-owned target/attacker/evaluator model routing,
+  PAIR prompt/history compatibility, shared atomic budgets, bounded concurrency and
+  in-memory cancellation. The reference Podman strategy now runs through this path;
+  attempt evidence remains separate from untrusted plugin claims.
 - Development suite execution API for locked replay/materialized operator cases, with
   fresh Agent/MCP fixture processes, current acceptance checks, global/per-case budgets,
   streamed evidence, independent deadlines and explicit cleanup/terminal outcomes.
-  Live model and adaptive suite bindings remain phase 3D.
 - Host-owned evidence collection, scoped proof artifacts and deterministic offline reduction,
   with explicit producer authority, completion/coverage gates and a conservative legacy cage
   bridge. Plugin claims cannot establish observed effects or successful security checks.

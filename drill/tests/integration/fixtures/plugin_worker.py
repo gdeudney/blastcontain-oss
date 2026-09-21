@@ -20,6 +20,8 @@ class HostileFixture:
 
     def execute(self, broker):
         mode = self.scenario.technique
+        if mode == 'claims-only':
+            return {'security': 'held', 'execution': 'completed', 'effects': 'independently verified'}
         if mode in ('stdout-flood', 'stderr-sustained', 'stdout-broker-flood', 'stderr-broker-flood'):
             fd = 2 if mode.startswith('stderr') else 1
 

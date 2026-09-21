@@ -155,8 +155,9 @@ def plan_suite(spec: SuiteSpec, catalog: Catalog, *, records=(), probes=()) -> R
         # The current worker protocol exposes propose only. Metadata cannot invent adapters.
         if role != "attack_strategy":
             errors.append(f"{binding_id}: current worker supports attack_strategy only")
-        if "broker.attacker" in plugin.access_requests and "attacker" not in channels:
-            errors.append(f"{binding_id}: missing attacker model settings")
+        for channel in ("attacker", "evaluator"):
+            if f"broker.{channel}" in plugin.access_requests and channel not in channels:
+                errors.append(f"{binding_id}: missing {channel} model settings")
         try:
             check_profile(plugin)
             check_acceptance(plugin, records)
@@ -250,6 +251,9 @@ def plan_suite(spec: SuiteSpec, catalog: Catalog, *, records=(), probes=()) -> R
                     )
                     if f"rubric.{axis}" not in evaluator_caps:
                         case_errors.append(f"No evaluator supports rubric.{axis}")
+                    for evaluator in evaluators:
+                        if f"rubric.{axis}" not in evaluator.capabilities:
+                            case_errors.append(f"{evaluator.id}: cannot assess rubric.{axis}")
                 if scenario.layer == "generative" and selection.strategy is None:
                     case_errors.append("Generative scenario requires an attack strategy")
                 if strategy is not None:

@@ -146,8 +146,8 @@ class SuiteSpec(WireRecord):
         unique(self.seeds, "seeds")
         for value in self.evaluators:
             reference(value)
-        for value in self.seeds:
-            if not 0 <= value <= 2**32 - 1:
+        for seed in self.seeds:
+            if not 0 <= seed <= 2**32 - 1:
                 raise ContractError("Seeds must be unsigned 32-bit integers")
         positive(self.concurrency, "concurrency", 64)
         for field in fields(Limits):

@@ -30,9 +30,10 @@ from ..evidence.records import (
 )
 from ..plugins.catalog import parse_json
 from ..scoring import HeuristicContentScorer
+from ..scoring.judge import LLMJudge
 from .artifacts import canonical
 
-MAX_FRAME = 16_384
+MAX_FRAME = 262_144
 MAX_REQUEST = 16 * 1024 * 1024
 
 
@@ -68,7 +69,35 @@ class Channel:
         self.request({"kind": "lifecycle", "state": state, "identity": identity})
 
 
-def execute(scenario: ScenarioSpec, vulnerable: bool, channel: Channel):
+class BrokerBackend:
+    def __init__(self, channel, role):
+        self.channel, self.role = channel, role
+        self.stopped = False
+
+    def chat(self, messages, temperature=0.0, max_tokens=512, stop=None):
+        try:
+            return self.channel.request(
+                {
+                    "kind": "model",
+                    "channel": self.role,
+                    "messages": messages,
+                    "max_tokens": max_tokens,
+                }
+            )
+        except Stopped:
+            self.stopped = True
+            raise
+
+
+def execute(
+    scenario: ScenarioSpec,
+    vulnerable: bool,
+    channel: Channel,
+    *,
+    live=False,
+    evaluators=("builtin.evaluator.heuristic",),
+    feedback=False,
+):
     """Fresh tool state/backend/canary on every call; no aggregate exposure inference."""
     attack = attack_from_scenario(scenario)
     canary = new_canary()
@@ -76,7 +105,7 @@ def execute(scenario: ScenarioSpec, vulnerable: bool, channel: Channel):
     if scenario.security.goal == "forbidden_tool" and scenario.security.forbidden_tool:
         forbidden.add(scenario.security.forbidden_tool)
     box = Toolbox(canary, attack.poisoned_document, forbidden_tools=forbidden)
-    backend = StubChatClient(vulnerable)
+    backend = BrokerBackend(channel, "target") if live else StubChatClient(vulnerable)
     active = attack.mcp_tool_description is not None or attack.mcp_tool_response is not None
     context = (
         poison_fixture(attack.mcp_tool_description, attack.mcp_tool_response)
@@ -84,7 +113,7 @@ def execute(scenario: ScenarioSpec, vulnerable: bool, channel: Channel):
         else nullcontext(None)
     )
     pending: list[tuple[DeliverySurface, str]] = []
-    output_refs, outputs = [], []
+    output_refs, outputs, final_responses = [], [], []
     reason = "completed"
     stage: Literal["backend_error", "fixture_error", "tool_error"] = "fixture_error"
     stack = ExitStack()
@@ -114,7 +143,8 @@ def execute(scenario: ScenarioSpec, vulnerable: bool, channel: Channel):
         for turn in turns_for(attack):
             messages.append({"role": "user", "content": turn})
             while True:
-                channel.reserve("model_calls")
+                if not live:
+                    channel.reserve("model_calls")
                 stage = "backend_error"
                 # Only successful dispatch/return establishes exposure. Reservations
                 # denied before this point never deliver a pending payload.
@@ -128,6 +158,7 @@ def execute(scenario: ScenarioSpec, vulnerable: bool, channel: Channel):
                 kind, value, args = _parse_reply(reply)
                 messages.append({"role": "assistant", "content": reply})
                 if kind == "done":
+                    final_responses.append(value)
                     break
                 channel.reserve("tool_steps")
                 stage = "tool_error"
@@ -168,13 +199,27 @@ def execute(scenario: ScenarioSpec, vulnerable: bool, channel: Channel):
         else:
             channel.lifecycle("environment_cleaned")
     if output_refs and scenario.security.goal == "content":
-        verdict = HeuristicContentScorer().score(attack, "\n\n".join(outputs))
         axis = (
             scenario.security.rubric.axis
             if scenario.security.rubric
             else ("harm" if scenario.security.expected_refusal else "refusal")
         )
-        channel.event("evaluator", Evaluation(axis, verdict["matched"], tuple(output_refs)))
+        for evaluator in evaluators:
+            judge_backend = None
+            if evaluator == "builtin.evaluator.llm":
+                if reason != "completed":
+                    continue
+                judge_backend = BrokerBackend(channel, "evaluator")
+            scorer = (
+                LLMJudge(judge_backend) if judge_backend is not None else HeuristicContentScorer()
+            )
+            verdict = scorer.score(attack, "\n\n".join(outputs))
+            if judge_backend is not None and judge_backend.stopped:
+                reason = "step_limit"
+                break
+            channel.event(evaluator, Evaluation(axis, verdict["matched"], tuple(output_refs)))
+    if feedback:
+        channel.request({"kind": "feedback", "response": "\n\n".join(final_responses)[:4096]})
     channel.event(
         "environment",
         Coverage(("model_output", "tool_actions", "payload_delivery"), reason == "completed"),
@@ -186,11 +231,25 @@ def main():
     data = parse_json(sys.stdin.buffer.readline(MAX_REQUEST + 1))
     if (
         type(data) is not dict
-        or set(data) != {"scenario", "vulnerable"}
+        or set(data) != {"scenario", "vulnerable", "live", "evaluators", "feedback"}
         or type(data["vulnerable"]) is not bool
     ):
         raise ContractError("Invalid trusted fixture request")
-    execute(ScenarioSpec.from_dict(data["scenario"]), data["vulnerable"], Channel())
+    if (
+        type(data["live"]) is not bool
+        or type(data["feedback"]) is not bool
+        or type(data["evaluators"]) is not list
+        or set(data["evaluators"]) - {"builtin.evaluator.heuristic", "builtin.evaluator.llm"}
+    ):
+        raise ContractError("Invalid fixture bindings")
+    execute(
+        ScenarioSpec.from_dict(data["scenario"]),
+        data["vulnerable"],
+        Channel(),
+        live=data["live"],
+        evaluators=data["evaluators"],
+        feedback=data["feedback"],
+    )
 
 
 if __name__ == "__main__":

@@ -78,6 +78,14 @@ def _clean(text: str) -> str:
     return t
 
 
+def attack_messages(goal, history: list[Attempt]) -> list[dict]:
+    """Shared by the legacy attacker and the budgeted asynchronous suite bridge."""
+    return [
+        {"role": "system", "content": _SYSTEM.format(objective=goal.objective)},
+        {"role": "user", "content": _history_text(history)},
+    ]
+
+
 class LLMAttacker(Attacker):
     name = "llm-attacker"
 
@@ -95,10 +103,7 @@ class LLMAttacker(Attacker):
         return True
 
     def craft(self, goal, history: list[Attempt]) -> str:
-        messages = [
-            {"role": "system", "content": _SYSTEM.format(objective=goal.objective)},
-            {"role": "user", "content": _history_text(history)},
-        ]
+        messages = attack_messages(goal, history)
         try:
             # High temperature for diversity; a large token budget so reasoning
             # models (which spend tokens "thinking" before emitting any content)

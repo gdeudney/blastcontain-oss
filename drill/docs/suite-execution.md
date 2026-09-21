@@ -1,23 +1,21 @@
-# Fixture suite execution (phase 3C)
+# Suite execution development API (phases 3C/3D)
 
-The development API `blastcontain_drill.suites.service.run_suite` executes replay
-and materialized operator cases from an accepted lock. It supports the resistant
-and vulnerable built-in agents, the controlled MCP description/response fixtures,
-single/multi-turn prompts and document injection. It uses the phase 3B evidence
-collector and reducer. Existing Drill commands and signed report formats are unchanged.
+`blastcontain_drill.suites.service.run_suite` executes an accepted lock through one
+budgeted path: replay, materialized operators, PAIR refinement and an accepted
+external strategy. Existing Drill commands and signed report formats are unchanged.
+Durable signed runs and an execution CLI remain 3E/3F deliverables.
 
-This milestone runs **trusted simulations**, with actual loopback MCP transport.
-A separate case process allows the parent to stop a hung fixture; it is not an OS
-sandbox or proof of container containment. No real files are deleted and the
-fixture's send tools do not transmit data. Real model bindings, adaptive attacks
-(including local abliterated attackers) and external workers join this execution
-path in 3D. Their existing legacy commands remain available.
+Targets run in **trusted simulations**, with actual loopback MCP transport when
+selected. Live models can drive those simulations; the fixture tools do not delete
+real files or transmit customer data. Separate case processes allow independent
+stopping, not OS containment. External strategy code runs only through the existing
+rootless Podman isolation profile. This does not yet test arbitrary remote MCP servers.
 
-## Run an accepted fixture lock
+## Run an accepted lock
 
 Follow [suite planning](suite-planning.md) to inspect a plan, record acceptance and
-create its lock. Use `examples/suites/mcp.json` for four vulnerable MCP cases;
-changing its target to `builtin.target.resistant` requires a new plan and acceptance.
+create its lock. `examples/suites/mcp.json` selects four vulnerable MCP cases;
+changing its target to `builtin.target.resistant` requires new acceptance.
 
 ```python
 import asyncio
@@ -32,8 +30,7 @@ from blastcontain_drill.suites.service import ExecutionInputs, run_suite
 lock = SuiteLock.from_dict(read_document(Path("suite.lock.json")))
 
 def current_inputs():
-    # Read CURRENT decisions and installed bytes at each revalidation.
-    # Historical acceptances embedded in the lock are never execution permission.
+    # Reload CURRENT decisions and installed bytes. Lock snapshots are not permission.
     return ExecutionInputs(
         builtin_catalog(), read_acceptances(Path("acceptances.json"))
     )
@@ -45,91 +42,162 @@ print("Suite security gate:", "passed" if run.passed else "not passed")
 print("Usage:", run.usage.to_dict())
 ```
 
-For reviewed external *data*, the callback must also reload its `SourceSnapshot`
-and supply it to `builtin_catalog(external_sources=...)`. Arbitrary runtime bindings
-and plugin code do not become executable by appearing in catalog metadata.
+For external content, reload its accepted `SourceSnapshot` in the callback and pass
+it to `builtin_catalog(external_sources=...)`. For an external strategy, also supply
+its current manifest via `plugins=...`, its acceptance records and runtime probes.
+The worker independently checks the actual local image and isolation at launch.
+Metadata cannot install an arbitrary host implementation.
 
-`progress=` optionally receives immutable `SuiteRun` snapshots: the first contains
-the entire pending roster, subsequent snapshots show one running case at most and
-terminal outcomes. This roster and the returned evidence stay in memory. There is
-no durable run store, crash resume or advertised suite `run` command yet; those are
-3E/3F deliverables. A caller cancelling the coroutine stops/reaps its active child;
-durable cancellation and terminal records for cancelled pending cases remain in 3E.
+`progress=` receives immutable snapshots containing the entire case roster. Up to
+`spec.concurrency` cases may be running, with a supported maximum of eight. Results
+stay in planned order; contention can affect which case consumes the remaining
+shared budget. Revalidate current acceptance before each case, adaptive round and
+provider dispatch. Changed installed code invalidates earlier locks.
 
-## What runs and what fails explicitly
+## Supported bindings
 
-| Input | Current execution |
+| Input | Execution |
 |---|---|
-| `builtin.target.resistant` / `builtin.target.vulnerable` | Fresh deterministic fixture backend for each case |
+| Resistant/vulnerable built-in targets | Fresh deterministic fixture backend per attempt |
+| `builtin.target.llm` | Locked OpenAI-compatible endpoint through the host model broker |
 | Agent target | Replay, materialized operators, multi-turn and supported injections |
-| MCP target | Controlled poisoned descriptions/responses through the loopback fixture |
+| MCP target | Controlled description/response poisoning through the loopback fixture |
 | `builtin.environment.fixture` | Fresh process, workspace, tool state and random canary |
-| `builtin.evaluator.heuristic` | Host-selected refusal heuristic; no evaluator model call |
-| Accepted operator scenario | Executes exact materialized prompt bytes; never regenerates them |
-| Live target/model settings, adaptive strategy, plugin or other binding | `unsupported`; no substitute backend or model request |
-| Concurrent execution | `unsupported`; serial execution only in 3C |
-| Optional planning exclusion | Retained as `skipped`, with its planning diagnostics |
+| `builtin.evaluator.heuristic` | Refusal heuristic; no evaluator model call |
+| `builtin.evaluator.llm` | Locked evaluator endpoint; harm/refusal/freeform rubric |
+| `builtin.strategy.pair` | Sequential attacker refinement with legacy prompt/history formatting |
+| Accepted external attack strategy | Rootless Podman worker using granted broker channels |
+| Adaptive scenarios | Agent, one entry prompt, explicit attack objective; fresh target each round |
+| Adaptive multi-turn/injection/MCP, other environments or runtime adapters | Explicitly `unsupported` |
+| Optional planning exclusion | Retained as `skipped`, with planning diagnostics |
 
-Case `execution_identity` binds its planned ID, exact scenario bytes, seed and
-replay/operator mode. The lock already binds source revision, build identity and
-materialized content. Seeds distinguish planned repetitions; the current fixture
-backend has no stochastic sampling. Fresh random canaries intentionally differ on
-every execution. Changed installed code invalidates earlier locks.
+Operators execute the exact bytes materialized in the lock. Seeds identify planned
+repetitions; the broker does not claim deterministic model sampling or send a model
+seed. Random fixture canaries change on every attempt. Model aliases remain mutable;
+a declared pinned model digest is accepted configuration, not endpoint attestation.
 
-## Budgets and independent stopping
+## Models, credentials and local abliterated attackers
 
-The parent owns one global ledger and one active case ledger. Every target call
-and tool operation requires a reservation **before dispatch**. Reservations are
-not refunded after failures, and no implicit retry occurs. Global usage survives
-case changes and environment replacement. Operators were materialized during
-planning, so replay performs zero adaptive strategy iterations.
+Select `builtin.target.llm`, add `ModelSettings(channel="target", ...)`, and provide
+the exact base URL ending in `/v1` for an OpenAI-compatible chat endpoint. Add an
+`attacker` setting for PAIR and an `evaluator` setting for the LLM judge. For example:
 
-The model/tool counters cover agent dispatches. MCP initialization/discovery is
-fixed fixture setup, bounded by the fixture's RPC limits and the parent deadline;
-each agent-requested MCP tool call consumes a tool step. The heuristic evaluator
-uses no model calls. All provider/attacker/evaluator model routing follows in 3D.
+```python
+ModelSettings(
+    "attacker", "http://127.0.0.1:1234/v1", "local-abliterated",
+    temperature=1.0, max_output_tokens=8192,
+)
+```
 
-The artifact budget covers canonical retained evidence-bundle bytes, including
-producer metadata and terminal records. Exhaustion preserves a truncated prefix;
-if even the initial bundle cannot fit, no evidence bundle is returned. It never
-produces a held result. Summaries, receipts and Python object memory are not a
-durable storage quota; protected run storage belongs to 3E. The collector's own
-record/byte ceilings apply in addition to the suite budgets.
+Use the model ID actually loaded by the local server. The shared attacker helper
+preserves the legacy system prompt, last-attempt feedback and output cleanup. The
+new suite path treats provider failure as an error rather than silently substituting
+a prompt. PAIR stops at an observed bypass, failed attempt or exhausted budget; a
+search stopped at its limit is `incomplete`, even when earlier attempts held.
 
-Wall deadlines include launch and case I/O. The parent can kill a child that does
-not cooperate; process/pipe cleanup has a separate bounded two-second allowance.
-Fixture cleanup errors stop further case dispatch. A failed workspace removal is
-reported rather than treated as clean. New cases are not launched after global
-model-call, evidence-byte or wall-time exhaustion.
+Adaptive selections require an explicit `attack_objective`. The 501 legacy replay
+seeds remain unchanged; create and accept a derived `SourceSnapshot` with the desired
+objective instead of inferring one from a prompt. The [adaptive example](../examples/suites/adaptive.py)
+shows this process with controlled, model-free responses.
+
+A setting may name a symbolic `credential_ref`. Supply `credentials=resolver` to
+`run_suite`; the trusted host resolver maps that name to a token in memory. No
+automatic environment-variable lookup occurs. Credentials never enter the lock,
+case subprocess or plugin container. Use distinct references/endpoints for distinct
+model roles where required. Only the locked destination receives each token.
+
+Default HTTP routing makes one request per reservation: no automatic retries,
+redirect following or inherited HTTP proxy configuration. Input is capped at 128 KiB
+of canonical JSON, response bodies at 1 MiB, and decoded output at 32 KiB UTF-8.
+Compressed responses are rejected. Output-token requests are capped by the locked
+setting. Provider errors are normalized without retaining response/error bodies.
+
+`run.model_calls` records case/attempt ID, channel, request/response digests, status
+and reported input/output tokens. Missing or invalid token counts are `None`, never
+zero. Token counts are provider reports, not independent metering or billing limits.
+Call reservations enforce the budget regardless of whether usage is reported.
+
+An optional async `transport(settings, messages, secret, timeout, max_tokens)` can
+return `ModelReply` for a trusted host integration or recording test. It must honor
+cancellation and perform at most one provider attempt. It is not a plugin hook.
+
+## Budgets, cancellation and cleanup
+
+Atomic reservations charge both the active case and the global pool before each
+model/tool dispatch. All target, attacker and evaluator channels share that pool.
+Failures consume their reservation; retries require another. Fresh targets and
+plugin resets never replenish it. A PAIR round or external target attempt consumes
+one strategy iteration. Replay consumes none. MCP initialization/discovery is fixed
+fixture setup, bounded separately by RPC limits and the parent deadline.
+
+The artifact budget covers retained canonical evidence bundles and retained plugin
+claim-digest metadata. Exhaustion retains a truncated evidence prefix; if the initial
+bundle cannot fit, no bundle is returned. Attempt scenarios, receipts, model-call
+summaries and Python object memory are not a durable storage quota. Raw generated
+prompts remain in memory for replay, so applications should not log entire run objects.
+Protected persistence and retention are phase 3E.
+
+Global/case deadlines include setup, I/O, all rounds and cleanup. Native process
+cleanup has a separate two-second allowance; the existing worker profile adds a
+bounded container-removal allowance and its own maximum 300-second session deadline.
+A cleanup failure prevents a pass and stops new case dispatch; cases already active
+still finalize their evidence. Budget exhaustion never establishes a held result.
+
+Pass an `asyncio.Event` as `cancel=` and set it to stop an in-memory run. Active
+requests and case/worker processes are cancelled and cleaned up, and the returned
+roster retains terminal outcomes for pending cases. Cancelling the caller coroutine
+also cleans up but propagates `CancelledError`; `progress=` receives its final
+snapshot. There is no durable cancellation command, crash recovery or run store yet.
 
 ## Evidence and outcomes
 
-Output records are hashes/counts. Action records contain policy classifications
-and blocking observations, not raw arguments, canaries, destinations or error text.
-The child inherits the fixed Python code roots and minimal runtime environment,
-not provider credentials or arbitrary `PYTHONPATH`. Case processes are trusted
-built-in code and are never used to execute externally supplied plugin modules.
+Native evidence records contain output hashes/counts and normalized action policy
+observations, not raw arguments, canaries, destinations or error text. Model responses
+are transient inputs to the fixture/evaluator; a bounded final-response excerpt is
+shared with an adaptive strategy. Child processes inherit only fixed code roots and
+minimal runtime environment. External plugin code never runs in those processes.
 
-Payload delivery is recorded only when the exact document/MCP content has reached
-a dispatched target call. Reading a poisoned response on the final available tool
-step does not prove exposure. A resistant agent that never reads an injected
-document remains `incomplete` for that injection. The broad Agent example may also
-report benign refusals; a resistant fixture is not promised to pass every case.
+Payload delivery requires the exact document/MCP payload to reach a dispatched
+model call. Reading a poisoned response on the final tool step is insufficient.
+Every selected content evaluator must supply a definite whole-output assessment;
+conflicting judgments fail closed. Tool-action evidence does not rely on the judge.
+Observed actions remain findings even if later calls or cleanup fail.
 
-Every normally returned run contains one terminal record per planned case:
-`completed`, `incomplete`, `unsupported`, `skipped` or `error`. Diagnostics distinguish
-budget resource/scope, missing exposure, failed backend, failed preparation,
-evidence errors, revoked acceptance and cleanup failure. Missing scoring after an
-earlier stop preserves that stop; an actual conflicting/indefinite assessment is
-still an error. Observed attempts survive later budget or process failure.
+Each native attempt has an evidence bundle, independently held receipt and reduction
+policy. Replay with `reduce_evidence(scenario, evidence, receipt,
+policy=case.reduction_policy)`. Adaptive cases retain these under `case.attempts`,
+along with each materialized `attempt.scenario` and execution identity. Their
+aggregate retains the strongest observed finding and cannot turn an incomplete
+attempt into a pass. Per-attempt usage covers its target/evaluators; outer case usage
+also includes attacker calls, iteration reservations and claim metadata.
 
-The suite gate requires every required case to complete with a `HELD` projection
-and without measured utility failure. If all cases are optional, every non-excluded
-case must meet that condition. Cleanup failure anywhere prevents a pass. Optional
-excluded cases stay in the roster. This gate does not promote unmeasured utility
-to success or simulated tool responses to independently observed effects.
+A plugin's return value is an untrusted claim. Only its digest is retained, separately
+from native attempt evidence. A claim without any observed target attempt fails,
+regardless of the claimed outcome. Even a completed simulation does not establish
+independently observed external effects.
 
-Each returned case includes its `EvidenceBundle`, independently held `EvidenceReceipt`,
-separate result dimensions and usage. Offline reduction of those records reproduces
-the result. Receipts remain unsigned host anchors; authenticated run storage,
-retention, inspect/cancel/rerun and signing are phase 3E.
+Every normally returned run contains a terminal disposition per planned case:
+`completed`, `incomplete`, `cancelled`, `unsupported`, `skipped` or `error`. The suite
+gate requires all required cases to complete with a `HELD` projection and no measured
+utility failure. If all cases are optional, all non-excluded cases must meet it.
+Cleanup failure anywhere prevents a pass. Receipts are unsigned host anchors;
+authenticated run envelopes and signing remain phase 3E.
+
+## Validation record
+
+Phase 3D was checked on Linux/Python 3.12 with 563 Core/Drill/Scout regression tests
+and 39 real Podman integration tests. The recording backend verifies PAIR prompt and
+feedback parity, all three broker channels, concurrent budgets, revocation, retries,
+provider failures, missing token counts and cancellation. Controlled loopback HTTP
+checks cover redirects, proxy inheritance, invalid/compressed/oversized responses.
+Actual containers verify the two-call reference strategy, shared suite limits,
+claim-only rejection and active-worker cleanup.
+
+Clean Core/Drill wheels loaded all 501 definitions, passed four Drill CLI help checks,
+and ran the adaptive demo. Ruff, suite type checking and medium-severity Bandit
+checks passed. These are controlled fixture results; live model quality and usage
+billing were not measured. Run the model-free example from the repository root:
+
+```bash
+python drill/examples/suites/adaptive.py
+```

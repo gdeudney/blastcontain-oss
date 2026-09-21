@@ -169,6 +169,13 @@ def builtin_catalog(*, external_sources=(), plugins=()) -> Catalog:
             "builtin.evaluator.heuristic", "evaluator", code, ("rubric.harm", "rubric.refusal")
         ),
         Binding(
+            "builtin.evaluator.llm",
+            "evaluator",
+            code,
+            ("rubric.harm", "rubric.refusal", "rubric.freeform"),
+            model_channel="evaluator",
+        ),
+        Binding(
             "builtin.strategy.pair",
             "attack_strategy",
             code,
