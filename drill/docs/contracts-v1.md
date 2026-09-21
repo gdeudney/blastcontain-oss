@@ -58,8 +58,10 @@ an effect occurred. Legitimate-task utility defaults to `not_measured`.
 
 These checks enforce record consistency. They **do not verify** that evidence
 references resolve, that an emitter deserves its authority label, or that an
-observation proves an effect. The future collector/reducer must establish those
-facts independently of plugin-supplied labels. Likewise, a manifest declares a
+observation proves an effect. The [phase 3B collector/reducer](evidence-reduction.md)
+now establishes those checks through typed collector records and an independently
+trusted host receipt; it does not promote arbitrary v1 traces based on their labels.
+Likewise, a manifest declares a
 license/configuration schema without validating an SPDX policy or configuration;
 an acceptance record does not authenticate its actor or grant runtime access.
 
@@ -76,6 +78,8 @@ The cage and evaluator bridges deliberately return legacy observations and score
 results. They are **not** implementations of the new evidence-producing
 `Environment` and `Evaluator` protocols. Routing them into a future suite requires
 an explicit collector/reducer bridge; there is no implicit evidence conversion.
+Phase 3B provides `collect_legacy_observation` for host-owned observations and
+host-selected scorer verdicts, preserving the aggregate evidence's limitations.
 
 Existing attacks do not acquire invented legitimate tasks or attacker objectives.
 New fixtures or task-success checks cannot be silently discarded: conversion to

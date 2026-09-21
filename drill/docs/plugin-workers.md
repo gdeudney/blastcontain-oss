@@ -3,8 +3,10 @@
 Drill can now discover reviewed metadata without importing plugin code and run an
 explicitly selected external plugin in a bounded local Podman container. This is
 an additive API and diagnostic command. The existing agent/MCP CLI, generative
-attacker and signed reports still use their current execution path. Suite planning,
-result reduction, real upstream adapters and the acceptance UI remain later phases.
+attacker and signed reports still use their current execution path.
+[Suite planning](suite-planning.md) and [evidence reduction](evidence-reduction.md)
+are now additive APIs; suite execution, real upstream adapters and the acceptance UI
+remain later phases.
 
 ## Discovery and acceptance
 
@@ -120,7 +122,9 @@ host-observed channel, call ID, scenario, injection, response/error for that exe
 request. `worker.calls` retains all session attempts, including failures. Responses
 are observations, not proof of tool effects or security success. No upstream success
 label is converted to HELD/BYPASS, utility or trusted `ScenarioResult` evidence here.
-The phase-3 collector/reducer must establish that interpretation. Raw observations
+The [phase-3B collector/reducer](evidence-reduction.md) provides that interpretation
+for host-owned observations. Feed worker result data through its untrusted claim path;
+the worker protocol does not grant evidence authority. Raw observations
 remain in memory unless a caller explicitly exports them; production redaction and
 signed suite evidence are not implemented by this worker protocol.
 

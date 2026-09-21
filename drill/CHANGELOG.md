@@ -5,6 +5,9 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 ## [Unreleased]
 
 ### Added
+- Host-owned evidence collection, scoped proof artifacts and deterministic offline reduction,
+  with explicit producer authority, completion/coverage gates and a conservative legacy cage
+  bridge. Plugin claims cannot establish observed effects or successful security checks.
 - Offline Agent/MCP suite planning and content-bound locks, with complete required/optional
   coverage rosters, explicit model settings, reviewed external snapshots, current acceptance
   checks, and `blastcontain-drill-suite plan` / `check-lock`. Suite execution remains future work.
@@ -22,6 +25,8 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 - Deterministic resistant/vulnerable demos and live Podman regression tests, with Verify remediation mappings.
 
 ### Fixed
+- Evidence reduction honors scenario-specific forbidden tools and rejects conflicting
+  assessments that would otherwise hide an earlier positive content finding.
 - Generative documentation now describes PAIR-style sequential refinement; TAP tree
   search is not implemented.
 - Cage-reported failures and unexercised MCP response attacks cannot fall through to HELD.

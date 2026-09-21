@@ -1,7 +1,9 @@
 # Drill suites — phase 3 delivery plan
 
-Status: PRs #62–65 and the prerequisite review fixes are merged. Phase 3A
-(schema, resolution and locking) is implemented; 3B–3F remain planned.
+Status: PRs #62–66 and the prerequisite review fixes are merged. Phase 3A
+(schema, resolution and locking) is merged. Phase 3B's
+[evidence collection/reduction API](evidence-reduction.md) is implemented;
+3C–3F remain planned.
 See [suite-planning.md](suite-planning.md) for the supported offline commands,
 examples, acceptance flow and current limitations. This document expands
 phase 3 of the [integration redesign](integration-redesign-plan.md).
