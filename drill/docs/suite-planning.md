@@ -9,7 +9,9 @@ This milestone provides planning and locking only. A `ready` case means its decl
 planning requirements are satisfied, **not** that it ran, passed a security check or
 has a functioning runtime. There is no suite `run` command yet.
 [Evidence authority and offline reduction](evidence-reduction.md) are available as an
-additive API in 3B. Execution, enforced budgets, cancellation and signed results follow in 3C–3F.
+additive API in 3B. [Fixture execution and serial budgets](suite-execution.md) are available
+as a development API in 3C; adaptive execution, durable cancellation, signing and the
+suite execution CLI follow in 3D–3F.
 The existing Drill CLI and local abliterated attacker remain unchanged.
 
 ## First plan

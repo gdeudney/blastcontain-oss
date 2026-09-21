@@ -157,7 +157,7 @@ def builtin_catalog(*, external_sources=(), plugins=()) -> Catalog:
         Binding("builtin.target.resistant", "target", code, prompt_caps),
         Binding("builtin.target.vulnerable", "target", code, prompt_caps),
         Binding("builtin.target.llm", "target", code, prompt_caps, model_channel="target"),
-        # These are capability descriptions for future suite execution, not runtime grants.
+        # Capability descriptions are not runtime grants; the service binds known implementations.
         Binding(
             "builtin.environment.fixture",
             "environment",

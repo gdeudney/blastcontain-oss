@@ -6,7 +6,9 @@ milestone is documented in [redesign-baseline.md](redesign-baseline.md) and
 [discovery and worker profile](plugin-workers.md). Phase 3A adds
 [offline suite planning and locking](suite-planning.md). Phase 3B adds
 [trusted evidence collection and offline reduction](evidence-reduction.md).
-Execution and run lifecycle work in 3C–3F and phases 4–7 remain planned functionality.
+Phase 3C adds [fixture suite execution](suite-execution.md) with serial budgets and
+fresh processes. Adaptive execution and run lifecycle work in 3D–3F and phases 4–7
+remain planned functionality.
 
 ## Outcome
 
@@ -87,8 +89,10 @@ diagnostics and a reference plugin. The first profile accepts empty configuratio
 explicit broker channels only; unsupported access/configuration fails closed. Phase 3A
 adds strict suite schemas, deterministic resolution, complete case rosters and acceptance-bound
 locks. Phase 3B adds trusted producer registration, scoped proof artifacts, deterministic
-reduction and a conservative legacy observation bridge. The next unit is 3C: replay and
-transformed execution with case scheduling and budgets. Signed evidence follows in 3E;
+reduction and a conservative legacy observation bridge. Phase 3C adds replay and
+materialized operator execution with serial scheduling, budgets and independently
+stopped fixture processes. The next unit is 3D: brokered adaptive execution and shared
+budgets across target, attacker and evaluator models. Signed evidence follows in 3E;
 external tools await phase 4.
 
 ### Phase 0 — Establish the baseline and migration contract
@@ -173,9 +177,10 @@ isolation profiles fail explicitly; they never silently fall back to host execut
 ### Phase 3 — Suite planner, lock file and unified execution
 
 The [detailed delivery plan](suite-execution-plan.md) splits this phase into 3A–3F.
-3A and 3B are implemented; the [planning guide](suite-planning.md) and
-[evidence guide](evidence-reduction.md) document their commands/APIs and the distinction
-between planning readiness, observations and execution/security results.
+3A–3C are implemented; the [planning guide](suite-planning.md),
+[evidence guide](evidence-reduction.md) and [execution guide](suite-execution.md)
+document their commands/APIs and the distinction between planning readiness,
+observations and execution/security results.
 
 **Deliverables**
 
