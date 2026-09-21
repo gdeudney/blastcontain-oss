@@ -604,3 +604,66 @@ def test_interrupted_run_can_purge_expired_raw_without_trusting_progress(
     assert durable.purge_expired_raw(directory, clock=lambda: 1002.0) == 2
     assert tuple((directory / "evidence").iterdir())
     assert durable.inspect_run(directory)["status"] == "interrupted"
+
+
+@pytest.mark.parametrize("failure", ["signer", "initial_write"])
+def test_initial_commit_failure_never_writes_raw_inputs(catalog, tmp_path, monkeypatch, failure):
+    lock, inputs = accepted(catalog)
+    if failure == "signer":
+
+        def fail_sign(*args):
+            raise RuntimeError("Signer unavailable")
+
+        monkeypatch.setattr(Signer, "sign", fail_sign)
+    else:
+        original = RunStore.write
+
+        def fail_initial(self, name, data, **kwargs):
+            if name == "initial.json":
+                raise RuntimeError("Initial storage unavailable")
+            return original(self, name, data, **kwargs)
+
+        monkeypatch.setattr(RunStore, "write", fail_initial)
+    with pytest.raises(RuntimeError):
+        execute(tmp_path, lock, inputs, signer=signer(), raw_retention_seconds=60)
+    directory = next((tmp_path / "runs").iterdir())
+    assert not tuple((directory / "raw").iterdir())
+    assert all(SECRET.encode() not in p.read_bytes() for p in directory.rglob("*") if p.is_file())
+
+
+def test_partial_raw_write_remains_expirable_after_startup_failure(catalog, tmp_path, monkeypatch):
+    from blastcontain_drill.suites.privacy import write_private
+
+    lock, inputs = accepted(catalog)
+    original = RunStore.write
+
+    def interrupted_raw_write(self, name, data, **kwargs):
+        if Path(name).parts[0] == "raw":
+            assert (self.directory / "initial.json").exists()
+            write_private(
+                self.directory / "raw" / (".write-" + "a" * 32), b"partial-sensitive-input"
+            )
+            raise RuntimeError("Interrupted raw publication")
+        return original(self, name, data, **kwargs)
+
+    monkeypatch.setattr(RunStore, "write", interrupted_raw_write)
+    with pytest.raises(RuntimeError):
+        execute(tmp_path, lock, inputs, raw_retention_seconds=1, clock=lambda: 1000.0)
+    directory = next((tmp_path / "runs").iterdir())
+    assert durable.inspect_run(directory)["status"] == "interrupted"
+    assert durable.purge_expired_raw(directory, clock=lambda: 1000.0) == 0
+    assert durable.purge_expired_raw(directory, clock=lambda: 1002.0) == 1
+    assert not tuple((directory / "raw").iterdir())
+
+
+def test_retention_can_expire_during_startup_without_breaking_signed_inventory(catalog, tmp_path):
+    lock, inputs = accepted(catalog)
+    ticks = iter([1000.0])
+
+    def clock():
+        return next(ticks, 1002.0)
+
+    stored = execute(tmp_path, lock, inputs, raw_retention_seconds=1, clock=clock)
+    assert not tuple((stored.directory / "raw").iterdir())
+    verified = durable.verify_run(stored.directory, lock=lock, allow_advisory=True, clock=clock)
+    assert verified.replayed and verified.security_passed

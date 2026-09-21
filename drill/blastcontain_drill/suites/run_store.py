@@ -296,12 +296,18 @@ class RunStore:
             parent.get("run_id") if parent else None,
             parent.get("envelope_digest") if parent else None,
         )
+        raw_lock = None
         if raw_retention_seconds is not None:
-            ref = store.put(lock.to_dict(), "raw_lock")
-            store.document = replace(
-                store.document, lock_ref=ref, files=tuple(store.files.values())
-            )
+            raw_lock = {"kind": "raw_lock", "data": lock.to_dict()}
+            encoded = canonical(raw_lock) + b"\n"
+            ref = Blob("sha256:" + hashlib.sha256(encoded).hexdigest(), len(encoded), "raw_lock")
+            # Commit retention and inventory before writing any sensitive bytes.
+            # Failed initial signing/publication therefore cannot orphan raw inputs.
+            store.files[(ref.kind, ref.digest)] = ref
+            store.document = replace(store.document, lock_ref=ref, files=(ref,))
         store.write("initial.json", signer.sign(store.document.to_dict()))
+        if raw_lock is not None and store.clock() < store.document.raw_expires_at:
+            store.write(str(store.path(ref).relative_to(store.directory)), raw_lock)
         store.write("state.json", store.document.to_dict())
         # Owner-only capability; never contains model/provider credentials or a PID.
         store.write(

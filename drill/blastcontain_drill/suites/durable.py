@@ -493,13 +493,20 @@ def purge_expired_raw(directory, *, clock=time.time):
         if document.raw_expires_at is None or clock() < document.raw_expires_at:
             return 0
         # A crash can leave raw blobs newer than the signed initial inventory.
-        # Only remove validated content-addressed raw files inside this private run.
+        # Only remove validated raw blobs and private atomic-write temporaries.
         from ..plugins.catalog import parse_json
 
         raw = store.directory / "raw"
         private(raw, directory=True)
         paths = []
         for path in raw.iterdir():
+            if re.fullmatch(r"\.write-[a-f0-9]{32}", path.name):
+                # A killed atomic write can leave a partial private raw temporary.
+                # It has no complete content hash, but stays inside the signed
+                # retention scope. Never follow a link or delete a directory.
+                private(path)
+                paths.append(path)
+                continue
             if not re.fullmatch(r"[a-f0-9]{64}\.json", path.name):
                 continue
             data = read_private(path)

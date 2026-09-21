@@ -43,6 +43,9 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 - Deterministic resistant/vulnerable demos and live Podman regression tests, with Verify remediation mappings.
 
 ### Fixed
+- Commit signed retention metadata before storing raw suite inputs, so interrupted
+  startup cannot orphan sensitive inputs without an expiry record. Expired private
+  partial raw writes can also be purged from interrupted runs.
 - Evidence reduction honors scenario-specific forbidden tools and rejects conflicting
   assessments that would otherwise hide an earlier positive content finding.
 - Generative documentation now describes PAIR-style sequential refinement; TAP tree
