@@ -14,7 +14,8 @@ reset clears PyRIT's in-memory SQLite state but never renews the host call budge
 
 - [PyRIT 1.1.0 release](https://pypi.org/project/pyrit/1.1.0/), source tag
   [v1.1.0](https://github.com/microsoft/PyRIT/tree/v1.1.0), commit
-  `db359fb2157283cec6c43941c3b42e53b340425b`.
+  `d0524f0714840519b826eb770687ca1d4f46a761`
+  (annotated tag object `db359fb2157283cec6c43941c3b42e53b340425b`).
 - Upstream wheel SHA-256:
   `84581036bace7ff2aa92712e1e3f472a3a3bccc77567d5fbe642540c0ba20b0a`.
 - Linux/Python 3.12 closure: 109 exact package versions with hashes in
