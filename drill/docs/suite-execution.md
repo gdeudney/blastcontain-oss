@@ -185,7 +185,7 @@ authenticated run envelopes and signing remain phase 3E.
 
 ## Validation record
 
-Phase 3D was checked on Linux/Python 3.12 with 563 Core/Drill/Scout regression tests
+Phase 3D was checked on Linux/Python 3.12 with 564 Core/Drill/Scout regression tests
 and 39 real Podman integration tests. The recording backend verifies PAIR prompt and
 feedback parity, all three broker channels, concurrent budgets, revocation, retries,
 provider failures, missing token counts and cancellation. Controlled loopback HTTP

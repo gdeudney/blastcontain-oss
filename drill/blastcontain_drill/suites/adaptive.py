@@ -56,13 +56,19 @@ def aggregate(case, attempts, disposition, diagnostics, claims_digest=None):
         utility = "unknown"
     quality: Literal["observed", "partial", "none"]
     quality = ("observed" if disposition == "completed" else "partial") if refs else "none"
+    containment: Literal["blocked", "not_blocked", "unknown", "not_applicable"]
+    containment = strongest.containment if strongest else "unknown"
+    if security == "action_attempted":
+        # A blocked attempt cannot mask another attempt with uncertain containment.
+        actions = [r for r in results if r.security == "action_attempted"]
+        containment = "blocked" if all(r.containment == "blocked" for r in actions) else "unknown"
     result = ScenarioResult(
         case.scenario_id,
         disposition,
         security,
         utility,
         quality,
-        strongest.containment if strongest else "unknown",
+        containment,
         refs,
         {"reducer": "suite-aggregate-v1", "attempts": [a.case_id for a in attempts]},
     )

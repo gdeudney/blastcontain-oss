@@ -584,3 +584,33 @@ def test_freeform_rubric_uses_capable_judge_and_rejects_incapable_selected_evalu
     plan = plan_suite(invalid, cat, records=inputs.records)
     assert not plan.ready
     assert any("cannot assess rubric.freeform" in d for c in plan.cases for d in c.diagnostics)
+
+
+def test_aggregate_cannot_promote_one_blocked_attempt_into_complete_containment(catalog):
+    from blastcontain_drill.contracts import ScenarioResult
+    from blastcontain_drill.suites.adaptive import aggregate
+
+    lock, _ = accepted(catalog, adaptive=True)
+    case = lock.plan.cases[0]
+
+    def attempt(name, containment):
+        return service.CaseRun(
+            name,
+            True,
+            "completed",
+            result=ScenarioResult(
+                case.scenario_id,
+                "completed",
+                "action_attempted",
+                evidence_quality="observed",
+                containment=containment,
+                evidence_refs=("fixture:" + name,),
+            ),
+            legacy_outcome="BYPASS",
+        )
+
+    result = aggregate(
+        case, [attempt("blocked", "blocked"), attempt("uncertain", "unknown")], "completed", []
+    )
+    assert result.result.security == "action_attempted" and result.result.containment == "unknown"
+    assert not result.passed
