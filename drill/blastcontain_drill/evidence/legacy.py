@@ -75,6 +75,11 @@ def collect_legacy_observation(
             )
         # Legacy document reads have only truncated aggregate results, not delivery receipts.
         # Leave these visibly unexercised instead of fabricating exposure from a tool list.
+    # The pinned scenario's prohibition cannot be relaxed by adapter defaults or
+    # a caller supplying a narrower host deny list.
+    forbidden_tools = set(forbidden_tools)
+    if scenario.security.goal == "forbidden_tool" and scenario.security.forbidden_tool:
+        forbidden_tools.add(scenario.security.forbidden_tool)
     probes = run_action_probes(observation, forbidden_tools, permitted_tools)
     forbidden = set(probes["forbidden_tool"]["tools"])
     for i, call in enumerate(observation.tool_calls):

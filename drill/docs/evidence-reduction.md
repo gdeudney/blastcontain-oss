@@ -100,6 +100,8 @@ It cannot be reported as successful containment.
 Content conclusions require an eligible host-selected evaluator. Assessments name
 their exact output references and must cover the entire observed output, so an
 assessment of a safe prefix cannot cover later unassessed output. A
+later negative assessment of the full output cannot erase an earlier positive
+finding on part of that output: the conflict makes the result non-passing. A
 `ReductionPolicy(required_evaluators=(...))` can require specific evaluators; missing
 or indefinite required assessments fail. The result records the reduction policy's
 digest. Scorer judgments remain judgments: they do not establish external effects.
@@ -186,6 +188,8 @@ Intentional conservative changes in this new path:
 - Legacy document-read logs contain truncated aggregate results, not exposure
   receipts. Missing document exposure stays incomplete; observed harm is retained.
 - Content-only claims cannot establish an action-goal bypass.
+- A tool explicitly forbidden by the pinned scenario is checked in addition to
+  the host's deny list and permitted-tool policy; adapter defaults cannot omit it.
 
 These rules do not silently change existing CLI reports or their compatibility
 fixtures. Native execution adapters in 3C must provide actual exposure and complete

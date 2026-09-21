@@ -25,6 +25,8 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 - Deterministic resistant/vulnerable demos and live Podman regression tests, with Verify remediation mappings.
 
 ### Fixed
+- Evidence reduction honors scenario-specific forbidden tools and rejects conflicting
+  assessments that would otherwise hide an earlier positive content finding.
 - Generative documentation now describes PAIR-style sequential refinement; TAP tree
   search is not implemented.
 - Cage-reported failures and unexercised MCP response attacks cannot fall through to HELD.
