@@ -45,8 +45,8 @@ verification. A cryptographically intact report without replay inputs has
 
 Each generated run ID has a private directory containing:
 
-- `initial.json`: signed identity, policy and complete pending case roster, committed
-  before dispatch.
+- `initial.json`: signed identity, retention policy and complete pending case roster,
+  committed before raw inputs are written or cases dispatched.
 - `state.json`: unsigned progress snapshot; never accepted as a completion result.
 - `evidence/`: immutable content-addressed normalized evidence bundles.
 - `envelope.json`: signed final roster, results, lock/runtime/reducer identities,
@@ -67,8 +67,11 @@ or provider exception text, and capture successful model calls only.
 Set `raw_retention_seconds` explicitly (1 second through 31 days) to retain raw
 inputs. Expiry is signed into the run, and readers refuse expired raw inputs.
 `purge_expired_raw(directory)` explicitly deletes expired validated raw files
-from completed or interrupted runs while refusing an active controller; there
-is no background deletion scheduler. Evidence hashes remain signed after deletion.
+from completed or interrupted runs while refusing an active controller. It also
+removes private partial raw-write files left by an interrupted atomic write once
+the signed retention period expires. Initial signing or publication failures leave
+no raw inputs. There is no background deletion scheduler. Evidence hashes remain
+signed after deletion.
 Operators must arrange purge calls if physical deletion at expiry is required.
 
 The default retained-file budget is 64 MiB, adjustable from 1 KiB to 1 GiB. Each
