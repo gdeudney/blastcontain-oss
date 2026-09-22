@@ -168,7 +168,7 @@ def test_v1_readonly_and_migration_preserve_history(tmp_path):
         assert tracker.saved_analysis(paper())
     assert database.read_bytes() == before
     with Tracker(database) as tracker:
-        assert tracker.version == 2
+        assert tracker.version == 3
         assert tracker.snapshot()['papers'][0]['review_status'] == 'selected'
         assert len(tracker.snapshot()['analyses']) == 1
 

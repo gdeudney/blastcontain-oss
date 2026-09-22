@@ -161,16 +161,38 @@ An implementation link never changes the paper's review state automatically.
 
 Use `blastcontain-scout-track --database /path/to/scout.sqlite3 ...` for a shared
 location across local checkouts. Scout scanning accepts the same `--database` option.
-Binary databases and journal files are gitignored. Keep the database on local disk;
-for a consistent backup, stop writers and copy it or use SQLite's backup facility.
-Export a readable audit snapshot for review:
+Binary databases and journal files are gitignored. Keep the database on local disk.
+Use the recovery commands for a consistent SQLite backup, including committed WAL
+pages while the database is open:
 
 ```bash
-blastcontain-scout-track report --json-output > scout-tracking-snapshot.json
+blastcontain-scout-track backup scout-backup.sqlite3
+blastcontain-scout-track restore scout-backup.sqlite3 scout-restored.sqlite3
+blastcontain-scout-track --database scout-restored.sqlite3 report
+blastcontain-scout-track export-audit scout-history.json
 ```
 
-The snapshot includes metadata, processing/review status, implementation evidence and
-change history; it is an audit export, not a database restore format. No cloud sync or
+Outputs must be new paths. Restore does not replace an active database; select the
+restored copy explicitly. New database/backup/export files use private permissions
+on Unix. Backups retain pending publication retries as well as paper metadata,
+analyses, review events and implementation annotations. The JSON audit snapshot is
+portable history, not a restore format or an execution acceptance file. Pending
+publication data can include local paths and unpublished draft text.
+
+Version 3 migrations commit their DDL and version change in one transaction, roll
+back together on failure, and preserve old versions for read-only previews. Old
+implementation rows keep their original claims but have unknown actor/revision;
+those fields are not inferred. New `review` and `link` commands accept `--actor`.
+Omitting it preserves compatibility and records `legacy-unattributed`. Implementation
+annotations bind the current paper fingerprint and become stale when metadata
+changes. `evidence_status: recorded_only` remains explicit even when the supplied
+status is `validated`; this does not independently verify a test or PR.
+
+For concurrent editing, read `revision` from `report --json-output`, then supply
+`--expected-revision N` to `review` or `link`. A changed database refuses the edit
+and asks you to reload. Without that option, legacy commands apply to the latest
+state. Snapshot schema 2 adds `database_version`, `revision`, implementation
+staleness/actor fields and pending publication history. No cloud sync or
 scheduled monitoring is enabled. `--record` only records processing; it does not publish
 the generated proposal. Review/import/link commands do not commit or push anything.
 

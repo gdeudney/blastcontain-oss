@@ -274,6 +274,12 @@ one real external adapter. UI development is not on this critical path.
 
 ### Phase 5 — Research mapping and acceptance records
 
+**5A storage foundation:** Scout database version 3 adds transactional migrations,
+actor/revision-bound annotations, stale implementation flags, optimistic edit
+conflicts, consistent backup/restore and complete audit export. Git-bound artifact
+mapping and bidirectional run tracing remain 5B work; recorded annotations are not
+promoted to verified implementation claims.
+
 **Deliverables**
 
 - Connect plugin/source/scenario IDs to Scout paper IDs, upstream revisions and coverage
