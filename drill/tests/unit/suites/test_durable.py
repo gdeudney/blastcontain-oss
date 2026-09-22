@@ -667,3 +667,22 @@ def test_retention_can_expire_during_startup_without_breaking_signed_inventory(c
     assert not tuple((stored.directory / "raw").iterdir())
     verified = durable.verify_run(stored.directory, lock=lock, allow_advisory=True, clock=clock)
     assert verified.replayed and verified.security_passed
+
+
+def test_legacy_schema_one_envelopes_remain_replayable(catalog, tmp_path):
+    lock, inputs = accepted(catalog)
+    key = signer()
+    stored = execute(tmp_path, lock, inputs, signer=key)
+    for name in ("initial.json", "envelope.json"):
+        path = stored.directory / name
+        payload = read_json(path)["payload"]
+        payload["schema_version"] = 1
+        for case in payload["cases"]:
+            case.pop("conversations", None)
+        for call in payload["model_calls"]:
+            call.pop("conversation_scope", None)
+            call.pop("conversation_sequence", None)
+        write_json(path, key.sign(payload), replace=True)
+    assert durable.verify_run(
+        stored.directory, lock=lock, trusted_public_key=key.public_key
+    ).attested_pass

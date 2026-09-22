@@ -39,6 +39,8 @@ class ModelCall:
     input_tokens: int | None = None
     output_tokens: int | None = None
     status: str = "pending"
+    conversation_scope: str | None = None
+    conversation_sequence: int | None = None
 
 
 async def http_completion(settings, messages, secret, timeout, max_tokens):
@@ -106,7 +108,17 @@ class ModelBroker:
         self.trace = trace
         self.calls: list[ModelCall] = []
 
-    async def chat(self, case_id: str, ledger: Ledger, channel: str, messages, *, max_tokens: int):
+    async def chat(
+        self,
+        case_id: str,
+        ledger: Ledger,
+        channel: str,
+        messages,
+        *,
+        max_tokens: int,
+        conversation_scope=None,
+        conversation_sequence=None,
+    ):
         settings = self.settings.get(channel)
         if settings is None:
             raise ModelError("model_channel_unconfigured")
@@ -145,6 +157,8 @@ class ModelBroker:
                         "max_tokens": min(max_tokens, settings.max_output_tokens),
                     }
                 ),
+                conversation_scope=conversation_scope,
+                conversation_sequence=conversation_sequence,
             )
         )
         try:

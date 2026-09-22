@@ -66,12 +66,14 @@ class WorkerLimits:
 class BrokerContext:
     scenario_id: str
     deadline: float
+    scope_id: str = ""
 
     def remaining(self):
         return max(0.0, self.deadline - time.monotonic())
 
 
 BrokerHandler = Callable[[Injection, BrokerContext], Awaitable[dict]]
+ConversationHandler = Callable[[dict, BrokerContext], Awaitable[dict]]
 
 
 @dataclass(frozen=True)
@@ -79,9 +81,10 @@ class BrokerCall:
     channel: str
     call_id: int
     scenario_id: str
-    injection: Injection
+    injection: Injection | None
     result: dict | None
     error: str | None = None
+    operation: str = "call"
 
 
 @dataclass(frozen=True)
@@ -110,8 +113,11 @@ async def _discard(stream):
 
 
 def _drain_pipes(process):
-    return [asyncio.create_task(_discard(stream))
-            for stream in (process.stdout, process.stderr) if stream is not None]
+    return [
+        asyncio.create_task(_discard(stream))
+        for stream in (process.stdout, process.stderr)
+        if stream is not None
+    ]
 
 
 async def _reap(process, drains=None):
@@ -127,7 +133,7 @@ async def _reap(process, drains=None):
                 pass
         await asyncio.wait_for(asyncio.gather(process.wait(), *drains), 2)
     except TimeoutError as exc:
-        raise WorkerError('Subprocess cleanup exceeded its two-second limit') from exc
+        raise WorkerError("Subprocess cleanup exceeded its two-second limit") from exc
     finally:
         for task in drains:
             if not task.done():
@@ -143,8 +149,10 @@ async def _control(command, timeout=10.0):
     process = await asyncio.create_subprocess_exec(
         *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
-    readers = [asyncio.create_task(_read_capped(process.stdout, 262144)),
-               asyncio.create_task(_read_capped(process.stderr, 16384))]
+    readers = [
+        asyncio.create_task(_read_capped(process.stdout, 262144)),
+        asyncio.create_task(_read_capped(process.stderr, 16384)),
+    ]
     waiter = asyncio.create_task(process.wait())
     try:
         stdout, stderr, code = await asyncio.wait_for(
@@ -287,11 +295,14 @@ class PodmanWorker:
         *,
         bindings: dict[str, BrokerHandler] | None = None,
         limits: WorkerLimits | None = None,
+        conversations: dict[str, ConversationHandler] | None = None,
     ):
         # Detach caller-owned mutable metadata. Revalidate on launch as well.
         self.manifest = PluginManifest.from_dict(manifest.to_dict())
         self.acceptances = tuple(AcceptanceRecord.from_dict(a.to_dict()) for a in acceptances)
         self.bindings = dict(bindings or {})
+        self.conversations = dict(conversations or {})
+        self._scope_id = uuid.uuid4().hex
         self.limits = limits or WorkerLimits()
         self.name = "bc-drill-worker-" + uuid.uuid4().hex
         self.calls: list[BrokerCall] = []
@@ -327,8 +338,12 @@ class PodmanWorker:
         check_acceptance(self.manifest, self.acceptances)
         if set(self.bindings) - {"target", "attacker", "evaluator"}:
             raise ContractError("Unknown broker binding")
+        if set(self.conversations) - {"attacker", "evaluator"}:
+            raise ContractError("Unknown conversation binding")
         for grant in self.manifest.access_requests:
-            if grant.removeprefix("broker.") not in self.bindings:
+            parts = grant.split(".")
+            bindings = self.conversations if len(parts) == 3 else self.bindings
+            if parts[1] not in bindings:
                 raise ContractError(f"Missing trusted binding for {grant}")
         if sys.platform != "linux":
             raise WorkerError("This profile requires local Linux Podman; no host fallback")
@@ -458,25 +473,37 @@ class PodmanWorker:
         channel = message["channel"]
         if message["call_id"] != self._call_id + 1:
             raise ProtocolError("Replayed or out-of-order broker call")
-        if f"broker.{channel}" not in self.manifest.access_requests or channel not in self.bindings:
+        conversation = message["type"] == "conversation"
+        if message["protocol"] != self.manifest.adapter_api:
+            raise ProtocolError("Worker protocol differs from its reviewed adapter API")
+        scope = f"broker.{channel}" + (".conversation" if conversation else "")
+        bindings = self.conversations if conversation else self.bindings
+        if scope not in self.manifest.access_requests or channel not in bindings:
             raise WorkerError("Broker channel not granted")
         if len(self.calls) >= self.limits.max_calls:
             raise BudgetExceeded("Worker target/model call budget exhausted")
         if self._messages >= self.limits.max_messages:
             raise BudgetExceeded("No message budget remains for a broker reply")
-        injection = Injection.from_dict(message["payload"])
+        injection = None if conversation else Injection.from_dict(message["payload"])
+        payload = message["payload"] if conversation else injection
         self._call_id = message["call_id"]
         index = len(self.calls)
-        context = BrokerContext(self._scenario.id, self._deadline)
+        context = BrokerContext(self._scenario.id, self._deadline, self._scope_id)
         self.calls.append(
-            BrokerCall(channel, self._call_id, context.scenario_id, injection, None, "incomplete")
+            BrokerCall(
+                channel,
+                self._call_id,
+                context.scenario_id,
+                injection,
+                None,
+                "incomplete",
+                message["type"],
+            )
         )
         try:
-            result = await asyncio.wait_for(
-                self.bindings[channel](injection, context), self._remaining()
-            )
+            result = await asyncio.wait_for(bindings[channel](payload, context), self._remaining())
             reply = {
-                "protocol": 1,
+                "protocol": self.manifest.adapter_api,
                 "type": "reply",
                 "id": self._request_id,
                 "call_id": self._call_id,
@@ -484,12 +511,23 @@ class PodmanWorker:
             }
             encode(reply, self.limits.max_frame_bytes)  # cap trusted-handler output too
             self.calls[index] = BrokerCall(
-                channel, self._call_id, context.scenario_id, injection, result
+                channel,
+                self._call_id,
+                context.scenario_id,
+                injection,
+                result,
+                operation=message["type"],
             )
             await self._write(reply)
         except BaseException as exc:
             self.calls[index] = BrokerCall(
-                channel, self._call_id, context.scenario_id, injection, None, type(exc).__name__
+                channel,
+                self._call_id,
+                context.scenario_id,
+                injection,
+                None,
+                type(exc).__name__,
+                message["type"],
             )
             raise
 
@@ -505,7 +543,7 @@ class PodmanWorker:
                 self._request_id += 1
                 await self._write(
                     {
-                        "protocol": 1,
+                        "protocol": self.manifest.adapter_api,
                         "type": "request",
                         "id": self._request_id,
                         "method": method,
@@ -514,11 +552,13 @@ class PodmanWorker:
                 )
                 while True:
                     message = await self._read()
+                    if message["protocol"] != self.manifest.adapter_api:
+                        raise ProtocolError("Worker protocol differs from its reviewed adapter API")
                     if message["id"] != self._request_id:
                         raise ProtocolError("Response request ID mismatch")
                     if message["type"] == "result":
                         return message["result"]
-                    if message["type"] == "call" and method == "execute":
+                    if message["type"] in ("call", "conversation") and method == "execute":
                         await self._broker(message)
                     elif message["type"] == "error":
                         raise WorkerError("Plugin error: " + message["error"][:500])
@@ -552,6 +592,7 @@ class PodmanWorker:
             raise WorkerError("Prepare the worker before reset")
         await self._request("reset", scenario.to_dict())
         self._scenario = scenario
+        self._scope_id = uuid.uuid4().hex
 
     async def execute(self):
         if self._scenario is None:
@@ -573,8 +614,12 @@ class PodmanWorker:
     async def close(self):
         request_task = self._request_task
         external = request_task is not None and request_task is not asyncio.current_task()
-        if (external and not request_task.done() and not request_task.cancelling()
-                and self._cleanup_task is None):
+        if (
+            external
+            and not request_task.done()
+            and not request_task.cancelling()
+            and self._cleanup_task is None
+        ):
             request_task.cancel()
         if self._cleanup_task is None:
             self._closed = True

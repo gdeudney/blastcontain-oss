@@ -156,7 +156,13 @@ def plan_suite(spec: SuiteSpec, catalog: Catalog, *, records=(), probes=()) -> R
         if role != "attack_strategy":
             errors.append(f"{binding_id}: current worker supports attack_strategy only")
         for channel in ("attacker", "evaluator"):
-            if f"broker.{channel}" in plugin.access_requests and channel not in channels:
+            if (
+                any(
+                    g == f"broker.{channel}" or g.startswith(f"broker.{channel}.")
+                    for g in plugin.access_requests
+                )
+                and channel not in channels
+            ):
                 errors.append(f"{binding_id}: missing {channel} model settings")
         try:
             check_profile(plugin)

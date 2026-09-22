@@ -89,7 +89,7 @@ def test_duplicate_ids_incompatible_versions_and_unsupported_grants(tmp_path):
     with pytest.raises(ContractError):
         select([tmp_path], item.id, [accepted(item)])
     data = item.to_dict()
-    data["id"], data["adapter_api"] = "incompatible", 2
+    data["id"], data["adapter_api"] = "incompatible", 3
     (tmp_path / "three.drill-plugin.json").write_text(json.dumps(data))
     assert not next(p for p in discover([tmp_path]) if p.id == "incompatible").compatible
     write_manifest(
@@ -178,7 +178,7 @@ def request(method="prepare", number=1, params=None):
     "change",
     [
         dict(protocol=True),
-        dict(protocol=2),
+        dict(protocol=3),
         dict(id=-1),
         dict(id=True),
         dict(method=[]),

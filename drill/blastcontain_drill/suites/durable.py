@@ -16,6 +16,7 @@ from ..evidence import EvidenceBundle, EvidenceReceipt, reduce_evidence
 from ..evidence.reducer import ReductionPolicy
 from .adaptive import aggregate
 from .artifacts import digest
+from .conversation_replay import validate_conversations
 from .budgets import RESOURCES
 from .lock import SuiteLock, validate_lock
 from .privacy import lease, read_json, read_private, private
@@ -134,6 +135,7 @@ async def execute_run(
                 last = await run_suite(
                     lock,
                     current_inputs=current_inputs,
+                    run_id=store.directory.name,
                     credentials=credentials,
                     transport=transport,
                     cancel=cancellation,
@@ -169,6 +171,7 @@ def _load_final(store, *, trusted_public_key=None, allow_advisory=False):
     document = RunDocument.from_dict(envelope["payload"])
     start = RunDocument.from_dict(initial["payload"])
     immutable = (
+        "schema_version",
         "run_id",
         "lock_digest",
         "runtime_digest",
@@ -253,6 +256,7 @@ def _restore_case(store, saved, planned, lock, scenarios, *, trial=False, parent
         for resource in RESOURCES
     ):
         raise ContractError("Recorded case usage exceeds its accepted limits")
+    validate_conversations(saved, planned, lock, store.document)
     evidence, receipt, attempts = None, None, []
     result = replace(saved.result, scenario_id=planned.scenario_id) if saved.result else None
     if saved.attempts:
@@ -329,6 +333,7 @@ def _restore_case(store, saved, planned, lock, scenarios, *, trial=False, parent
         attempts=tuple(attempts),
         scenario=scenario if trial else None,
         reduction_policy=saved.reduction_policy,
+        conversations=saved.conversations,
     )
 
 

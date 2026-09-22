@@ -229,10 +229,11 @@ Delivery is split into independently reviewed units:
   The 1.1.0 upstream Crescendo implementation requires native multi-turn and editable
   history. The current single-prompt SDK route cannot claim that behavior. Add
   generic protocol/service support with replay and adversarial tests before exposing
-  this strategy. [4B1 model-history foundations](model-conversations.md) are
-  implemented for host-owned attacker/evaluator sessions. Worker routing, target
-  fixture checkpoints, durable replay and the Crescendo adapter remain pending;
-  the foundation document defines their separate acceptance gates.
+  this strategy. [4B1–4B2 model conversations](model-conversations.md) now include
+  host-owned attacker/evaluator sessions, separately accepted API 2 worker routes,
+  and signed graph/model-call verification. Target fixture checkpoints, their
+  durable evidence binding and the Crescendo adapter remain pending; the conversation
+  document defines their separate acceptance gates.
 - **4C — Bounded live validation:** three repetitions with recorded model identities,
   caps, security/utility results and limitations. Pending an available local endpoint.
 

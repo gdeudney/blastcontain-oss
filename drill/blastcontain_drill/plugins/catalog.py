@@ -13,7 +13,14 @@ from typing import Callable, Iterable
 from ..contracts import AcceptanceRecord, ContractError, PluginManifest
 
 MAX_METADATA_BYTES = 65536
-SUPPORTED_ACCESS = frozenset({"broker.target", "broker.attacker", "broker.evaluator"})
+CONVERSATION_ACCESS = frozenset(
+    f"broker.{channel}.{scope}"
+    for channel in ("attacker", "evaluator")
+    for scope in ("conversation", "branch")
+)
+SUPPORTED_ACCESS = (
+    frozenset({"broker.target", "broker.attacker", "broker.evaluator"}) | CONVERSATION_ACCESS
+)
 
 
 def _pairs(pairs):
@@ -92,6 +99,14 @@ def check_profile(manifest: PluginManifest) -> None:
     unsupported = set(manifest.access_requests) - SUPPORTED_ACCESS
     if unsupported:
         raise ContractError(f"Unsupported access requests: {sorted(unsupported)}")
+    if set(manifest.access_requests) & CONVERSATION_ACCESS and manifest.adapter_api != 2:
+        raise ContractError("Conversation access requires adapter API 2")
+    for channel in ("attacker", "evaluator"):
+        if (
+            f"broker.{channel}.branch" in manifest.access_requests
+            and f"broker.{channel}.conversation" not in manifest.access_requests
+        ):
+            raise ContractError("Branch access requires conversation access")
     # Empty schemas and the strict empty-object schema are supported initially.
     # Never advertise a schema as enforced while silently ignoring it.
     if manifest.config_schema not in ({}, {"type": "object", "additionalProperties": False}):
