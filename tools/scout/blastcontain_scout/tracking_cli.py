@@ -1,5 +1,6 @@
 """Research tracker commands, separate from Scout's backward-compatible scan CLI."""
 import json
+import sqlite3
 from collections import Counter
 from pathlib import Path
 
@@ -50,7 +51,7 @@ def import_ledger(database, ledger_file):
             if tracker.db.execute('SELECT 1 FROM papers WHERE id=?', (pid,)).fetchone():
                 continue
             tracker.ingest([Paper(pid, '', '', '', '')])
-            with tracker.db:
+            with tracker._write():
                 tracker.db.execute('UPDATE papers SET first_seen=? WHERE id=?', (date, pid))
                 tracker._event(pid, 'legacy_seen', {'date': date})
     click.echo(f'Imported legacy ledger ({len(seen)} entries); metadata-only records still need processing.')
@@ -60,11 +61,16 @@ def import_ledger(database, ledger_file):
 @click.argument('paper_id')
 @click.option('--status', type=click.Choice(REVIEW_STATES), required=True)
 @click.option('--note', required=True)
+@click.option('--actor', default='legacy-unattributed')
+@click.option('--expected-revision', type=int)
 @click.pass_obj
-def review(database, paper_id, status, note):
+def review(database, paper_id, status, note, actor, expected_revision):
     """Record a human review decision."""
-    with Tracker(database) as tracker:
-        tracker.review(paper_id, status, note)
+    try:
+        with Tracker(database) as tracker:
+            tracker.review(paper_id, status, note, actor=actor, expected_revision=expected_revision)
+    except (ValueError, sqlite3.Error) as error:
+        raise click.ClickException(str(error)) from error
     click.echo('Review recorded.')
 
 
@@ -75,11 +81,16 @@ def review(database, paper_id, status, note):
 @click.option('--reference', default='', help='Commit or PR reference; required for implemented/validated')
 @click.option('--tests', default='', help='Test evidence; required for validated')
 @click.option('--note', default='')
+@click.option('--actor', default='legacy-unattributed')
+@click.option('--expected-revision', type=int)
 @click.pass_obj
-def link(database, paper_id, source, status, reference, tests, note):
+def link(database, paper_id, source, status, reference, tests, note, actor, expected_revision):
     """Link research to an implementation. Evidence is recorded, not auto-verified."""
-    with Tracker(database) as tracker:
-        tracker.link(paper_id, source, status, reference, tests, note)
+    try:
+        with Tracker(database) as tracker:
+            tracker.link(paper_id, source, status, reference, tests, note, actor=actor, expected_revision=expected_revision)
+    except (ValueError, sqlite3.Error) as error:
+        raise click.ClickException(str(error)) from error
     click.echo('Implementation link recorded.')
 
 
@@ -102,11 +113,13 @@ def report(database, paper_id, json_output):
     if json_output or paper_id:
         click.echo(json.dumps(data, indent=2))
     else:
+        click.echo(f"Database revision: {data['revision']}")
         click.echo(f"Papers: {len(data['papers'])}")
         click.echo(f"Need processing: {sum(p['needs_processing'] for p in data['papers'])}")
         click.echo(f"Stale reviews: {sum(p['review_stale'] for p in data['papers'])}")
         click.echo('Review states: ' + json.dumps(Counter(p['review_status'] for p in data['papers'])))
-        click.echo('Implementation states: ' + json.dumps(Counter(p['status'] for p in data['implementations'])))
+        click.echo('Recorded implementation states: ' + json.dumps(Counter(p['status'] for p in data['implementations'])))
+        click.echo(f"Stale/unbound implementation records: {sum(p['implementation_stale'] for p in data['implementations'])}")
 
 
 @main.command()
@@ -131,6 +144,45 @@ def coverage(database, registry, paper_id, json_output):
         click.echo(f"{row['paper_id']}  {row['coverage']}  {row['status'] or 'no implementation claim'}  {row['title']}")
     if data.get('note'):
         click.echo(data['note'])
+
+
+@main.command()
+@click.argument('output', type=click.Path(path_type=Path))
+@click.pass_obj
+def backup(database, output):
+    """Write a consistent private backup to a new path; never overwrite a database."""
+    from .storage import copy_database
+    try:
+        copy_database(database, output)
+    except (OSError, ValueError, sqlite3.Error) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo('Backup created.')
+
+
+@main.command()
+@click.argument('backup_file', type=click.Path(exists=True, path_type=Path))
+@click.argument('output', type=click.Path(path_type=Path))
+def restore(backup_file, output):
+    """Restore to a NEW database; select it explicitly with --database afterward."""
+    from .storage import copy_database
+    try:
+        copy_database(backup_file, output)
+    except (OSError, ValueError, sqlite3.Error) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo('Restored to a new database; select it explicitly with --database.')
+
+
+@main.command('export-audit')
+@click.argument('output', type=click.Path(path_type=Path))
+@click.pass_obj
+def export_audit(database, output):
+    """Export complete recorded history; this does not grant execution acceptance."""
+    from .storage import export_audit as write_export
+    try:
+        write_export(database, output)
+    except (OSError, ValueError, sqlite3.Error) as error:
+        raise click.ClickException(str(error)) from error
+    click.echo('Audit history exported.')
 
 
 if __name__ == '__main__':

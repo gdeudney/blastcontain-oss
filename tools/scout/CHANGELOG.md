@@ -4,6 +4,12 @@ All notable changes to `blastcontain-scout` are documented here. Format based on
 
 ## [Unreleased]
 
+### Added
+- Transactional database version 3 migrations, actor/revision-bound implementation
+  annotations and stale concurrent-edit rejection through `--expected-revision`.
+- Consistent SQLite backup, restore to a new path, and complete audit-history export.
+  Legacy implementation claims remain explicitly unverified.
+
 ### Fixed
 - Include Apache-2.0 license and notice files in built wheels.
 - Run Scout's CI tests when the shared Drill arXiv registry changes.
