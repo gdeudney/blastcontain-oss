@@ -185,5 +185,92 @@ def export_audit(database, output):
     click.echo('Audit history exported.')
 
 
+def provenance_api():
+    try:
+        from . import provenance
+    except ImportError as error:
+        raise click.ClickException('Provenance commands require Core and Drill from the same supported checkout.') from error
+    return provenance
+
+
+@main.command('inspect-mapping')
+@click.option('--repo', type=click.Path(exists=True, path_type=Path), required=True)
+@click.option('--commit', required=True, help='Full commit containing the mapping file')
+@click.option('--manifest', required=True, help='Repository-relative committed JSON mapping')
+@click.option('--main-ref', default='origin/main')
+@click.pass_obj
+def inspect_mapping(database, repo, commit, manifest, main_ref):
+    """Inspect committed identities against current local Git and Scout state; no writes."""
+    api = provenance_api()
+    try:
+        with Tracker(database, readonly=True) as tracker:
+            report = api.inspect_mapping(repo, commit, manifest, tracker, main_ref=main_ref)
+        click.echo(json.dumps(report, indent=2))
+    except (ValueError, OSError, sqlite3.Error) as error:
+        raise click.ClickException(str(error)) from error
+
+
+@main.command('refresh-mapping')
+@click.option('--repo', type=click.Path(exists=True, path_type=Path), required=True)
+@click.option('--commit', required=True)
+@click.option('--manifest', required=True)
+@click.option('--main-ref', default='origin/main')
+@click.option('--actor', required=True)
+@click.option('--expected-revision', required=True, type=int)
+@click.pass_obj
+def refresh_mapping(database, repo, commit, manifest, main_ref, actor, expected_revision):
+    """Explicitly append a Git-bound workflow snapshot; never accept or enable attacks."""
+    api = provenance_api()
+    try:
+        with Tracker(database) as tracker:
+            report = api.inspect_mapping(repo, commit, manifest, tracker, main_ref=main_ref)
+            changed = api.refresh_mapping(tracker, report, actor=actor, expected_revision=expected_revision)
+            click.echo(json.dumps({'changed': changed, 'revision': tracker.revision, 'report': report}, indent=2))
+    except (ValueError, OSError, sqlite3.Error) as error:
+        raise click.ClickException(str(error)) from error
+
+
+@main.command('trace')
+@click.option('--repo', type=click.Path(exists=True, path_type=Path), required=True)
+@click.option('--main-ref', default='origin/main')
+@click.option('--lock', 'lock_path', type=click.Path(exists=True, path_type=Path), required=True)
+@click.option('--run', 'run_path', type=click.Path(exists=True, path_type=Path))
+@click.option('--trusted-key', type=click.Path(exists=True, path_type=Path))
+@click.option('--allow-advisory', is_flag=True)
+@click.option('--scenarios', type=click.Path(exists=True, path_type=Path))
+@click.option('--states', type=click.Path(exists=True, path_type=Path))
+@click.option('--paper-id')
+@click.pass_obj
+def trace(database, repo, main_ref, lock_path, run_path, trusted_key, allow_advisory, scenarios, states, paper_id):
+    """Trace a lock/run to papers, exact revisions, reviews and committed test records."""
+    api = provenance_api()
+    from blastcontain_drill.suites.commands import verification_kwargs
+    from blastcontain_drill.suites.durable import verify_run
+    try:
+        options = verification_kwargs(trusted_key, allow_advisory, lock_path, scenarios, states)
+        lock = options['lock']
+        verification = verify_run(run_path, **options) if run_path else None
+        with Tracker(database, readonly=True) as tracker:
+            tracker.db.execute('BEGIN')
+            try:
+                git = api.GitObjects(repo)
+                checked_main = git.commit(main_ref)
+                checked_revision = tracker.revision
+                snapshots = api.latest_mappings(tracker, repo_key=git.key)
+                reports = [api.inspect_mapping(repo, r['mapping_commit'], r['manifest_path'], tracker, main_ref=checked_main) for r in snapshots.values()]
+            finally:
+                tracker.db.rollback()
+        result = api.trace_lock(lock, reports, verification=verification, paper_id=paper_id)
+        result['checked_database_revision'] = checked_revision
+        result['checked_main_commit'] = checked_main
+        # Read-only tracing surfaces divergence; refresh is an explicit separate action.
+        result['database_divergence'] = [r['mapping_id'] for r in reports if
+            {k: v for k, v in r.items() if k != 'main_commit'} !=
+            {k: v for k, v in snapshots[r['mapping_id']].items() if k != 'main_commit'}]
+        click.echo(json.dumps(result, indent=2))
+    except (ValueError, OSError, sqlite3.Error) as error:
+        raise click.ClickException(str(error)) from error
+
+
 if __name__ == '__main__':
     main()

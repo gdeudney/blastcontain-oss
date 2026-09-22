@@ -19,7 +19,7 @@ def test_registry_covers_audit_without_enabling_attacks(tmp_path):
     entries = {r['paper_id']: r for r in data['entries']}
     assert entries['2404.01318']['coverage'] == 'dataset_only'
     assert entries['2312.02119']['status'] is None
-    assert entries['2508.14925']['status'] == 'in_progress'
+    assert entries['2508.14925']['status'] == 'validated'
     assert all(r['scout'] is None for r in data['entries'])
     assert not missing_db.exists()
 

@@ -276,9 +276,13 @@ one real external adapter. UI development is not on this critical path.
 
 **5A storage foundation:** Scout database version 3 adds transactional migrations,
 actor/revision-bound annotations, stale implementation flags, optimistic edit
-conflicts, consistent backup/restore and complete audit export. Git-bound artifact
-mapping and bidirectional run tracing remain 5B work; recorded annotations are not
-promoted to verified implementation claims.
+conflicts, consistent backup/restore and complete audit export. **5B provenance**
+adds [committed research mappings](../../tools/scout/docs/provenance.md), exact
+source/plugin/scenario and paper identities, separate coverage/license reviews,
+artifact hashes, explicit post-merge refresh and bidirectional lock/run tracing.
+Trace uses Drill's existing verifier and surfaces Git/database divergence. Recorded
+annotations and committed test records are not promoted to independently rerun
+experiments or full paper reproduction claims.
 
 **Deliverables**
 

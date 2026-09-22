@@ -44,7 +44,8 @@ jobs:
               - 'core/**'
             scout:
               - 'tools/scout/**'
-              - 'drill/blastcontain_drill/corpus/arxiv/**'
+              - 'drill/blastcontain_drill/**'
+              - 'core/**'
 
   lint:
     runs-on: ubuntu-latest
@@ -151,7 +152,7 @@ jobs:
       - run: pytest -m "not live"
         working-directory: guard
 
-  # Tooling — lint + test only, never published (no release job / container).
+  # Scout and its optional read-only Core/Drill provenance integration.
   scout:
     needs: changes
     if: ${{ needs.changes.outputs.scout == 'true' }}
@@ -166,6 +167,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e "./tools/scout[dev]"
+      - run: pip install -e "./core" -e "./drill" -e "./tools/scout[dev]"
       - run: pytest
         working-directory: tools/scout

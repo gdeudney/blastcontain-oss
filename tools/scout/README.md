@@ -213,3 +213,14 @@ A missing registry entry means **not audited**, not **not implemented**.
 Scout proposals still go to `corpus/contrib/arxiv/<YYYY-MM>/`; reviewed dedicated
 implementations can live under `corpus/arxiv/`. Existing working modules are linked
 in place. Registry entries never enable attacks or import code automatically.
+
+### Exact artifact and run provenance
+
+The optional [Git-bound provenance commands](docs/provenance.md) join paper
+fingerprints to exact source/scenario/plugin identities, committed code/test/license
+artifacts and review records. `inspect-mapping` is read-only; `refresh-mapping`
+explicitly appends a database snapshot after review or merge. `trace` rechecks Git
+and uses Drill's signature/replay verifier for saved runs. Git/database divergence,
+revoked or stale reviews and incomplete provenance stay visible. This integration
+requires Core and Drill from the same supported checkout; ordinary Scout remains
+independently usable.
