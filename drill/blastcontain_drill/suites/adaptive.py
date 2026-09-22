@@ -13,6 +13,7 @@ from ..plugins.runtime import BrokerHandler, PodmanWorker, WorkerLimits
 from ..plugins.runtime import BudgetExceeded as WorkerBudgetExceeded
 from .artifacts import canonical, digest
 from .broker import ModelError
+from .fixture_state import FixtureState
 from .budgets import BudgetExceeded, Usage
 
 
@@ -104,8 +105,9 @@ async def execute_adaptive(lock, case, ledger, broker, inputs, revalidate, *, ru
     disposition = "completed"
     claims_digest = None
     routes = None
+    agent_routes = None
 
-    async def target(prompt, *, reserve=True):
+    async def target(prompt, *, reserve=True, fixture_state=None):
         if type(prompt) is not str or not prompt.strip() or len(prompt.encode()) > 32768:
             raise ContractError("Adaptive prompt outside supported bounds")
         revalidate()
@@ -118,7 +120,16 @@ async def execute_adaptive(lock, case, ledger, broker, inputs, revalidate, *, ru
         trial = replace(case, id=identifier, scenario=scenario, strategy=None)
         feedback: dict[str, str] = {}
         before = dict(ledger.case)
-        outcome = await _execute_case(lock, trial, ledger, broker=broker, feedback=feedback)
+        checkpoints: list[FixtureState] = []
+        outcome = await _execute_case(
+            lock,
+            trial,
+            ledger,
+            broker=broker,
+            feedback=feedback,
+            fixture_state=fixture_state,
+            checkpoints=checkpoints,
+        )
         outcome = replace(
             outcome, usage=Usage(**{k: ledger.case[k] - v for k, v in before.items()})
         )
@@ -194,6 +205,26 @@ async def execute_adaptive(lock, case, ledger, broker, inputs, revalidate, *, ru
                 "evaluator": evaluator,
             }
             from .conversation_routes import ConversationRoutes
+            from .agent_conversations import AgentRoutes
+
+            agent_routes = (
+                AgentRoutes(
+                    run_id=run_id,
+                    case_id=case.id,
+                    lock_digest=lock.lock_digest,
+                    grants=manifest.access_requests,
+                    run_turn=target,
+                    ledger=ledger,
+                    revalidate=revalidate,
+                )
+                if "broker.target.conversation" in manifest.access_requests
+                else None
+            )
+
+            async def agent_conversation(payload, context):
+                if agent_routes is None:
+                    raise ContractError("Agent conversation route unavailable")
+                return await agent_routes.dispatch(payload, context)
 
             routes = (
                 ConversationRoutes(
@@ -223,6 +254,7 @@ async def execute_adaptive(lock, case, ledger, broker, inputs, revalidate, *, ru
                 inputs.records,
                 bindings=bindings,
                 conversations={
+                    "target": agent_conversation,
                     "attacker": attacker_conversation,
                     "evaluator": evaluator_conversation,
                 }
@@ -280,7 +312,10 @@ async def execute_adaptive(lock, case, ledger, broker, inputs, revalidate, *, ru
     finally:
         if routes is not None:
             routes.close()
+        if agent_routes is not None:
+            agent_routes.close()
     return replace(
         aggregate(case, attempts, disposition, diagnostics, claims_digest),
         conversations=routes.audits if routes is not None else None,
+        agent_conversations=agent_routes.audits if agent_routes is not None else None,
     )

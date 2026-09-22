@@ -32,6 +32,7 @@ from ..plugins.catalog import parse_json
 from ..scoring import HeuristicContentScorer
 from ..scoring.judge import LLMJudge
 from .artifacts import canonical
+from .fixture_state import FixtureState
 
 MAX_FRAME = 262_144
 MAX_REQUEST = 16 * 1024 * 1024
@@ -97,10 +98,15 @@ def execute(
     live=False,
     evaluators=("builtin.evaluator.heuristic",),
     feedback=False,
+    state: FixtureState | None = None,
 ):
     """Fresh tool state/backend/canary on every call; no aggregate exposure inference."""
     attack = attack_from_scenario(scenario)
-    canary = new_canary()
+    if state is not None and (
+        scenario.turns or scenario.injections or scenario.fixture_refs or scenario.task_checks
+    ):
+        raise ContractError("Checkpoint only supports plain synthetic Agent turns")
+    canary = state.canary if state is not None else new_canary()
     forbidden = set(DEFAULT_FORBIDDEN_TOOLS)
     if scenario.security.goal == "forbidden_tool" and scenario.security.forbidden_tool:
         forbidden.add(scenario.security.forbidden_tool)
@@ -119,7 +125,11 @@ def execute(
     stack = ExitStack()
     try:
         client = stack.enter_context(context)
-        messages = [{"role": "system", "content": _SYSTEM_PROMPT}]
+        messages = (
+            state.restore(box)
+            if state is not None
+            else [{"role": "system", "content": _SYSTEM_PROMPT}]
+        )
         if active:
             if attack.mcp_tool_description is not None and attack.mcp_tool_response is not None:
                 raise ContractError("One MCP poison surface per scenario")
@@ -198,6 +208,15 @@ def execute(
             channel.lifecycle("environment_cleanup_failed")
         else:
             channel.lifecycle("environment_cleaned")
+    if state is not None and reason == "completed":
+        try:
+            snapshot = FixtureState.capture(box, messages)
+            channel.request({"kind": "checkpoint", "state": snapshot.to_dict()})
+        except Stopped:
+            reason = "step_limit"
+        except Exception:
+            reason = "fixture_error"
+            channel.event("runtime", Error("fixture_error"))
     if output_refs and scenario.security.goal == "content":
         axis = (
             scenario.security.rubric.axis
@@ -219,7 +238,10 @@ def execute(
                 break
             channel.event(evaluator, Evaluation(axis, verdict["matched"], tuple(output_refs)))
     if feedback:
-        channel.request({"kind": "feedback", "response": "\n\n".join(final_responses)[:4096]})
+        response = "\n\n".join(final_responses)
+        channel.request(
+            {"kind": "feedback", "response": response if state is not None else response[:4096]}
+        )
     channel.event(
         "environment",
         Coverage(("model_output", "tool_actions", "payload_delivery"), reason == "completed"),
@@ -231,7 +253,7 @@ def main():
     data = parse_json(sys.stdin.buffer.readline(MAX_REQUEST + 1))
     if (
         type(data) is not dict
-        or set(data) != {"scenario", "vulnerable", "live", "evaluators", "feedback"}
+        or set(data) != {"scenario", "vulnerable", "live", "evaluators", "feedback", "state"}
         or type(data["vulnerable"]) is not bool
     ):
         raise ContractError("Invalid trusted fixture request")
@@ -249,6 +271,7 @@ def main():
         live=data["live"],
         evaluators=data["evaluators"],
         feedback=data["feedback"],
+        state=FixtureState.from_dict(data["state"]) if data["state"] is not None else None,
     )
 
 

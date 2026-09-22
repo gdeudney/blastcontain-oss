@@ -9,7 +9,8 @@ history. A prompt containing serialized roles remains user text.
 API 2 workers can now use these sessions through separately accepted conversation
 and branching routes. Suite execution closes every session and retains its sanitized
 graph in signed run schema 2. API 1, PAIR and static PyRIT keep their existing behavior.
-Agent/MCP state restoration and Crescendo remain separate pending capabilities.
+[Controlled Agent checkpoints](agent-checkpoints.md) now provide a separate target
+route. MCP state restoration and Crescendo remain pending capabilities.
 
 ## Service example
 
@@ -125,18 +126,12 @@ behavior or rollback of real external effects.
 
 ## Remaining 4B work and acceptance gates
 
-1. Add a persistent controlled Agent fixture with host-owned checkpoints. Fork
-   only state that can be faithfully snapshotted in the controlled fixture.
-   Preserve all observed actions, including abandoned branches. Never rerun a
-   prefix to simulate rollback or claim support for external irreversible effects.
-2. Extend the signed model-conversation audit to Agent fixture checkpoints and
-   target attempt evidence. Preserve observations from abandoned target branches.
-3. Adapt pinned PyRIT Crescendo to those routes. Compare actual upstream and
-   adapted histories, refusal/backtrack behavior and model calls using recording
-   models before the separate bounded live gate. Review any required upstream
-   templates independently; the static image deliberately excludes bundled data.
+The worker route and signed model graph are implemented. The separate
+[Agent checkpoint route](agent-checkpoints.md) preserves synthetic tool state,
+retains every target attempt and requires original checkpoint data for replay.
 
-Foundation and route tests cover exact history, mutable transport input, foreign
-checkpoints, changed bindings/ledgers, branching, shared budgets, failed dispatch,
-concurrent sends, active cancellation, history overflow and unsupported target
-sessions. Passing them is not a claim that the remaining integration is complete.
+Adapt pinned PyRIT Crescendo to these routes next. Compare actual upstream and
+adapted histories, refusal/backtrack behavior and model calls using recording
+models before the separate bounded live gate. Review required upstream templates
+independently; the static image deliberately excludes bundled data. Passing the
+conversation/checkpoint tests does not claim Crescendo or live validation is done.

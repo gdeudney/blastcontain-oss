@@ -8,7 +8,7 @@ containment. Durable runs and authenticated cancellation belong to phase 3E.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 import os
 from pathlib import Path
 import sys
@@ -37,10 +37,12 @@ from .artifacts import canonical, digest
 from .budgets import BudgetExceeded, Ledger, Usage
 from .broker import ModelBroker, ModelCall, ModelError
 from .conversations import ConversationAudit
+from .agent_conversations import AgentAudit
 from .catalog import Catalog, RuntimeProbe, builtin_catalog
 from .lock import SuiteLock, validate_lock
 from .planner import PlannedCase
 from .runner import MAX_FRAME, MAX_REQUEST
+from .fixture_state import FixtureState
 
 
 @dataclass(frozen=True)
@@ -71,6 +73,9 @@ class CaseRun:
     scenario: ScenarioSpec | None = None
     reduction_policy: ReductionPolicy = ReductionPolicy()
     conversations: tuple[ConversationAudit, ...] | None = None
+    agent_conversations: tuple[AgentAudit, ...] | None = None
+    fixture_input: FixtureState | None = field(default=None, repr=False)
+    fixture_output: FixtureState | None = field(default=None, repr=False)
 
     @property
     def passed(self):
@@ -214,10 +219,23 @@ async def _spawn(directory):
     )
 
 
-async def _execute_case(lock, case, ledger, *, broker=None, feedback=None):
+async def _execute_case(
+    lock,
+    case,
+    ledger,
+    *,
+    broker=None,
+    feedback=None,
+    fixture_state: FixtureState | None = None,
+    checkpoints=None,
+):
     scenario = case.scenario
     if scenario is None:
         raise ContractError("Execution requires a materialized scenario")
+    if fixture_state is not None:
+        if checkpoints is None or lock.plan.spec.target.kind != "agent":
+            raise ContractError("Agent checkpoint requires its trusted state sink")
+        fixture_state.to_dict()
     collector = EvidenceCollector(case.id, scenario)
     reduction_policy = ReductionPolicy(
         lock.plan.spec.evaluators if scenario.security.goal == "content" else ()
@@ -290,6 +308,7 @@ async def _execute_case(lock, case, ledger, *, broker=None, feedback=None):
                     "live": lock.plan.spec.target.binding == "builtin.target.llm",
                     "evaluators": list(lock.plan.spec.evaluators),
                     "feedback": feedback is not None,
+                    "state": fixture_state.to_dict() if fixture_state is not None else None,
                 }
             )
             + b"\n"
@@ -335,11 +354,23 @@ async def _execute_case(lock, case, ledger, *, broker=None, feedback=None):
                     await acknowledge(False)
                 else:
                     await acknowledge(reference=answer)
+            elif kind == "checkpoint" and set(data) == {"kind", "state"}:
+                if fixture_state is None or checkpoints is None or checkpoints:
+                    raise ContractError("Unexpected fixture checkpoint")
+                successor = FixtureState.from_dict(data["state"])
+                fixture_state.validate_successor(successor, scenario.entry_prompt)
+                ledger.reserve("artifact_bytes", len(canonical(successor.to_dict())))
+                checkpoints.append(successor)
+                await acknowledge()
             elif kind == "feedback" and set(data) == {"kind", "response"}:
                 if (
                     feedback is None
                     or type(data["response"]) is not str
-                    or len(data["response"]) > 4096
+                    or (
+                        len(data["response"].encode()) > 32768
+                        if fixture_state is not None
+                        else len(data["response"]) > 4096
+                    )
                 ):
                     raise ContractError("Unexpected fixture feedback")
                 feedback["response"] = data["response"]
@@ -403,6 +434,8 @@ async def _execute_case(lock, case, ledger, *, broker=None, feedback=None):
                 await stderr
                 if process.returncode != 0:
                     raise ContractError("Fixture process failed after evidence")
+                if fixture_state is not None and terminal.reason == "completed" and not checkpoints:
+                    raise ContractError("Completed Agent turn has no fixture checkpoint")
                 return
             else:
                 raise ContractError("Unknown fixture frame")
@@ -504,6 +537,8 @@ async def _execute_case(lock, case, ledger, *, broker=None, feedback=None):
         execution_identity=execution_identity(case),
         scenario=scenario if feedback is not None else None,
         reduction_policy=reduction_policy,
+        fixture_input=fixture_state,
+        fixture_output=checkpoints[0] if checkpoints and result.execution == "completed" else None,
     )
 
 

@@ -96,6 +96,12 @@ verification requires a complete, closed graph and the accepted model/branching
 scope. Old schema 1 runs remain readable. Conversation summaries contain no raw
 system messages, prompts or responses.
 
+Run schema 3 additionally records [controlled Agent checkpoints](agent-checkpoints.md).
+Their raw fixture states share the opt-in retention/purge policy. Replay requires
+the original state records, either retained and unexpired or supplied with
+`states=` / CLI `--states`. Missing state prevents an attested pass. Schema 1 and
+2 reports remain readable.
+
 ## Replay, stopping and recovery
 
 Normal replay requires the original lock supplied as `lock=`. Adaptive runs also

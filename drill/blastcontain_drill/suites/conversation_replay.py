@@ -13,7 +13,9 @@ def validate_conversations(saved, planned, lock, document):
         ),
         (),
     )
-    conversation_grants = {g for g in grants if g.endswith(".conversation")}
+    conversation_grants = {
+        g for g in grants if g in ("broker.attacker.conversation", "broker.evaluator.conversation")
+    }
     calls = {}
     for call in document.model_calls:
         if call.case_id == saved.case_id and call.conversation_scope is not None:

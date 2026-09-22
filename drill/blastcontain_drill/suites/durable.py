@@ -17,6 +17,7 @@ from ..evidence.reducer import ReductionPolicy
 from .adaptive import aggregate
 from .artifacts import digest
 from .conversation_replay import validate_conversations
+from .agent_replay import restore_fixture_states, validate_agent_conversations
 from .budgets import RESOURCES
 from .lock import SuiteLock, validate_lock
 from .privacy import lease, read_json, read_private, private
@@ -203,7 +204,12 @@ def _load_final(store, *, trusted_public_key=None, allow_advisory=False):
     refs = set()
 
     def collect(case):
-        for ref in (case.evidence, case.raw_scenario):
+        for ref in (
+            case.evidence,
+            case.raw_scenario,
+            case.raw_fixture_input,
+            case.raw_fixture_output,
+        ):
             if ref:
                 refs.add(ref)
         for attempt in case.attempts:
@@ -228,7 +234,9 @@ def _load_final(store, *, trusted_public_key=None, allow_advisory=False):
     return document, envelope, trusted
 
 
-def _restore_case(store, saved, planned, lock, scenarios, *, trial=False, parent=None, index=None):
+def _restore_case(
+    store, saved, planned, lock, scenarios, states, *, trial=False, parent=None, index=None
+):
     scenario = planned.scenario
     if trial:
         scenario = scenarios.get(saved.case_id)
@@ -257,6 +265,10 @@ def _restore_case(store, saved, planned, lock, scenarios, *, trial=False, parent
     ):
         raise ContractError("Recorded case usage exceeds its accepted limits")
     validate_conversations(saved, planned, lock, store.document)
+    restored_states = restore_fixture_states(store, saved, scenario, states, trial=trial)
+    if restored_states is None:
+        return None
+    fixture_input, fixture_output = restored_states
     evidence, receipt, attempts = None, None, []
     result = replace(saved.result, scenario_id=planned.scenario_id) if saved.result else None
     if saved.attempts:
@@ -264,7 +276,15 @@ def _restore_case(store, saved, planned, lock, scenarios, *, trial=False, parent
             raise ContractError("Unexpected adaptive evidence structure")
         for i, item in enumerate(saved.attempts):
             attempt = _restore_case(
-                store, item, planned, lock, scenarios, trial=True, parent=saved.case_id, index=i
+                store,
+                item,
+                planned,
+                lock,
+                scenarios,
+                states,
+                trial=True,
+                parent=saved.case_id,
+                index=i,
             )
             if attempt is None:
                 return None
@@ -313,6 +333,7 @@ def _restore_case(store, saved, planned, lock, scenarios, *, trial=False, parent
         and result.security != "unknown"
     ):
         raise ContractError("A result without evidence cannot claim completion or security")
+    validate_agent_conversations(saved, planned, lock, store.document, attempts)
     if planned.disposition == "excluded" and saved.disposition != "skipped":
         raise ContractError("Excluded case was executed")
     if planned.disposition != "excluded" and saved.disposition == "skipped":
@@ -334,6 +355,9 @@ def _restore_case(store, saved, planned, lock, scenarios, *, trial=False, parent
         scenario=scenario if trial else None,
         reduction_policy=saved.reduction_policy,
         conversations=saved.conversations,
+        agent_conversations=saved.agent_conversations,
+        fixture_input=fixture_input,
+        fixture_output=fixture_output,
     )
 
 
@@ -344,6 +368,7 @@ def verify_run(
     allow_advisory=False,
     lock=None,
     scenarios=None,
+    states=None,
     clock=time.time,
 ):
     """Check signed bytes; only replayed conclusions can pass the security gate.
@@ -378,7 +403,7 @@ def verify_run(
         raise ContractError("Recorded runtime differs from the lock")
     cases = []
     for saved, planned in zip(document.cases, lock.plan.cases, strict=True):
-        case = _restore_case(store, saved, planned, lock, scenarios or {})
+        case = _restore_case(store, saved, planned, lock, scenarios or {}, states or {})
         if case is None:
             return Verification(
                 document.run_id,
@@ -520,7 +545,7 @@ def purge_expired_raw(directory, *, clock=time.time):
                 hashlib.sha256(data).hexdigest() != path.stem
                 or type(value) is not dict
                 or set(value) != {"kind", "data"}
-                or value["kind"] not in ("raw_lock", "raw_scenario", "raw_trace")
+                or value["kind"] not in ("raw_lock", "raw_scenario", "raw_trace", "raw_fixture")
             ):
                 raise ContractError("Unexpected raw artifact; purge refused")
             paths.append(path)
