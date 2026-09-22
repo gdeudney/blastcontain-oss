@@ -119,8 +119,9 @@ def main():
         )[0]
         assert result["replayed"] and not result["security_passed"]
         cancel_roundtrip(root)
+        workbench_assets(root)
     # Verify existing command entry points without executing a live scan.
-    for module in ("cli", "diff", "plugins.cli", "suites.cli"):
+    for module in ("cli", "diff", "plugins.cli", "suites.cli", "workbench.cli"):
         subprocess.run(
             [sys.executable, "-m", "blastcontain_drill." + module, "--help"],
             capture_output=True,
@@ -128,8 +129,32 @@ def main():
             timeout=15,
         )
     print(
-        "Installed-wheel validation passed: 501 definitions, signed lifecycle, failing security gate, active cancellation, four CLIs."
+        "Installed-wheel validation passed: 501 definitions, signed lifecycle, failing security gate, active cancellation, five CLIs and packaged UI assets."
     )
+
+
+def workbench_assets(root):
+    from urllib.request import urlopen
+    from blastcontain_drill.workbench.research import Research
+    from blastcontain_drill.workbench.server import WorkbenchServer
+    from blastcontain_drill.workbench.service import Runs, Workspace
+
+    workspace = Workspace(root / "workbench")
+    runs = Runs(workspace)
+    server = WorkbenchServer(workspace, runs, Research())
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        for asset in ("/", "/app.css", "/app.js"):
+            with urlopen(server.origin + asset, timeout=5) as response:  # nosec B310: fixed loopback test URL
+                assert len(response.read()) > 100
+                assert response.headers["X-Content-Type-Options"] == "nosniff"
+    finally:
+        server.shutdown()
+        thread.join(5)
+        server.server_close()
+        runs.close()
+        workspace.close()
 
 
 def cancel_roundtrip(root):

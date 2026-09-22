@@ -42,6 +42,8 @@ Documentation = "https://github.com/gdeudney/blastcontain-oss/blob/main/drill/do
 Changelog     = "https://github.com/gdeudney/blastcontain-oss/blob/main/drill/CHANGELOG.md"
 
 [project.optional-dependencies]
+# Browser test lane only; no browser or frontend framework is installed at runtime.
+ui-test = ["playwright==1.63.0"]
 # Optional, availability-flagged augmentation (used-if-present, never required).
 judge = ["deepeval>=1.0"]              # G-Eval / LLM-as-judge harness for the content plane
 full  = ["deepeval>=1.0"]
@@ -59,6 +61,7 @@ blastcontain-drill = "blastcontain_drill.cli:main"
 blastcontain-drill-diff = "blastcontain_drill.diff:main"
 blastcontain-drill-plugins = "blastcontain_drill.plugins.cli:main"
 blastcontain-drill-suite = "blastcontain_drill.suites.cli:main"
+blastcontain-drill-ui = "blastcontain_drill.workbench.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["blastcontain_drill"]

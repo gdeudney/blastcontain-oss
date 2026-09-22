@@ -313,6 +313,15 @@ implementation. A different operator can rebuild the accepted suite from version
 
 ### Phase 6 — Local acceptance and run UI
 
+Implementation: [local workbench](workbench.md) provides private persisted metadata,
+review diffs and exact grants, suite composition/preflight, accepted lock execution,
+independent stopping and evidence verification. Optional Scout review and committed
+mapping tracing use the shared services. Local validation: 741 Core/Drill/Scout and
+Chromium checks; installed-wheel validation includes all five CLIs and bundled assets.
+The workbench remains loopback-only and fixtures remain controlled/synthetic; no
+external-agent or live-model effectiveness claim is implied. CI and PR review are
+required before treating this phase as merged.
+
 **Deliverables**
 
 - Screens for plugin capabilities/licenses, Scout candidates and coverage, acceptance diffs,

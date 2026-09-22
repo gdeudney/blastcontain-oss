@@ -428,3 +428,44 @@ def test_cli_verifies_actual_run_and_does_not_claim_advisory_trust(prepared, tmp
     traced = json.loads(result.output)
     assert traced["run_id"] and traced["run_replayed"] and traced["provenance_complete"]
     assert not traced["run_trusted"]
+
+
+def test_workbench_traces_verified_case_through_current_git_and_restored_history(
+    prepared, tmp_path
+):
+    from blastcontain_drill.workbench.research import Research
+
+    root, db, _, mapping, head = prepared
+    git(root, "update-ref", "refs/remotes/origin/main", head)
+    store(prepared, inspect(prepared))
+    restored = tmp_path / "restored.sqlite3"
+    copy_database(db, restored)
+    research = Research(restored, root)
+    lock, inputs = lock_for(mapping)
+    executed = asyncio.run(execute_run(lock, tmp_path / "runs", current_inputs=lambda: inputs))
+    verified = verify_run(executed.directory, lock=lock, allow_advisory=True)
+    before = restored.read_bytes()
+    report = research.trace(lock, verified)
+    assert report["available"] and report["trace"]["provenance_complete"]
+    assert report["trace"]["run_replayed"] and not report["trace"]["run_trusted"]
+    assert report["trace"]["cases"][0]["mappings"][0]["papers"][0]["id"] == "2601.12345"
+    assert restored.read_bytes() == before
+    revision = research.snapshot()["revision"]
+    research.review(
+        paper_id="2601.12345",
+        status="rejected",
+        actor="reviewer",
+        note="New evidence",
+        expected_revision=revision,
+    )
+    with pytest.raises(ContractError, match="changed"):
+        research.review(
+            paper_id="2601.23456",
+            status="selected",
+            actor="reviewer",
+            note="stale",
+            expected_revision=revision,
+        )
+    report = research.trace(lock, verified)
+    assert not report["trace"]["provenance_complete"]
+    assert report["database_divergence"] == [mapping.id]
