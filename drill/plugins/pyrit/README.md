@@ -5,7 +5,8 @@ through Drill's existing SDK and target broker. It requires no host runner, CLI,
 config-class or dependency changes. It sends one reviewed user prompt with no
 retry, then leaves evidence reduction and the final security gate to Drill.
 
-This is the static portion of phase 4. Crescendo, TAP, multi-turn conversations,
+For adaptive attacks, use the separately reviewed [Crescendo image](CRESCENDO.md).
+This image remains the static portion of phase 4. Crescendo, TAP, multi-turn conversations,
 backtracking, converters, upstream scorers, multimodal content and arbitrary MCP
 servers are **not supported** by this image. Repeated executions require reset;
 reset clears PyRIT's in-memory SQLite state but never renews the host call budget.
@@ -110,13 +111,14 @@ conformance additionally checks host call limits across resets, rejected scope,
 resistant/vulnerable signed suite replay and independent active cancellation.
 Missing image/runtime support fails these checks; no mock or skip counts as coverage.
 
-Build an image, then set `DRILL_PYRIT_IMAGE` to its complete image ID and run:
+Build this image and the [Crescendo image](CRESCENDO.md), then set `DRILL_PYRIT_IMAGE`
+and `DRILL_PYRIT_CRESCENDO_IMAGE` to their complete image IDs and run:
 
 ```sh
 python -m pytest drill/plugins/pyrit/tests -q
 ```
 
-The dedicated CI workflow builds the pinned image, audits its closure, then runs
+The dedicated CI workflow builds both pinned images, audits their shared closure, then runs
 these checks, including upstream parity inside the bounded container. It also runs
 weekly so a newly disclosed dependency vulnerability is visible. The normal host
 pip-audit sets and Drill dependency tree are unchanged.

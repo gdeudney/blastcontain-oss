@@ -78,8 +78,9 @@ with replay/adaptive attacks, shared model budgets, up to eight concurrent cases
 independent stopping. Local abliterated attackers and isolated external strategies use
 the same host broker. The [suite CLI](docs/suite-cli.md) exposes review, acceptance,
 run, stop and verified results. The optional [pinned static PyRIT adapter](plugins/pyrit/README.md)
-now exercises a real external framework through the same broker. Crescendo and the UI
-remain later milestones. See the [baseline record](docs/redesign-baseline.md).
+now exercises a real external framework through the same broker. The separate
+[bounded Crescendo adapter](plugins/pyrit/CRESCENDO.md) adds checkpoint-backed
+adaptive attacks. Live-model validation and the UI remain later milestones. See the [baseline record](docs/redesign-baseline.md).
 
 ## The cage
 
