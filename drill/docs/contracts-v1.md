@@ -35,7 +35,10 @@ A missing legacy revision is recorded as `unknown`, never converted into a pin.
 ## Serialization and validation
 
 Top-level wire records require integer `schema_version: 1`; manifests also carry
-`adapter_api: 1`. Nested value objects share their enclosing schema version.
+`adapter_api: 1` or `2`, matching the selected worker protocol. API 2 conversation
+routes require separate accepted grants; see [worker conversations](model-conversations.md)
+and [Agent checkpoints](agent-checkpoints.md). Nested value objects share their
+enclosing schema version. Durable run documents have their own versioned schema.
 `to_dict()` produces JSON-compatible data; `from_dict()` rejects missing required
 fields, unknown fields, unsupported versions, wrong types and invalid enum values.
 Defaults apply only to optional fields. There is no dynamic import or code evaluation.

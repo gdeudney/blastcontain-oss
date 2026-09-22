@@ -20,6 +20,7 @@ from .artifacts import canonical, digest
 from .budgets import Usage
 from .catalog import build_digest
 from .conversations import ConversationAudit
+from .agent_conversations import AgentAudit
 from .privacy import (
     MAX_FILE,
     lease,
@@ -43,7 +44,7 @@ def run_id(value):
 class Blob(WireRecord):
     digest: str
     size: int
-    kind: Literal["evidence", "raw_lock", "raw_scenario", "raw_trace"]
+    kind: Literal["evidence", "raw_lock", "raw_scenario", "raw_trace", "raw_fixture"]
 
     def validate(self):
         artifact_digest(self.digest)
@@ -109,6 +110,11 @@ class SavedCase(WireRecord):
     execution_identity: str | None = None
     plugin_claim_digest: str | None = None
     conversations: tuple[ConversationAudit, ...] | None = None
+    agent_conversations: tuple[AgentAudit, ...] | None = None
+    fixture_input_digest: str | None = None
+    fixture_output_digest: str | None = None
+    raw_fixture_input: Blob | None = None
+    raw_fixture_output: Blob | None = None
 
     def validate(self):
         for value in (
@@ -118,6 +124,8 @@ class SavedCase(WireRecord):
             self.environment_identity,
             self.execution_identity,
             self.plugin_claim_digest,
+            self.fixture_input_digest,
+            self.fixture_output_digest,
         ):
             if value is not None:
                 artifact_digest(value)
@@ -132,6 +140,15 @@ class SavedCase(WireRecord):
         if any(a.attempts for a in self.attempts):
             raise ContractError("Nested adaptive strategies are unsupported")
         unique(tuple(a.case_id for a in self.attempts), "attempt IDs")
+        if self.agent_conversations is not None and len(self.agent_conversations) > 1:
+            raise ContractError("One synthetic Agent session is supported per case")
+        for ref in (self.raw_fixture_input, self.raw_fixture_output):
+            if ref is not None and ref.kind != "raw_fixture":
+                raise ContractError("Invalid Agent state artifact role")
+        if self.fixture_output_digest and (
+            not self.fixture_input_digest or self.disposition != "completed"
+        ):
+            raise ContractError("Only a completed Agent turn can publish a checkpoint")
         if self.conversations is not None:
             if len(self.conversations) > 4:
                 raise ContractError("Too many retained conversations")
@@ -160,7 +177,7 @@ class RunDocument(WireRecord):
     storage_limit: int
     parent_run_id: str | None = None
     parent_envelope_digest: str | None = None
-    schema_version: Literal[1, 2] = 2
+    schema_version: Literal[1, 2, 3] = 3
 
     def validate(self):
         run_id(self.run_id)
@@ -422,6 +439,15 @@ class RunStore:
             case.execution_identity,
             case.plugin_claim_digest,
             case.conversations,
+            case.agent_conversations,
+            case.fixture_input.state_digest if case.fixture_input is not None else None,
+            case.fixture_output.state_digest if case.fixture_output is not None else None,
+            self.put(case.fixture_input.to_dict(), "raw_fixture")
+            if case.fixture_input is not None
+            else None,
+            self.put(case.fixture_output.to_dict(), "raw_fixture")
+            if case.fixture_output is not None
+            else None,
         )
 
     def snapshot(self, run, lock, *, terminal=False):

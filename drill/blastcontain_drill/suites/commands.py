@@ -125,6 +125,11 @@ def verification_options(command):
             "--lock", "replay_lock", type=INPUT, help="Original lock for offline evidence replay."
         ),
         click.option(
+            "--states",
+            type=INPUT,
+            help="Object mapping Agent checkpoint digests to original FixtureStates.",
+        ),
+        click.option(
             "--scenarios",
             type=INPUT,
             help="Object mapping adaptive attempt IDs to original ScenarioSpecs.",
@@ -134,7 +139,7 @@ def verification_options(command):
     return command
 
 
-def verification_kwargs(trusted_key, allow_advisory, replay_lock, scenarios):
+def verification_kwargs(trusted_key, allow_advisory, replay_lock, scenarios, states=None):
     public = None
     if trusted_key:
         safe_path(trusted_key)
@@ -155,7 +160,13 @@ def verification_kwargs(trusted_key, allow_advisory, replay_lock, scenarios):
     supplied = read_document(scenarios) if scenarios else {}
     if type(supplied) is not dict:
         raise ContractError("Expected an adaptive scenario map")
+    from .fixture_state import FixtureState
+
+    supplied_states = read_document(states) if states else {}
+    if type(supplied_states) is not dict:
+        raise ContractError("Expected an Agent checkpoint map")
     return dict(
+        states={key: FixtureState.from_dict(value) for key, value in supplied_states.items()},
         trusted_public_key=public,
         allow_advisory=allow_advisory,
         lock=SuiteLock.from_dict(read_document(replay_lock)) if replay_lock else None,

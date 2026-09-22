@@ -187,3 +187,8 @@ use `adapter_api: 2`, `serve(plugin, protocol=2)` and separately reviewed conver
 and branching scopes. See [the conversation protocol](model-conversations.md#api-2-worker-use)
 for exact operations, limits and signed evidence. A protocol mismatch fails closed;
 a prior single-prompt acceptance cannot authorize the new routes.
+
+API 2 also supports [controlled Agent checkpoint routes](agent-checkpoints.md)
+under separate `broker.target.conversation` and `broker.target.branch` grants.
+These restore only the fixed synthetic fixture; arbitrary MCP/tool state and
+external side-effect rollback are unsupported.

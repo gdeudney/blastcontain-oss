@@ -15,7 +15,7 @@ from ..contracts import AcceptanceRecord, ContractError, PluginManifest
 MAX_METADATA_BYTES = 65536
 CONVERSATION_ACCESS = frozenset(
     f"broker.{channel}.{scope}"
-    for channel in ("attacker", "evaluator")
+    for channel in ("target", "attacker", "evaluator")
     for scope in ("conversation", "branch")
 )
 SUPPORTED_ACCESS = (
@@ -101,7 +101,7 @@ def check_profile(manifest: PluginManifest) -> None:
         raise ContractError(f"Unsupported access requests: {sorted(unsupported)}")
     if set(manifest.access_requests) & CONVERSATION_ACCESS and manifest.adapter_api != 2:
         raise ContractError("Conversation access requires adapter API 2")
-    for channel in ("attacker", "evaluator"):
+    for channel in ("target", "attacker", "evaluator"):
         if (
             f"broker.{channel}.branch" in manifest.access_requests
             and f"broker.{channel}.conversation" not in manifest.access_requests

@@ -338,7 +338,7 @@ class PodmanWorker:
         check_acceptance(self.manifest, self.acceptances)
         if set(self.bindings) - {"target", "attacker", "evaluator"}:
             raise ContractError("Unknown broker binding")
-        if set(self.conversations) - {"attacker", "evaluator"}:
+        if set(self.conversations) - {"target", "attacker", "evaluator"}:
             raise ContractError("Unknown conversation binding")
         for grant in self.manifest.access_requests:
             parts = grant.split(".")

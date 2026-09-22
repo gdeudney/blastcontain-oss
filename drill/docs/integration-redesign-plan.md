@@ -231,9 +231,10 @@ Delivery is split into independently reviewed units:
   generic protocol/service support with replay and adversarial tests before exposing
   this strategy. [4B1–4B2 model conversations](model-conversations.md) now include
   host-owned attacker/evaluator sessions, separately accepted API 2 worker routes,
-  and signed graph/model-call verification. Target fixture checkpoints, their
-  durable evidence binding and the Crescendo adapter remain pending; the conversation
-  document defines their separate acceptance gates.
+  and signed graph/model-call verification. [4B3 Agent checkpoints](agent-checkpoints.md)
+  add faithful synthetic fixture snapshots, retained abandoned-branch actions and
+  mandatory state inputs for offline replay. The Crescendo adapter/parity gate remains
+  pending; these services do not claim that integration is complete.
 - **4C — Bounded live validation:** three repetitions with recorded model identities,
   caps, security/utility results and limitations. Pending an available local endpoint.
 
