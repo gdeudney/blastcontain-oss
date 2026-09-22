@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "audited_at": "2026-09-21",
-  "main_commit": "ebeec0340a25abda9946d93bd26bc1c9f1b544bd",
-  "draft_pr_head": null,
+  "audited_at": "2026-09-22",
+  "main_commit": "097fd95143bda914e0eddc70983266f53e1c7478",
+  "draft_pr_head": "8258d82006d447530ee863716c757e138d4f5dc9",
   "entries": [
     {
       "paper_id": "2404.01318",
@@ -243,6 +243,18 @@
       "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
       "title": "Authorization Architectures for Tool-Using AI Agents",
       "audited_at": "2026-09-20"
+    },
+    {
+      "paper_id": "2406.13352",
+      "coverage": "partial_method",
+      "status": "validated",
+      "source": "drill/plugins/agentdojo/worker.py",
+      "reference": "8258d82006d447530ee863716c757e138d4f5dc9",
+      "tests": "2026-09-22: 15 actual AgentDojo container tests, 9 environment unit tests, 750 Core/Drill/Scout/Chromium regressions, 32 worker conformance and 19 PyRIT container checks passed locally; pinned dependencies passed pip-audit.",
+      "relationship": "Pinned AgentDojo 0.1.35 banking v1 environment and native task/attacker oracles, exposed through a reviewed simulation adapter.",
+      "details": "Only user_task_0/injection_task_5 with read_file/send_money. Native and adapted state/utility/attack parity uses controlled trajectories. Original Drill document injection and text-JSON model loop; full AgentDojo prompting, other tasks, adaptive search, paper benchmark protocol and live attack efficacy are not reproduced. Simulation observations do not prove real-world effects.",
+      "title": "AgentDojo: A Dynamic Environment to Evaluate Prompt Injection Attacks and Defenses for LLM Agents",
+      "audited_at": "2026-09-22"
     }
   ]
 }

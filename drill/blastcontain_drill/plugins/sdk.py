@@ -32,6 +32,12 @@ class Broker:
             raise ProtocolError("Conversations require worker protocol 2")
         return self._call("conversation", channel, payload)
 
+    def environment(self, payload: dict) -> dict:
+        """API 3 reviewed simulation observer, never an attack-strategy grant."""
+        if self.protocol != 3:
+            raise ProtocolError("Environment exchange requires worker protocol 3")
+        return self._call("environment", "environment", payload)
+
     def _call(self, kind, channel, payload):
         self.call_id += 1
         self.writer.write(

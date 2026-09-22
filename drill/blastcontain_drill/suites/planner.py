@@ -152,9 +152,18 @@ def plan_suite(spec: SuiteSpec, catalog: Catalog, *, records=(), probes=()) -> R
         )
         if role not in plugin.roles:
             errors.append(f"{binding_id}: role mismatch (requires {role})")
-        # The current worker protocol exposes propose only. Metadata cannot invent adapters.
-        if role != "attack_strategy":
-            errors.append(f"{binding_id}: current worker supports attack_strategy only")
+        simulation = (
+            plugin.adapter_api == 3
+            and binding_id == spec.environment
+            and role in ("environment", "evaluator")
+        )
+        if role != "attack_strategy" and not simulation:
+            errors.append(f"{binding_id}: no supported worker role binding")
+        if simulation:
+            if spec.target.kind != "agent" or spec.target.binding != "builtin.target.llm":
+                errors.append("Stateful environment requires an Agent model target")
+            if spec.evaluators != (spec.environment,):
+                errors.append("Stateful environment requires its reviewed evaluator only")
         for channel in ("attacker", "evaluator"):
             if (
                 any(
@@ -172,7 +181,18 @@ def plan_suite(spec: SuiteSpec, catalog: Catalog, *, records=(), probes=()) -> R
         probe = probe_map.get(binding_id)
         if probe is None or not probe.available or probe.artifact_digest != plugin.artifact_digest:
             errors.append(f"{binding_id}: matching available runtime probe required")
-        binding = Binding(plugin.id, role, plugin.artifact_digest, plugin.capabilities)
+        observations = (
+            tuple(
+                name
+                for name in ("model_output", "tool_actions", "payload_delivery")
+                if simulation and "observe." + name in plugin.capabilities
+            )
+            if role == "environment"
+            else ()
+        )
+        binding = Binding(
+            plugin.id, role, plugin.artifact_digest, plugin.capabilities, observations
+        )
         return binding, errors
 
     target, common = resolve_binding(spec.target.binding, "target")
@@ -245,7 +265,14 @@ def plan_suite(spec: SuiteSpec, catalog: Catalog, *, records=(), probes=()) -> R
                 mcp = any(i.surface.startswith("mcp_") for i in scenario.injections)
                 if spec.target.kind == "mcp" and not mcp:
                     case_errors.append("MCP target requires a controlled MCP poisoning scenario")
-                if scenario.fixture_refs or scenario.task_checks:
+                if "environment.stateful.v1" in capabilities:
+                    from .environment_profile import validate_scenario
+
+                    try:
+                        validate_scenario(scenario, environment.capabilities, selection.strategy)
+                    except ContractError as exc:
+                        case_errors.append(str(exc))
+                elif scenario.fixture_refs or scenario.task_checks:
                     case_errors.append(
                         "Fixture/task-check adapters are not registered in this milestone"
                     )

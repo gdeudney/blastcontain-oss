@@ -8,7 +8,9 @@ attacker and signed reports still use their current execution path.
 are now additive APIs; [fixture suite execution](suite-execution.md) is available in
 3C/3D, including the reference external strategy. The [static PyRIT adapter](../plugins/pyrit/README.md)
 adds a pinned real upstream strategy in 4A. The separate [Crescendo image](../plugins/pyrit/CRESCENDO.md)
-uses API 2 conversation grants in 4B. Live validation and the acceptance UI remain later work.
+uses API 2 conversation grants in 4B. The [local acceptance UI](workbench.md) is
+available, and [AgentDojo banking](../plugins/agentdojo/README.md) adds a reviewed
+API 3 simulation environment/evaluator. Live-model effectiveness remains unvalidated.
 
 ## Discovery and acceptance
 
@@ -192,3 +194,11 @@ API 2 also supports [controlled Agent checkpoint routes](agent-checkpoints.md)
 under separate `broker.target.conversation` and `broker.target.branch` grants.
 These restore only the fixed synthetic fixture; arbitrary MCP/tool state and
 external side-effect rollback are unsupported.
+
+## Simulation protocol (API 3)
+
+API 3 adds separately reviewed `environment`/`evaluator` authority with the sole
+`broker.environment` grant. It mediates model calls and simulated tool reservations,
+state observations and native task oracles. API 1/2 strategies cannot gain observer
+authority through their result claims. See [the environment contract](environment-adapters.md)
+for exact operations and trust limitations; the containment profile is unchanged.

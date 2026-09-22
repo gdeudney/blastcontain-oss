@@ -131,7 +131,7 @@ def _failure(case, disposition, diagnostic):
     )
 
 
-def _support(lock, case, actual):
+def _support(lock, case, actual, plugins=()):
     spec = lock.plan.spec
     expected = {b.id: b for b in actual.bindings}
     bindings = (spec.target.binding, spec.environment, *spec.evaluators)
@@ -145,6 +145,21 @@ def _support(lock, case, actual):
     }
     if spec.concurrency > 8:
         return "maximum_eight_concurrent_cases"
+    if spec.environment not in expected:
+        from .environment_profile import validate_environment
+
+        try:
+            validate_environment(spec, case, plugins)
+        except ContractError:
+            return "environment_profile_unsupported"
+        for name in (spec.target.binding,):
+            identity = next(
+                (i for i in lock.plan.identities if i.id == name and i.kind == "builtin_binding"),
+                None,
+            )
+            if identity is None or identity.content_digest != digest(expected[name].to_dict()):
+                return "runtime_identity_mismatch"
+        return None
     if any(name not in allowed for name in bindings):
         return "runtime_binding_unsupported"
     if spec.environment != "builtin.environment.fixture":
@@ -608,7 +623,7 @@ async def run_suite(
                     aborted = "acceptance_revalidation_failed"
                     cases[index] = _failure(case, "error", aborted)
                 else:
-                    unsupported = _support(lock, case, builtin_catalog())
+                    unsupported = _support(lock, case, builtin_catalog(), inputs.catalog.plugins)
                     if unsupported:
                         cases[index] = _failure(case, "unsupported", unsupported)
                     else:
@@ -620,7 +635,13 @@ async def run_suite(
                                     raise BudgetExceeded("global", resource)
                             cases[index] = replace(cases[index], disposition="running")
                             publish()
-                            if case.strategy is not None:
+                            if lock.plan.spec.environment != "builtin.environment.fixture":
+                                from .environment_runner import execute_environment
+
+                                cases[index] = await execute_environment(
+                                    lock, case, ledger, broker, inputs, revalidate
+                                )
+                            elif case.strategy is not None:
                                 cases[index] = await execute_adaptive(
                                     lock, case, ledger, broker, inputs, revalidate, run_id=run_id
                                 )

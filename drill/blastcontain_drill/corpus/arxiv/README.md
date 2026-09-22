@@ -2,7 +2,7 @@
 
 This is Drill's paper-to-implementation registry and the home for future dedicated,
 reviewed paper-specific attack sources. `registry.json` joins to Scout's SQLite
-tracker by `paper_id` (the versionless arXiv ID). It records 20 audited papers.
+tracker by `paper_id` (the versionless arXiv ID). It records 21 audited papers.
 
 Existing working modules stay in place: the registry links to them rather than
 copying code. No entry automatically loads a module or enables an attack.
@@ -32,7 +32,10 @@ and `draft_pr_head` pin the registry refresh (`draft_pr_head` is null when no dr
 is included). Each entry has its own `audited_at`; unchanged baseline findings do
 not become a new full-method audit when other entries are refreshed. The September
 21 refresh records merged MCP poisoning PR #62 and bounded native Crescendo PR #78.
-No live attack efficacy or full benchmark/paper reproduction is claimed.
+The September 22 refresh adds the narrowly scoped AgentDojo banking adapter and
+its controlled native-parity evidence, referencing the implementation commit under
+review at audit time. No live attack efficacy or full benchmark/paper reproduction
+is claimed.
 
 For exact source/plugin/scenario digests, paper fingerprints, code/test/license
 artifacts, acceptance records and verified run tracing, use Scout's optional

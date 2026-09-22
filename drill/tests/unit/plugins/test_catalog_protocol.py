@@ -178,7 +178,7 @@ def request(method="prepare", number=1, params=None):
     "change",
     [
         dict(protocol=True),
-        dict(protocol=3),
+        dict(protocol=4),
         dict(id=-1),
         dict(id=True),
         dict(method=[]),

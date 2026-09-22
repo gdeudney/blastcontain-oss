@@ -385,7 +385,7 @@
         $("verified-cases").replaceChildren(...report.cases.map(c => {
           const row = el("tr");
           row.append(el("td", (c.source_id || "Unknown source") + " / " + (c.scenario_id ||
-            c.case_id)), el("td", c.result?.security || "Incomplete"), el("td", c
+            c.case_id)), el("td", c.result?.security || "Incomplete"), el("td", c.result?.utility || "Unknown"), el("td", c
             .diagnostics.join("; ") || "None"));
           return row;
         }));

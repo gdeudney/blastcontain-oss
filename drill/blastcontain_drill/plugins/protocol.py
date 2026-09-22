@@ -8,7 +8,7 @@ from ..contracts.wire import ContractError, _json_data
 from .catalog import parse_json
 
 PROTOCOL = 1
-SUPPORTED_PROTOCOLS = (1, 2)
+SUPPORTED_PROTOCOLS = (1, 2, 3)
 MAX_FRAME = 65536
 METHODS = frozenset({"prepare", "reset", "execute", "close"})
 CHANNELS = frozenset({"target", "attacker", "evaluator"})
@@ -17,6 +17,7 @@ _FIELDS = {
     "result": {"protocol", "type", "id", "result"},
     "error": {"protocol", "type", "id", "error"},
     "call": {"protocol", "type", "id", "call_id", "channel", "payload"},
+    "environment": {"protocol", "type", "id", "call_id", "channel", "payload"},
     "conversation": {"protocol", "type", "id", "call_id", "channel", "payload"},
     "reply": {"protocol", "type", "id", "call_id", "result"},
 }
@@ -39,6 +40,10 @@ def validate(message):
         raise ProtocolError("Unsupported worker protocol")
     if message["type"] == "conversation" and message["protocol"] != 2:
         raise ProtocolError("Conversations require worker protocol 2")
+    if message["type"] == "environment" and (
+        message["protocol"] != 3 or message["channel"] != "environment"
+    ):
+        raise ProtocolError("Environment exchange requires protocol 3 and its fixed channel")
     for key in ("id", "call_id"):
         if key in message and (type(message[key]) is not int or message[key] < 1):
             raise ProtocolError("Message IDs must be positive integers")
