@@ -347,6 +347,15 @@ no repeated confirmations.
 
 ### Phase 7 — Prove integration breadth, then release
 
+**7A implementation:** [AgentDojo banking](../plugins/agentdojo/README.md) now uses
+the generic [API 3 simulation environment contract](environment-adapters.md).
+The pinned v1 bill-payment task and one attacker goal have native state/oracle
+parity, fresh concurrent state, separate security/utility results, bounded host
+model/tool access, cancellation and signed replay tests. This is a controlled
+trajectory validation; live effectiveness and the full AgentDojo benchmark remain
+unvalidated. Broader families, adaptive attacks in this environment, garak and
+release validation remain outstanding below.
+
 **Deliverables**
 
 - AgentDojo environment adapter for one pinned task family, including state setup/reset,

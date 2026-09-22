@@ -53,7 +53,7 @@ Optional flags:
    start carries an idempotency key, so retrying a lost response cannot dispatch
    the same action twice within that server session.
 5. Verify the evidence. Reported run state is not verification. Signature trust,
-   replay completeness, security outcome and attested pass are shown separately.
+   replay completeness, security outcome, task utility and attested pass are shown separately.
    Private raw replay inputs are off by default; the explicit checkbox retains
    them for one hour. Branching/adaptive replay can be incomplete without its
    retained inputs. Use the CLI for externally supplied replay material.
@@ -61,6 +61,12 @@ Optional flags:
 Fixture actions are simulated. A model-backed target uses the configured model
 endpoint, but its tool actions still occur in the supported controlled fixture.
 The UI does not make arbitrary external agents or MCP servers safe to attack.
+
+For the [AgentDojo banking environment](../plugins/agentdojo/README.md), build and
+prepare its pinned image outside the UI, then import its source and manifest and
+paste the prepared suite into Advanced JSON. The environment is explicitly selected
+there as both environment and evaluator. Its `broker.environment` grant authorizes
+the reviewed simulation oracle; inspect that authority before accepting it.
 
 The **Research** screen shows Scout review staleness and recorded implementation
 claims without turning them into validation. Reviews use Scout's current database

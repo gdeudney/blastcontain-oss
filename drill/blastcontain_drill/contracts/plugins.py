@@ -31,7 +31,7 @@ class PluginManifest(WireRecord):
     notices: tuple[str, ...] = ()
     config_schema: dict[str, Any] = field(default_factory=dict)
     upstream: str | None = None
-    adapter_api: Literal[1, 2] = 1
+    adapter_api: Literal[1, 2, 3] = 1
     schema_version: Literal[1] = 1
 
     def validate(self):

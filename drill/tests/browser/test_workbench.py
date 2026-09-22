@@ -102,6 +102,10 @@ def test_compose_accept_run_verify_and_mobile(app, tmp_path, kind):
     expect(page.locator("#verification-status")).to_contain_text("Replay complete")
     expect(page.locator("#verification-status")).to_contain_text("Security checks passed")
     expect(page.locator("#verification-status")).to_contain_text("No attested pass")
+    expect(page.get_by_role("columnheader", name="Task utility")).to_be_visible()
+    expect(page.locator("#verified-cases tr").first.locator("td").nth(2)).to_have_text(
+        "not_measured"
+    )
     page.screenshot(path=str(tmp_path / (kind + "-desktop.png")), full_page=True)
     page.set_viewport_size({"width": 390, "height": 844})
     page.screenshot(path=str(tmp_path / (kind + "-mobile.png")), full_page=True)

@@ -336,7 +336,7 @@ class PodmanWorker:
             raise WorkerError("A worker instance can only be started once")
         check_profile(self.manifest)
         check_acceptance(self.manifest, self.acceptances)
-        if set(self.bindings) - {"target", "attacker", "evaluator"}:
+        if set(self.bindings) - {"target", "attacker", "evaluator", "environment"}:
             raise ContractError("Unknown broker binding")
         if set(self.conversations) - {"target", "attacker", "evaluator"}:
             raise ContractError("Unknown conversation binding")
@@ -484,8 +484,9 @@ class PodmanWorker:
             raise BudgetExceeded("Worker target/model call budget exhausted")
         if self._messages >= self.limits.max_messages:
             raise BudgetExceeded("No message budget remains for a broker reply")
-        injection = None if conversation else Injection.from_dict(message["payload"])
-        payload = message["payload"] if conversation else injection
+        structured = conversation or message["type"] == "environment"
+        injection = None if structured else Injection.from_dict(message["payload"])
+        payload = message["payload"] if structured else injection
         self._call_id = message["call_id"]
         index = len(self.calls)
         context = BrokerContext(self._scenario.id, self._deadline, self._scope_id)
@@ -558,7 +559,10 @@ class PodmanWorker:
                         raise ProtocolError("Response request ID mismatch")
                     if message["type"] == "result":
                         return message["result"]
-                    if message["type"] in ("call", "conversation") and method == "execute":
+                    if (
+                        message["type"] in ("call", "conversation", "environment")
+                        and method == "execute"
+                    ):
                         await self._broker(message)
                     elif message["type"] == "error":
                         raise WorkerError("Plugin error: " + message["error"][:500])

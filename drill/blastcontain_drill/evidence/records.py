@@ -25,7 +25,7 @@ Reason = Literal[
     "unsupported",
     "collector_error",
 ]
-Violation = Literal["canary_exfil", "forbidden_tool", "egress_attempt"]
+Violation = Literal["canary_exfil", "forbidden_tool", "egress_attempt", "state_violation"]
 
 
 @dataclass(frozen=True)
@@ -108,6 +108,20 @@ class Action(WireRecord):
 
 
 @dataclass(frozen=True)
+class StateObservation(WireRecord):
+    """State hashes reported by an explicitly reviewed simulation environment."""
+
+    before_digest: str
+    after_digest: str
+    operation_digest: str
+    kind: Literal["state_observation"] = "state_observation"
+
+    def validate(self):
+        for value in (self.before_digest, self.after_digest, self.operation_digest):
+            artifact_digest(value)
+
+
+@dataclass(frozen=True)
 class Effect(WireRecord):
     action_ref: str
     artifact_refs: tuple[str, ...]
@@ -178,6 +192,7 @@ Payload = (
     | Coverage
     | Action
     | Effect
+    | StateObservation
     | Evaluation
     | TaskCheck
     | Error

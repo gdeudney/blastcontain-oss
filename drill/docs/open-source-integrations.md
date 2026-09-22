@@ -1,7 +1,10 @@
 # Open-source integration candidates
 
-Research checked September 20, 2026. These are integration recommendations, not
-installed dependencies, active adapters or reproduced benchmark results.
+Research checked September 20, 2026. Implementation update September 22:
+[static PyRIT](../plugins/pyrit/README.md), [native Crescendo](../plugins/pyrit/CRESCENDO.md)
+and one [AgentDojo banking environment](../plugins/agentdojo/README.md) are available
+as explicit, pinned container integrations. Other entries remain candidates.
+The narrow adapter scopes do not establish full benchmark reproduction.
 
 | Priority | Project | Useful addition | Proposed boundary |
 |---|---|---|---|

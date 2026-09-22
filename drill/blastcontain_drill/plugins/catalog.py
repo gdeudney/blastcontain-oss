@@ -19,7 +19,8 @@ CONVERSATION_ACCESS = frozenset(
     for scope in ("conversation", "branch")
 )
 SUPPORTED_ACCESS = (
-    frozenset({"broker.target", "broker.attacker", "broker.evaluator"}) | CONVERSATION_ACCESS
+    frozenset({"broker.target", "broker.attacker", "broker.evaluator", "broker.environment"})
+    | CONVERSATION_ACCESS
 )
 
 
@@ -96,6 +97,16 @@ def check_acceptance(manifest: PluginManifest, records: Iterable[AcceptanceRecor
 
 
 def check_profile(manifest: PluginManifest) -> None:
+    if manifest.adapter_api == 3 or "broker.environment" in manifest.access_requests:
+        if (
+            manifest.adapter_api != 3
+            or set(manifest.roles) != {"environment", "evaluator"}
+            or manifest.access_requests != ("broker.environment",)
+            or "environment.stateful.v1" not in manifest.capabilities
+        ):
+            raise ContractError(
+                "API 3 requires a reviewed environment/evaluator with only broker.environment"
+            )
     unsupported = set(manifest.access_requests) - SUPPORTED_ACCESS
     if unsupported:
         raise ContractError(f"Unsupported access requests: {sorted(unsupported)}")

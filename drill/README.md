@@ -80,7 +80,10 @@ the same host broker. The [suite CLI](docs/suite-cli.md) exposes review, accepta
 run, stop and verified results. The optional [pinned static PyRIT adapter](plugins/pyrit/README.md)
 now exercises a real external framework through the same broker. The separate
 [bounded Crescendo adapter](plugins/pyrit/CRESCENDO.md) adds checkpoint-backed
-adaptive attacks. Live-model validation and the UI remain later milestones. See the [baseline record](docs/redesign-baseline.md).
+adaptive attacks. The [AgentDojo banking adapter](plugins/agentdojo/README.md) adds
+one pinned simulated environment with native task/attacker oracles and separate
+security/utility outcomes. Live-model effectiveness remains unvalidated. See the
+[baseline record](docs/redesign-baseline.md).
 
 The [local workbench](docs/workbench.md) adds browser-based suite composition,
 exact-scope acceptance, preflight, run/cancel and evidence verification using those

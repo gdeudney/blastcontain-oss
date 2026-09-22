@@ -25,6 +25,7 @@ from .records import (
     EvidenceRecord,
     Output,
     Started,
+    StateObservation,
     TaskCheck,
     Terminal,
 )
@@ -92,6 +93,7 @@ def reduce_evidence(
     seen: dict[str, EvidenceRecord] = {}
     actions = {}
     action_ids = set()
+    environment_states = {}
     outputs = set()
     effects = []
     evaluations = []
@@ -137,6 +139,14 @@ def reduce_evidence(
                 raise ContractError("Duplicate action identity")
             action_ids.add(payload.action_id)
             actions[ref] = payload
+        elif isinstance(payload, StateObservation):
+            previous = environment_states.get(producer.id, payload.before_digest)
+            if payload.before_digest != previous or (
+                producer.id not in environment_states
+                and payload.before_digest != payload.after_digest
+            ):
+                raise ContractError("Environment state observation chain is broken")
+            environment_states[producer.id] = payload.after_digest
         elif isinstance(payload, Effect):
             earlier(payload.action_ref, Action)
             for artifact_id in payload.artifact_refs:
@@ -153,7 +163,7 @@ def reduce_evidence(
             evaluations.append((record.emitter, payload))
         elif isinstance(payload, TaskCheck):
             for reference in payload.evidence_refs:
-                earlier(reference, (Output, Action, Effect, Delivery))
+                earlier(reference, (Output, Action, Effect, Delivery, StateObservation))
             if payload.check_id not in scenario.task_checks:
                 raise ContractError("Task assessment is not a declared scenario check")
             checks.append(payload)
@@ -295,7 +305,12 @@ def reduce_evidence(
             utility = "unknown"
         if any(not values or None in values or len(values) != 1 for values in results.values()):
             diagnostics.add("missing_or_contradictory_task_check")
-            execution = "error"
+            # Stopping before the final oracle is expected on cancellation/limits.
+            # Contradictory observations still invalidate any execution status.
+            if execution == "completed" or any(
+                None in values or len(values) > 1 for values in results.values()
+            ):
+                execution = "error"
             if security == "held":
                 security = "unknown"
 

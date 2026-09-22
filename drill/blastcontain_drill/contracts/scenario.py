@@ -8,7 +8,7 @@ from typing import Literal
 from .wire import ContractError, WireRecord, require_text, unique
 
 Surface = Literal["user", "document", "mcp_description", "mcp_response", "memory"]
-GoalKind = Literal["content", "exfil_canary", "forbidden_tool", "egress"]
+GoalKind = Literal["content", "exfil_canary", "forbidden_tool", "egress", "state_violation"]
 RubricAxis = Literal["harm", "refusal", "freeform"]
 Layer = Literal["replay", "operators", "generative"]
 Vector = Literal["direct", "indirect"]

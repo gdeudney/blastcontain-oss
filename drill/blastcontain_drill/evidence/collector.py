@@ -24,6 +24,7 @@ from .records import (
     Payload,
     Producer,
     Started,
+    StateObservation,
     TaskCheck,
     Terminal,
 )
@@ -47,7 +48,7 @@ def authorize(producer: Producer, payload: Payload):
         permitted = producer.role == "environment" and set(payload.channels) <= set(
             producer.observations
         )
-    elif isinstance(payload, Action):
+    elif isinstance(payload, (Action, StateObservation)):
         permitted = producer.role == "environment" and "tool_actions" in producer.observations
     elif isinstance(payload, Effect):
         permitted = producer.role == "environment" and producer.scope == "independent"
