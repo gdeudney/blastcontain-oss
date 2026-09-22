@@ -50,10 +50,24 @@ class ModelSettings(WireRecord):
     temperature: float = 0.0
     max_output_tokens: int = 512
 
+    @classmethod
+    def from_dict(cls, data):
+        # JSON has one number type; browsers serialize 0.0 as 0. Normalize only
+        # this numeric field, preserving strict integer budgets and boolean rejection.
+        if type(data) is dict and type(data.get("temperature")) is int:
+            if not 0 <= data["temperature"] <= 2:
+                raise ContractError("temperature must be in [0, 2]")
+            data = {**data, "temperature": float(data["temperature"])}
+        return super().from_dict(data)
+
     def validate(self):
-        for value in (self.model_ref, self.credential_ref):
-            if value is not None:
-                reference(value)
+        # Provider model IDs commonly include organization/name and tag suffixes.
+        # They are JSON values, never paths or command arguments. Credential aliases
+        # remain symbolic references resolved only by the host.
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:/@-]{0,255}", self.model_ref):
+            raise ContractError("Expected a provider model ID of at most 256 safe characters")
+        if self.credential_ref is not None:
+            reference(self.credential_ref)
         try:
             endpoint = urlsplit(self.endpoint_url)
             if (

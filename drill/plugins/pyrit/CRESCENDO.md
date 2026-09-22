@@ -62,8 +62,8 @@ python drill/plugins/pyrit/prepare_crescendo.py \
 
 The helper only probes the chosen local image and writes reviewable JSON. Inspect
 `source.json` (including the objective), `suite.json`, the image, templates,
-capabilities, license notices and `review.json`. Model references must satisfy the
-suite's symbolic-reference format. Distinct per-channel endpoints, credentials or
+capabilities, license notices and `review.json`. Provider model IDs may include organization/name, colon tags and @version
+suffixes (at most 256 characters; no whitespace or control characters). Distinct per-channel endpoints, credentials or
 pinned model identities can be configured by editing `suite.json` before review;
 put credential references there and resolve secrets in the host environment.
 

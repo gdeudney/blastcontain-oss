@@ -82,6 +82,11 @@ now exercises a real external framework through the same broker. The separate
 [bounded Crescendo adapter](plugins/pyrit/CRESCENDO.md) adds checkpoint-backed
 adaptive attacks. Live-model validation and the UI remain later milestones. See the [baseline record](docs/redesign-baseline.md).
 
+The [local workbench](docs/workbench.md) adds browser-based suite composition,
+exact-scope acceptance, preflight, run/cancel and evidence verification using those
+same services. Start it with `blastcontain-drill-ui --workspace /path/to/new-private-directory`.
+Scout research review and Git provenance are optional launch-time integrations.
+
 ## The cage
 
 The cage is an interface with two backends:
