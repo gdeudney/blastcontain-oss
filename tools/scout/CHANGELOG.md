@@ -5,6 +5,8 @@ All notable changes to `blastcontain-scout` are documented here. Format based on
 ## [Unreleased]
 
 ### Added
+- Optional Git-bound research mappings, explicit refresh and bidirectional suite/run
+  tracing through Drill's existing contracts and evidence verifier.
 - Transactional database version 3 migrations, actor/revision-bound implementation
   annotations and stale concurrent-edit rejection through `--expected-revision`.
 - Consistent SQLite backup, restore to a new path, and complete audit-history export.

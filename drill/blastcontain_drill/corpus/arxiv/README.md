@@ -28,8 +28,16 @@ citations may refer to the same four synthetic scenarios; do not count them twic
 
 Every entry includes its paper title/ID, code or inspected area, source commit/PR,
 coverage, relationship, limitations and test evidence. `audited_at`, `main_commit`
-and `draft_pr_head` pin the audit: this file does not automatically refresh when a
-PR merges. The draft MCP module may not exist on main yet; its PR is the reference.
+and `draft_pr_head` pin the registry refresh (`draft_pr_head` is null when no draft
+is included). Each entry has its own `audited_at`; unchanged baseline findings do
+not become a new full-method audit when other entries are refreshed. The September
+21 refresh records merged MCP poisoning PR #62 and bounded native Crescendo PR #78.
+No live attack efficacy or full benchmark/paper reproduction is claimed.
+
+For exact source/plugin/scenario digests, paper fingerprints, code/test/license
+artifacts, acceptance records and verified run tracing, use Scout's optional
+[Git-bound provenance commands](../../../../tools/scout/docs/provenance.md).
+The older registry remains a concise audit summary and never authorizes execution.
 
 ## Scout lookup
 

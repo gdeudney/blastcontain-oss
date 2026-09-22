@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "audited_at": "2026-09-20",
-  "main_commit": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
-  "draft_pr_head": "a98993bca535e37c17cc08cdd90ea3a65719b18c",
+  "audited_at": "2026-09-21",
+  "main_commit": "ebeec0340a25abda9946d93bd26bc1c9f1b544bd",
+  "draft_pr_head": null,
   "entries": [
     {
       "paper_id": "2404.01318",
@@ -13,7 +13,8 @@
       "tests": "2026-09-20: 41 targeted unit tests passed, including all 7 test_jailbreakbench.py tests",
       "relationship": "Direct vendored data integration",
       "details": "100 harmful and 100 benign JBB-Behaviors rows, pinned dataset revision 886acc352a31533ffbcf4ef22c744658688086fc. Opt-in loader and over-refusal scoring tested. Does not implement the complete upstream benchmark, judge or leaderboard protocol.",
-      "title": "JailbreakBench: An Open Robustness Benchmark for Jailbreaking Large Language Models"
+      "title": "JailbreakBench: An Open Robustness Benchmark for Jailbreaking Large Language Models",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2310.08419",
@@ -24,18 +25,20 @@
       "tests": "2026-09-20: 41 targeted unit tests passed, including test_generative.py; stub attacker/fake cage, not a live-model reproduction",
       "relationship": "PAIR-style implementation; documented family attribution, no paper-specific reproduction",
       "details": "Single-candidate iterative attacker/target feedback loop. The LLM attacker receives only truncated last-attempt feedback. No claim of matching the original PAIR algorithm, budgets, benchmark protocol or reported attack rates.",
-      "title": "Jailbreaking Black Box Large Language Models in Twenty Queries"
+      "title": "Jailbreaking Black Box Large Language Models in Twenty Queries",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2404.01833",
       "coverage": "partial_method",
-      "status": "implemented",
-      "source": "drill/blastcontain_drill/corpus/multiturn.py",
-      "reference": "3b20b2b4116f666d5117dc54cf1e8fc47142ad27",
-      "tests": "2026-09-20: 41 targeted unit tests passed, including all 8 test_multiturn.py tests; deterministic model doubles",
-      "relationship": "Crescendo-style fixed sequence; method-family match",
-      "details": "A real conversation carries a fixed benign-to-harmful escalation sequence. Not adaptive Crescendomation, no response-conditioned attack planning or published experiment reproduction.",
-      "title": "Great, Now Write an Article About That: The Crescendo Multi-Turn LLM Jailbreak Attack"
+      "status": "validated",
+      "source": "drill/plugins/pyrit/crescendo.py",
+      "reference": "a878c2ce01c2e004a461ac3a5c31d3a404a5ee0a",
+      "tests": "Merged PR #78: 19 real PyRIT container checks, including native/adapted histories, backtracking, JSON retry, budgets, cancellation and signed Agent evidence; 679 Core/Drill/Scout regressions passed",
+      "relationship": "Pinned PyRIT 1.1.0 native Crescendo algorithm with original Drill templates and controlled Agent checkpoints",
+      "details": "Bounded three accepted turns and one backtrack, host-brokered target/attacker/evaluator calls, original Apache-2.0 templates. The older fixed sequence remains in corpus/multiturn.py. Native algorithm parity is tested; paper/default templates, published benchmark results, TAP and live attack effectiveness are not reproduced.",
+      "title": "Great, Now Write an Article About That: The Crescendo Multi-Turn LLM Jailbreak Attack",
+      "audited_at": "2026-09-21"
     },
     {
       "paper_id": "2312.02119",
@@ -46,29 +49,32 @@
       "tests": "Code inspection of run_generative and LLMAttacker",
       "relationship": "Documentation mentions TAP; no TAP algorithm found",
       "details": "Sequential refinement only. No branching search tree, candidate pruning or TAP-specific evaluator. PAIR/TAP wording should not be interpreted as TAP support.",
-      "title": "Tree of Attacks: Jailbreaking Black-Box LLMs Automatically"
+      "title": "Tree of Attacks: Jailbreaking Black-Box LLMs Automatically",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2508.14925",
       "coverage": "research_informed_examples",
-      "status": "in_progress",
+      "status": "validated",
       "source": "drill/blastcontain_drill/corpus/mcp_poisoning.py",
-      "reference": "https://github.com/gdeudney/blastcontain-oss/pull/62",
-      "tests": "2026-09-20: 20 test_mcp_poisoning.py tests passed with localhost socket access; deterministic agents, no live-model efficacy claim",
+      "reference": "a4e129ce55cf7d732dd58c236e2c15013d7da444",
+      "tests": "MCP poisoning tests in drill/tests/unit/test_mcp_poisoning.py; covered by the 679-test Core/Drill/Scout regression run for merged PR #78; deterministic fixtures, no live efficacy claim",
       "relationship": "Research citation; original synthetic scenarios, not benchmark integration",
-      "details": "PR #62 OPEN and draft at head a98993bca535e37c17cc08cdd90ea3a65719b18c. Four description/response exfiltration/deletion scenarios share one implementation. Neither paper dataset is vendored, and neither benchmark is reproduced.",
-      "title": "MCPTox: A Benchmark for Tool Poisoning Attack on Real-World MCP Servers"
+      "details": "PR #62 merged September 20, 2026. Four description/response exfiltration/deletion scenarios share one implementation. Neither paper dataset is vendored, and neither benchmark is reproduced.",
+      "title": "MCPTox: A Benchmark for Tool Poisoning Attack on Real-World MCP Servers",
+      "audited_at": "2026-09-21"
     },
     {
       "paper_id": "2510.15994",
       "coverage": "research_informed_examples",
-      "status": "in_progress",
+      "status": "validated",
       "source": "drill/blastcontain_drill/corpus/mcp_poisoning.py",
-      "reference": "https://github.com/gdeudney/blastcontain-oss/pull/62",
-      "tests": "2026-09-20: 20 test_mcp_poisoning.py tests passed with localhost socket access; deterministic agents, no live-model efficacy claim",
+      "reference": "a4e129ce55cf7d732dd58c236e2c15013d7da444",
+      "tests": "MCP poisoning tests in drill/tests/unit/test_mcp_poisoning.py; covered by the 679-test Core/Drill/Scout regression run for merged PR #78; deterministic fixtures, no live efficacy claim",
       "relationship": "Research citation; original synthetic scenarios, not benchmark integration",
-      "details": "PR #62 OPEN and draft at head a98993bca535e37c17cc08cdd90ea3a65719b18c. Four description/response exfiltration/deletion scenarios share one implementation. Neither paper dataset is vendored, and neither benchmark is reproduced.",
-      "title": "MCP Security Bench (MSB): Benchmarking Attacks Against Model Context Protocol in LLM Agents"
+      "details": "PR #62 merged September 20, 2026. Four description/response exfiltration/deletion scenarios share one implementation. Neither paper dataset is vendored, and neither benchmark is reproduced.",
+      "title": "MCP Security Bench (MSB): Benchmarking Attacks Against Model Context Protocol in LLM Agents",
+      "audited_at": "2026-09-21"
     },
     {
       "paper_id": "2603.07473",
@@ -78,8 +84,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "Give Them an Inch and They Will Take a Mile:Understanding and Measuring Caller Identity Confusion in MCP-Based AI Systems"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "Give Them an Inch and They Will Take a Mile:Understanding and Measuring Caller Identity Confusion in MCP-Based AI Systems",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2603.21641",
@@ -89,8 +96,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "Auditing MCP Servers for Over-Privileged Tool Capabilities"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "Auditing MCP Servers for Over-Privileged Tool Capabilities",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2601.01241",
@@ -100,8 +108,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "MCP-SandboxScan: WASM-based Secure Execution and Runtime Analysis for MCP Tools"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "MCP-SandboxScan: WASM-based Secure Execution and Runtime Analysis for MCP Tools",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2605.22333",
@@ -111,8 +120,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "A First Measurement Study on Authentication Security in Real-World Remote MCP Servers"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "A First Measurement Study on Authentication Security in Real-World Remote MCP Servers",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2606.29073",
@@ -122,8 +132,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "From Tool Connection to Execution Control: Benchmarking Security Invariants in MCP-Style Agent Runtimes"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "From Tool Connection to Execution Control: Benchmarking Security Invariants in MCP-Style Agent Runtimes",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2604.21477",
@@ -133,8 +144,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "MCP Pitfall Lab: Exposing Developer Pitfalls in MCP Tool Server Security under Multi-Vector Attacks"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "MCP Pitfall Lab: Exposing Developer Pitfalls in MCP Tool Server Security under Multi-Vector Attacks",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2602.16901",
@@ -144,8 +156,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "AgentLAB: Benchmarking LLM Agents against Long-Horizon Attacks"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "AgentLAB: Benchmarking LLM Agents against Long-Horizon Attacks",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2608.23763",
@@ -155,8 +168,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "TrustShiftProbe: Characterizing, Benchmarking, and Defending Staged Trust Attacks on MCP Servers"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "TrustShiftProbe: Characterizing, Benchmarking, and Defending Staged Trust Attacks on MCP Servers",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2609.18217",
@@ -166,8 +180,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "Measuring and Exploiting Implicit Trust in LLM Tool-Calling Pipelines"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "Measuring and Exploiting Implicit Trust in LLM Tool-Calling Pipelines",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2606.18356",
@@ -177,8 +192,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "SafeClawBench: Separating Semantic, Audit-Evidence, and Sandbox Harm in Tool-Using LLM Agents"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "SafeClawBench: Separating Semantic, Audit-Evidence, and Sandbox Harm in Tool-Using LLM Agents",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2608.12880",
@@ -188,8 +204,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "Labels Are Not Endpoints: Treatment Leakage and Construct Validity in MCP Agent Security Evaluation"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "Labels Are Not Endpoints: Treatment Leakage and Construct Validity in MCP Agent Security Evaluation",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2605.13940",
@@ -199,8 +216,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "AgentTrap: Measuring Runtime Trust Failures in Third-Party Agent Skills"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "AgentTrap: Measuring Runtime Trust Failures in Third-Party Agent Skills",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2608.15888",
@@ -210,8 +228,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "Bounded Agents: Delegation Security for Multi-Agent AI Systems"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "Bounded Agents: Delegation Security for Multi-Agent AI Systems",
+      "audited_at": "2026-09-20"
     },
     {
       "paper_id": "2609.15906",
@@ -221,8 +240,9 @@
       "reference": "bd8d93c3a20098baac43e8a139e9bb10f2bde298",
       "tests": "Registered source, vendored data, generative loop, and test inventory inspection",
       "relationship": "Candidate research; no established implementation provenance",
-      "details": "No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
-      "title": "Authorization Architectures for Tool-Using AI Agents"
+      "details": "September 20 baseline audit: No paper-specific integration identified in main or PR #62. Shared concepts such as multi-turn state or action-based scoring do not establish paper implementation. Some candidates concern Verify or future Charter rather than Drill. This is not a full-method equivalence audit.",
+      "title": "Authorization Architectures for Tool-Using AI Agents",
+      "audited_at": "2026-09-20"
     }
   ]
 }
