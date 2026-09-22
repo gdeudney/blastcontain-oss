@@ -7,8 +7,8 @@ attacker and signed reports still use their current execution path.
 [Suite planning](suite-planning.md) and [evidence reduction](evidence-reduction.md)
 are now additive APIs; [fixture suite execution](suite-execution.md) is available in
 3C/3D, including the reference external strategy. The [static PyRIT adapter](../plugins/pyrit/README.md)
-adds a pinned real upstream strategy in 4A; adaptive upstream integration and the
-acceptance UI remain later work.
+adds a pinned real upstream strategy in 4A. The separate [Crescendo image](../plugins/pyrit/CRESCENDO.md)
+uses API 2 conversation grants in 4B. Live validation and the acceptance UI remain later work.
 
 ## Discovery and acceptance
 

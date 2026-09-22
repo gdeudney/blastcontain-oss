@@ -102,8 +102,8 @@ Sequence: 0 → 3A → 3B → 3C → 3D → 3E → 3F. Define collector and ledg
 before 3C so early execution cannot become an unbudgeted alternate path. Until 3E,
 execution is a development API, not the advertised production suite command.
 The optional [4A static PyRIT adapter](../plugins/pyrit/README.md) now exercises the
-first real external framework. Crescendo requires conversation-aware broker support
-and remains a separate 4B milestone.
+first real external framework. The separate [4B Crescendo adapter](../plugins/pyrit/CRESCENDO.md)
+adds conversation/checkpoint support with real upstream parity; live validation remains open.
 
 ## Execution and outcome rules
 

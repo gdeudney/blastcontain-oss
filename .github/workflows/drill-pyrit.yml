@@ -45,7 +45,19 @@ jobs:
           subprocess.run(['podman', '--remote=false', 'build', '--iidfile', str(path), '-f', 'drill/plugins/pyrit/Containerfile', '.'], check=True)
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write('image_id=' + path.read_text().strip() + '\n')
+      - name: Build checkpoint-backed Crescendo image
+        id: crescendo
+        shell: python
+        env:
+          BASE_IMAGE: ${{ steps.image.outputs.image_id }}
+        run: |
+          import os, pathlib, subprocess
+          path = pathlib.Path(os.environ['RUNNER_TEMP']) / 'crescendo-image-id'
+          subprocess.run(['podman', '--remote=false', 'build', '--build-arg', 'BASE_IMAGE=' + os.environ['BASE_IMAGE'], '--iidfile', str(path), '-f', 'drill/plugins/pyrit/Containerfile.crescendo', '.'], check=True)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('image_id=' + path.read_text().strip() + '\n')
       - name: Real upstream parity and worker conformance
         env:
           DRILL_PYRIT_IMAGE: ${{ steps.image.outputs.image_id }}
+          DRILL_PYRIT_CRESCENDO_IMAGE: ${{ steps.crescendo.outputs.image_id }}
         run: python -m pytest drill/plugins/pyrit/tests -q

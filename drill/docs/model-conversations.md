@@ -10,7 +10,8 @@ API 2 workers can now use these sessions through separately accepted conversatio
 and branching routes. Suite execution closes every session and retains its sanitized
 graph in signed run schema 2. API 1, PAIR and static PyRIT keep their existing behavior.
 [Controlled Agent checkpoints](agent-checkpoints.md) now provide a separate target
-route. MCP state restoration and Crescendo remain pending capabilities.
+route. The [bounded Crescendo adapter](../plugins/pyrit/CRESCENDO.md) uses both
+routes. MCP state restoration remains unsupported.
 
 ## Service example
 
@@ -124,14 +125,13 @@ Raw text remains opt-in and expirable. Schema 1 runs remain readable; schema 2 i
 required for these audits. This does not assert independent replay of an LLM's
 behavior or rollback of real external effects.
 
-## Remaining 4B work and acceptance gates
+## Crescendo validation and remaining live gate
 
 The worker route and signed model graph are implemented. The separate
 [Agent checkpoint route](agent-checkpoints.md) preserves synthetic tool state,
 retains every target attempt and requires original checkpoint data for replay.
 
-Adapt pinned PyRIT Crescendo to these routes next. Compare actual upstream and
-adapted histories, refusal/backtrack behavior and model calls using recording
-models before the separate bounded live gate. Review required upstream templates
-independently; the static image deliberately excludes bundled data. Passing the
-conversation/checkpoint tests does not claim Crescendo or live validation is done.
+The [pinned Crescendo adapter](../plugins/pyrit/CRESCENDO.md) now compares native
+and adapted histories, refusal/backtrack behavior and retry calls using controlled
+models inside the restricted image. It uses original reviewed templates; bundled
+upstream datasets remain removed. The separate bounded live gate remains pending.

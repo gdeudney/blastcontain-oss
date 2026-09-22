@@ -66,8 +66,9 @@ strategy code still runs in the rootless, network-disabled Podman worker.
 MCP state, poisoned-document/catalog fixtures, custom environment/task fixtures,
 arbitrary target-system editing and real irreversible effects are unsupported.
 A real environment adapter must establish its own faithful snapshot/reset
-contract before advertising checkpoints. Crescendo integration remains a separate
-adapter/parity gate; this service alone does not claim that strategy is complete.
+contract before advertising checkpoints. The [Crescendo adapter](../plugins/pyrit/CRESCENDO.md)
+uses this route and passes controlled native/adapted parity. Bounded live validation
+remains a separate gate.
 
 ## Signed evidence and replay
 

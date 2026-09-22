@@ -10,7 +10,9 @@ Phases 3C/3D add [suite execution](suite-execution.md) with fresh fixture proces
 brokered adaptive strategies, shared budgets and concurrent cases. Run lifecycle
 services are available in [3E](suite-runs.md). The [3F CLI](suite-cli.md) adds lifecycle commands and
 clean-wheel validation. The [4A static PyRIT adapter](../plugins/pyrit/README.md) adds a real pinned upstream
-strategy; adaptive PyRIT, live-model validation and phases 5–7 remain pending.
+strategy. The [4B Crescendo adapter](../plugins/pyrit/CRESCENDO.md) adds native
+backtracking with host-owned model/Agent checkpoints. Live-model validation and
+phases 5–7 remain pending.
 
 ## Outcome
 
@@ -233,8 +235,11 @@ Delivery is split into independently reviewed units:
   host-owned attacker/evaluator sessions, separately accepted API 2 worker routes,
   and signed graph/model-call verification. [4B3 Agent checkpoints](agent-checkpoints.md)
   add faithful synthetic fixture snapshots, retained abandoned-branch actions and
-  mandatory state inputs for offline replay. The Crescendo adapter/parity gate remains
-  pending; these services do not claim that integration is complete.
+  mandatory state inputs for offline replay. The separate
+  [bounded Crescendo adapter](../plugins/pyrit/CRESCENDO.md) now passes real upstream
+  history/backtracking/retry parity inside the restricted container, using original
+  reviewed templates. Signed host evidence, shared limits and independent stopping
+  are covered by real-worker tests; this does not close the separate live gate.
 - **4C — Bounded live validation:** three repetitions with recorded model identities,
   caps, security/utility results and limitations. Pending an available local endpoint.
 
