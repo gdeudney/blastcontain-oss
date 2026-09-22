@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import tempfile
 
 VERSION = 3
 
@@ -62,19 +63,25 @@ def migrate(db):
 
 @contextmanager
 def exclusive_output(path, *, binary=False):
-    """Private new artifact; refuse overwrite, including dangling destination links."""
+    """Publish a complete private file atomically without replacing an existing name."""
     path = Path(path).absolute()
-    if any(parent.is_symlink() for parent in path.parents):
-        raise ValueError('Output parent must not be a symlink')
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    if any(parent.is_symlink() or getattr(parent.lstat(), 'st_file_attributes', 0) & 0x400
+           for parent in path.parents):
+        raise ValueError('Output parent must not be a symlink or reparse point')
+    if path.exists() or path.is_symlink():
+        raise FileExistsError('Output already exists')
+    fd, temporary_name = tempfile.mkstemp(prefix='.scout-', dir=path.parent)
+    temporary = Path(temporary_name)
     try:
         with os.fdopen(fd, 'wb' if binary else 'w', **({} if binary else {'encoding': 'utf-8'})) as stream:
-            yield stream
+            yield stream, temporary
             stream.flush()
             os.fsync(stream.fileno())
-    except BaseException:
-        path.unlink(missing_ok=True)
-        raise
+        # Unlike Windows CRT O_EXCL, link publication cannot follow a dangling
+        # destination symlink. It also rejects a concurrently created file.
+        os.link(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def copy_database(source, destination):
@@ -92,8 +99,8 @@ def copy_database(source, destination):
         if tracker.db.execute('PRAGMA foreign_key_check').fetchone() is not None:
             raise ValueError('Scout database has broken references')
         tracker.snapshot()  # Verify expected data shape before creating the output.
-        with exclusive_output(destination, binary=True):
-            output = sqlite3.connect(destination)
+        with exclusive_output(destination, binary=True) as (_, temporary):
+            output = sqlite3.connect(temporary)
             try:
                 tracker.db.backup(output)
             finally:
@@ -107,6 +114,6 @@ def export_audit(source, destination):
 
     with Tracker(source, readonly=True) as tracker:
         snapshot = tracker.snapshot()
-    with exclusive_output(destination) as stream:
+    with exclusive_output(destination) as (stream, _):
         json.dump(snapshot, stream, ensure_ascii=False, sort_keys=True, indent=2)
         stream.write('\n')

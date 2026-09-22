@@ -12,7 +12,7 @@ import pytest
 
 from blastcontain_scout.analyze import classify
 from blastcontain_scout.arxiv import Paper
-from blastcontain_scout.storage import BASE_TABLES, copy_database, export_audit, migrate
+from blastcontain_scout.storage import BASE_TABLES, copy_database, exclusive_output, export_audit, migrate
 from blastcontain_scout.tracker import Tracker
 from blastcontain_scout.tracking_cli import main
 
@@ -200,3 +200,14 @@ def test_cli_backup_restore_export_and_conflict_message(tmp_path):
     assert result.exit_code != 0
     assert 'reload' in result.output
     assert runner.invoke(main, args + ['restore', str(backup), str(path)]).exit_code != 0
+
+
+def test_output_publication_rejects_racing_file_without_overwriting_it(tmp_path):
+    output = tmp_path / 'history.json'
+    with pytest.raises(FileExistsError):
+        with exclusive_output(output) as (stream, _):
+            stream.write('draft snapshot')
+            assert not output.exists()
+            output.write_text('concurrent owner')
+    assert output.read_text() == 'concurrent owner'
+    assert not tuple(tmp_path.glob('.scout-*'))
