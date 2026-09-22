@@ -90,6 +90,12 @@ rejected. These are local file-access controls, not isolation from another proce
 running as the same user or an administrator. Use a local filesystem supporting
 atomic file publication and process locks.
 
+Run schema 2 adds sanitized [model conversation audits](model-conversations.md).
+The signed model ledger links each conversation call to its scope and sequence;
+verification requires a complete, closed graph and the accepted model/branching
+scope. Old schema 1 runs remain readable. Conversation summaries contain no raw
+system messages, prompts or responses.
+
 ## Replay, stopping and recovery
 
 Normal replay requires the original lock supplied as `lock=`. Adaptive runs also

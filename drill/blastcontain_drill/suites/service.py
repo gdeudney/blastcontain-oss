@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import sys
 import tempfile
+import uuid
 from typing import Callable
 
 import blastcontain_core
@@ -35,6 +36,7 @@ from ..plugins.runtime import _read_capped, _reap
 from .artifacts import canonical, digest
 from .budgets import BudgetExceeded, Ledger, Usage
 from .broker import ModelBroker, ModelCall, ModelError
+from .conversations import ConversationAudit
 from .catalog import Catalog, RuntimeProbe, builtin_catalog
 from .lock import SuiteLock, validate_lock
 from .planner import PlannedCase
@@ -68,6 +70,7 @@ class CaseRun:
     attempts: tuple[CaseRun, ...] = ()
     scenario: ScenarioSpec | None = None
     reduction_policy: ReductionPolicy = ReductionPolicy()
+    conversations: tuple[ConversationAudit, ...] | None = None
 
     @property
     def passed(self):
@@ -512,6 +515,7 @@ async def run_suite(
     credentials=None,
     transport=None,
     model_trace=None,
+    run_id=None,
     cancel: asyncio.Event | None = None,
 ) -> SuiteRun:
     """Execute accepted cases with bounded concurrency and shared pre-dispatch budgets.
@@ -522,6 +526,7 @@ async def run_suite(
     from .adaptive import execute_adaptive
 
     lock.to_dict()
+    run_id = run_id or uuid.uuid4().hex
     pool = Ledger(lock.plan.spec.global_limits)
     broker = ModelBroker(
         lock.plan.spec.models, credentials=credentials, transport=transport, trace=model_trace
@@ -582,7 +587,7 @@ async def run_suite(
                             publish()
                             if case.strategy is not None:
                                 cases[index] = await execute_adaptive(
-                                    lock, case, ledger, broker, inputs, revalidate
+                                    lock, case, ledger, broker, inputs, revalidate, run_id=run_id
                                 )
                             else:
                                 cases[index] = await _execute_case(

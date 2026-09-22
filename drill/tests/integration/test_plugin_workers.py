@@ -61,7 +61,7 @@ def images():
         str(ROOT),
     ).splitlines()[-1]
     yield tuple("sha256:" + image.removeprefix("sha256:") for image in (reference, hostile))
-    command("rmi", hostile, reference)
+    command("rmi", "--ignore", hostile, reference)
 
 
 def setup(image, **limit_changes):
@@ -501,3 +501,115 @@ def test_suite_cancellation_cleans_actual_worker_and_active_target(
     asyncio.run(exercise())
     assert len(workers) == 1
     assert_removed(workers[0])
+
+
+@pytest.fixture(scope="module")
+def conversation_image(images, tmp_path_factory):
+    path = tmp_path_factory.mktemp("worker-api-2") / "Containerfile"
+    path.write_text(
+        "ARG BASE_IMAGE\nFROM ${BASE_IMAGE}\n"
+        'ENTRYPOINT ["/usr/local/bin/python", "-u", "/opt/plugin/worker.py", "2"]\n'
+    )
+    image = command(
+        "build", "-q", "--build-arg", f"BASE_IMAGE={images[1]}", "-f", str(path), str(ROOT)
+    ).splitlines()[-1]
+    yield "sha256:" + image.removeprefix("sha256:")
+    command("rmi", "--ignore", image)
+
+
+@pytest.mark.parametrize("mode", ["normal", "denied", "cancel"])
+def test_real_api_2_conversation_history_grants_and_stopping(conversation_image, mode):
+    from blastcontain_drill.suites.broker import ModelBroker, ModelReply
+    from blastcontain_drill.suites.budgets import Ledger
+    from blastcontain_drill.suites.conversation_routes import ConversationRoutes
+    from blastcontain_drill.suites.schema import Limits, ModelSettings
+
+    async def exercise():
+        calls, ready = [], asyncio.Event()
+
+        async def transport(settings, messages, *args):
+            calls.append(messages)
+            ready.set()
+            if mode == "cancel":
+                await asyncio.Event().wait()
+            return ModelReply("answer " + str(len(calls)))
+
+        model = ModelBroker(
+            (ModelSettings("attacker", "http://localhost:1234/v1", "recording"),),
+            transport=transport,
+        )
+        ledger = Ledger(Limits())
+        ledger.begin(Limits())
+        item, _, limits = setup(conversation_image, max_calls=10, wall_seconds=30)
+        grants = ("broker.target", "broker.attacker.conversation", "broker.attacker.branch")
+        item = replace(
+            item, adapter_api=2, access_requests=grants if mode != "denied" else ("broker.target",)
+        )
+        records = [
+            AcceptanceRecord(
+                item.id,
+                "plugin",
+                review_digest(item),
+                "test",
+                "accepted",
+                "2026-09-21T00:00:00Z",
+                "Controlled API 2 fixture",
+                item.access_requests,
+            )
+        ]
+        routes = ConversationRoutes(
+            model,
+            ledger,
+            run_id="a" * 32,
+            case_id="sha256:" + "b" * 64,
+            grants=grants,
+            revalidate=lambda: None,
+        )
+
+        async def conversation(payload, context):
+            return await routes.dispatch("attacker", payload, context)
+
+        worker = PodmanWorker(
+            item,
+            records,
+            bindings={"target": echo},
+            limits=limits,
+            conversations={"attacker": conversation},
+        )
+        try:
+            async with worker:
+                await worker.prepare()
+                await worker.reset(
+                    scenario("conversation-cancel" if mode == "cancel" else "conversation")
+                )
+                if mode == "cancel":
+                    task = asyncio.create_task(worker.execute())
+                    await asyncio.wait_for(ready.wait(), 20)
+                    await worker.cancel()
+                    with pytest.raises(asyncio.CancelledError):
+                        await task
+                elif mode == "denied":
+                    with pytest.raises(WorkerError, match="not granted"):
+                        await worker.execute()
+                    assert not calls and ledger.usage().model_calls == 0
+                else:
+                    result = await worker.execute()
+                    assert result.claims["response_text"] == "fixture response"
+                    assert len(result.calls) == 6
+                    assert calls[1] == [calls[0][0], {"role": "user", "content": "alternate"}]
+                    assert calls[2] == [
+                        *calls[0],
+                        {"role": "assistant", "content": "answer 1"},
+                        {"role": "user", "content": "continuation"},
+                    ]
+                    assert ledger.usage().model_calls == 3
+                    await worker.finish()
+        finally:
+            routes.close()
+        assert_removed(worker)
+        assert all(a.closed for a in routes.audits)
+        if mode == "cancel":
+            assert ledger.usage().model_calls == 1
+            assert routes.audits[0].events[0].status == "cancelled"
+
+    asyncio.run(exercise())

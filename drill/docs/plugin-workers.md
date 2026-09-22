@@ -179,3 +179,11 @@ stdout/stderr floods, floods during broker calls, explicit cancellation and auto
 deadlines, and real child-process backpressure on the controller's pipes. Cleanup
 suppresses duplicate cancellation while a request is already terminating. Ruff,
 contract/worker Mypy and worker Bandit passed; no test worker containers remained.
+
+## Conversation protocol (API 2)
+
+API 1 remains supported. Workers that need attacker/evaluator conversation history
+use `adapter_api: 2`, `serve(plugin, protocol=2)` and separately reviewed conversation
+and branching scopes. See [the conversation protocol](model-conversations.md#api-2-worker-use)
+for exact operations, limits and signed evidence. A protocol mismatch fails closed;
+a prior single-prompt acceptance cannot authorize the new routes.

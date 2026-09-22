@@ -19,6 +19,7 @@ from ..evidence.reducer import ReductionPolicy
 from .artifacts import canonical, digest
 from .budgets import Usage
 from .catalog import build_digest
+from .conversations import ConversationAudit
 from .privacy import (
     MAX_FILE,
     lease,
@@ -59,9 +60,20 @@ class SavedCall(WireRecord):
     input_tokens: int | None = None
     output_tokens: int | None = None
     status: Literal["pending", "completed", "error", "cancelled", "timeout"] = "pending"
+    conversation_scope: str | None = None
+    conversation_sequence: int | None = None
 
     def validate(self):
-        for value in (self.case_id, self.request_digest, self.response_digest):
+        if (self.conversation_scope is None) != (self.conversation_sequence is None):
+            raise ContractError("Incomplete conversation call binding")
+        if self.conversation_sequence is not None and self.conversation_sequence < 1:
+            raise ContractError("Invalid conversation call sequence")
+        for value in (
+            self.case_id,
+            self.request_digest,
+            self.response_digest,
+            self.conversation_scope,
+        ):
             if value is not None:
                 artifact_digest(value)
         for count in (self.input_tokens, self.output_tokens):
@@ -96,6 +108,7 @@ class SavedCase(WireRecord):
     environment_identity: str | None = None
     execution_identity: str | None = None
     plugin_claim_digest: str | None = None
+    conversations: tuple[ConversationAudit, ...] | None = None
 
     def validate(self):
         for value in (
@@ -119,6 +132,10 @@ class SavedCase(WireRecord):
         if any(a.attempts for a in self.attempts):
             raise ContractError("Nested adaptive strategies are unsupported")
         unique(tuple(a.case_id for a in self.attempts), "attempt IDs")
+        if self.conversations is not None:
+            if len(self.conversations) > 4:
+                raise ContractError("Too many retained conversations")
+            unique(tuple(c.conversation_id for c in self.conversations), "conversation IDs")
 
 
 @dataclass(frozen=True)
@@ -143,7 +160,7 @@ class RunDocument(WireRecord):
     storage_limit: int
     parent_run_id: str | None = None
     parent_envelope_digest: str | None = None
-    schema_version: Literal[1] = 1
+    schema_version: Literal[1, 2] = 2
 
     def validate(self):
         run_id(self.run_id)
@@ -404,6 +421,7 @@ class RunStore:
             case.environment_identity,
             case.execution_identity,
             case.plugin_claim_digest,
+            case.conversations,
         )
 
     def snapshot(self, run, lock, *, terminal=False):

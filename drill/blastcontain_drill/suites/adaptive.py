@@ -95,7 +95,7 @@ def aggregate(case, attempts, disposition, diagnostics, claims_digest=None):
     )
 
 
-async def execute_adaptive(lock, case, ledger, broker, inputs, revalidate):
+async def execute_adaptive(lock, case, ledger, broker, inputs, revalidate, *, run_id):
     from .service import CaseRun, _execute_case
 
     attempts: list[CaseRun] = []
@@ -103,6 +103,7 @@ async def execute_adaptive(lock, case, ledger, broker, inputs, revalidate):
     diagnostics: list[str] = []
     disposition = "completed"
     claims_digest = None
+    routes = None
 
     async def target(prompt, *, reserve=True):
         if type(prompt) is not str or not prompt.strip() or len(prompt.encode()) > 32768:
@@ -192,13 +193,49 @@ async def execute_adaptive(lock, case, ledger, broker, inputs, revalidate):
                 "attacker": attacker,
                 "evaluator": evaluator,
             }
+            from .conversation_routes import ConversationRoutes
+
+            routes = (
+                ConversationRoutes(
+                    broker,
+                    ledger,
+                    run_id=run_id,
+                    case_id=case.id,
+                    grants=manifest.access_requests,
+                    revalidate=revalidate,
+                )
+                if manifest.adapter_api == 2
+                else None
+            )
+
+            async def attacker_conversation(payload, context):
+                if routes is None:
+                    raise ContractError("Conversation route unavailable")
+                return await routes.dispatch("attacker", payload, context)
+
+            async def evaluator_conversation(payload, context):
+                if routes is None:
+                    raise ContractError("Conversation route unavailable")
+                return await routes.dispatch("evaluator", payload, context)
+
             worker = PodmanWorker(
                 manifest,
                 inputs.records,
                 bindings=bindings,
+                conversations={
+                    "attacker": attacker_conversation,
+                    "evaluator": evaluator_conversation,
+                }
+                if routes
+                else None,
                 limits=WorkerLimits(
                     wall_seconds=min(300.0, ledger.remaining()),
-                    max_calls=min(1000, lock.plan.spec.case_limits.model_calls),
+                    max_calls=min(
+                        1000,
+                        lock.plan.spec.case_limits.model_calls
+                        * (3 if manifest.adapter_api == 2 else 1)
+                        + (8 if manifest.adapter_api == 2 else 0),
+                    ),
                     max_messages=1024,
                 ),
             )
@@ -240,4 +277,10 @@ async def execute_adaptive(lock, case, ledger, broker, inputs, revalidate):
         if attempts and attempts[-1].disposition in ("incomplete", "cancelled"):
             disposition = attempts[-1].disposition
             diagnostics.extend(attempts[-1].diagnostics)
-    return aggregate(case, attempts, disposition, diagnostics, claims_digest)
+    finally:
+        if routes is not None:
+            routes.close()
+    return replace(
+        aggregate(case, attempts, disposition, diagnostics, claims_digest),
+        conversations=routes.audits if routes is not None else None,
+    )

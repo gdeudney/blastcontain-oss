@@ -1,8 +1,8 @@
 """Host-owned attacker/evaluator history; not an Agent/tool-state checkpoint.
 
-Workers cannot submit assistant/system history through this interface. Only a
-trusted host constructs the session and its initial system message. Runtime/wire
-and durable-report integration are deliberately separate from this primitive.
+Workers cannot submit assistant history through this interface. The API 2 route
+accepts an initial system message only for separately granted attacker/evaluator
+channels. Every subsequent assistant message comes from the host model broker.
 """
 
 from __future__ import annotations
@@ -36,16 +36,100 @@ class ConversationLimits(WireRecord):
 
 
 @dataclass(frozen=True)
-class ConversationEvent:
+class ConversationEvent(WireRecord):
     """Sanitized host audit data; no security verdict or signed-report claim."""
 
     sequence: int
     scope_digest: str
     parent: str
     request_digest: str
-    status: str = "pending"
+    status: Literal["pending", "completed", "error", "cancelled", "limited"] = "pending"
     checkpoint: str | None = None
     response_digest: str | None = None
+    model_request_digest: str | None = None
+
+    def validate(self):
+        if self.sequence < 1:
+            raise ContractError("Invalid conversation event sequence")
+        if self.request_digest != digest(
+            {
+                "scope": self.scope_digest,
+                "parent": self.parent,
+                "model_request_digest": self.model_request_digest,
+            }
+        ):
+            raise ContractError("Conversation request/checkpoint binding mismatch")
+        for value in (
+            self.scope_digest,
+            self.request_digest,
+            self.response_digest,
+            self.model_request_digest,
+        ):
+            if value is not None:
+                artifact_digest(value)
+        for value in (self.parent, self.checkpoint):
+            if value is not None and not re.fullmatch(r"[a-f0-9]{32}", value):
+                raise ContractError("Invalid conversation checkpoint")
+        if (self.status == "completed") != (self.checkpoint is not None):
+            raise ContractError("Only a completed conversation creates a checkpoint")
+        if self.status == "completed" and (
+            not self.response_digest or not self.model_request_digest
+        ):
+            raise ContractError("Completed conversation lacks model evidence")
+
+
+@dataclass(frozen=True)
+class ConversationAudit(WireRecord):
+    run_id: str
+    case_id: str
+    channel: Literal["attacker", "evaluator"]
+    settings_digest: str
+    conversation_id: str
+    worker_scope: str
+    system_digest: str
+    limits: ConversationLimits
+    scope_digest: str
+    events: tuple[ConversationEvent, ...]
+    closed: bool
+
+    def scope(self):
+        # Avoid recursively invoking this record's validator when hashing its scope.
+        return {
+            "run_id": self.run_id,
+            "case_id": self.case_id,
+            "channel": self.channel,
+            "settings_digest": self.settings_digest,
+            "conversation_id": self.conversation_id,
+            "worker_scope": self.worker_scope,
+            "system_digest": self.system_digest,
+            "limits": self.limits.to_dict(),
+        }
+
+    def validate(self):
+        for value in (self.run_id, self.conversation_id, self.worker_scope):
+            if not re.fullmatch(r"[a-f0-9]{32}", value):
+                raise ContractError("Invalid conversation scope identity")
+        for value in (self.case_id, self.settings_digest, self.system_digest, self.scope_digest):
+            artifact_digest(value)
+        if digest(self.scope()) != self.scope_digest:
+            raise ContractError("Conversation scope digest mismatch")
+        if len(self.events) > self.limits.max_attempts:
+            raise ContractError("Conversation audit exceeds its attempt limit")
+        nodes, head = {self.conversation_id}, self.conversation_id
+        for index, event in enumerate(self.events, 1):
+            if event.sequence != index or event.scope_digest != self.scope_digest:
+                raise ContractError("Conversation event sequence/scope mismatch")
+            if event.parent not in nodes or (
+                not self.limits.allow_branching and event.parent != head
+            ):
+                raise ContractError("Conversation history is missing or branching was not accepted")
+            if self.closed and event.status == "pending":
+                raise ContractError("Closed conversation contains a pending dispatch")
+            if event.checkpoint:
+                if event.checkpoint in nodes:
+                    raise ContractError("Conversation checkpoint reused")
+                head = event.checkpoint
+                nodes.add(head)
 
 
 @dataclass(frozen=True)
@@ -73,9 +157,12 @@ class ModelConversation:
         channel: Literal["attacker", "evaluator"],
         system_message: str,
         limits: ConversationLimits = ConversationLimits(),
+        worker_scope: str = "0" * 32,
     ):
         if type(run_id) is not str or not re.fullmatch(r"[a-f0-9]{32}", run_id):
             raise ContractError("Invalid conversation run identity")
+        if type(worker_scope) is not str or not re.fullmatch(r"[a-f0-9]{32}", worker_scope):
+            raise ContractError("Invalid worker conversation scope")
         if type(case_id) is not str:
             raise ContractError("Invalid conversation case identity")
         artifact_digest(case_id)
@@ -96,16 +183,17 @@ class ModelConversation:
         self._settings_digest = digest(broker.settings[channel].to_dict())
         self._root = secrets.token_hex(16)
         self._head = self._root
-        self._scope_digest = digest(
-            {
-                "run_id": run_id,
-                "case_id": case_id,
-                "channel": channel,
-                "settings_digest": self._settings_digest,
-                "conversation_id": self._root,
-                "limits": limits.to_dict(),
-            }
-        )
+        self._scope = {
+            "run_id": run_id,
+            "case_id": case_id,
+            "channel": channel,
+            "settings_digest": self._settings_digest,
+            "conversation_id": self._root,
+            "worker_scope": worker_scope,
+            "system_digest": digest(system_message),
+            "limits": limits.to_dict(),
+        }
+        self._scope_digest = digest(self._scope)
         self._nodes: dict[str, tuple[tuple[str, str], ...]] = {
             self._root: (("system", system_message),)
         }
@@ -124,6 +212,17 @@ class ModelConversation:
     @property
     def events(self):
         return tuple(self._events)
+
+    @property
+    def audit(self):
+        return ConversationAudit.from_dict(
+            {
+                **self._scope,
+                "scope_digest": self._scope_digest,
+                "events": [e.to_dict() for e in self._events],
+                "closed": self._closed,
+            }
+        )
 
     def _check_history(self, history):
         messages = [{"role": role, "content": content} for role, content in history]
@@ -151,6 +250,13 @@ class ModelConversation:
             raise ContractError("Conversation attempt limit exceeded")
         history = self._nodes[parent] + (("user", prompt),)
         messages = self._check_history(history)
+        model_request_digest = digest(
+            {
+                "settings": settings.to_dict(),
+                "messages": messages,
+                "max_tokens": min(max_tokens, settings.max_output_tokens),
+            }
+        )
         event = ConversationEvent(
             len(self._events) + 1,
             self._scope_digest,
@@ -159,17 +265,23 @@ class ModelConversation:
                 {
                     "scope": self._scope_digest,
                     "parent": parent,
-                    "messages": messages,
-                    "max_tokens": min(max_tokens, settings.max_output_tokens),
+                    "model_request_digest": model_request_digest,
                 }
             ),
+            model_request_digest=model_request_digest,
         )
         index = len(self._events)
         self._events.append(event)
         self._busy = True
         try:
             text = await self._broker.chat(
-                self._case_id, self._ledger, self._channel, messages, max_tokens=max_tokens
+                self._case_id,
+                self._ledger,
+                self._channel,
+                messages,
+                max_tokens=max_tokens,
+                conversation_scope=self._scope_digest,
+                conversation_sequence=event.sequence,
             )
             event = replace(
                 event, response_digest="sha256:" + hashlib.sha256(text.encode()).hexdigest()

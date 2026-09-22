@@ -1,4 +1,4 @@
-# Host-owned model conversations (phase 4B1)
+# Host-owned model conversations (phases 4B1–4B2)
 
 `suites.conversations.ModelConversation` is a Python service for bounded attacker
 and evaluator model history. The host chooses the run, case, model channel,
@@ -6,10 +6,10 @@ initial system message and limits. Callers can then submit a user prompt against
 an opaque checkpoint. Only the host-observed model response becomes assistant
 history. A prompt containing serialized roles remains user text.
 
-This foundation is not wired into the plugin protocol, CLI, suite execution or
-durable envelopes yet. It does not enable Crescendo, arbitrary editable target
-history, or Agent/MCP state restoration. Existing PAIR and static PyRIT behavior
-is unchanged.
+API 2 workers can now use these sessions through separately accepted conversation
+and branching routes. Suite execution closes every session and retains its sanitized
+graph in signed run schema 2. API 1, PAIR and static PyRIT keep their existing behavior.
+Agent/MCP state restoration and Crescendo remain separate pending capabilities.
 
 ## Service example
 
@@ -65,32 +65,78 @@ There is no automatic retry, branch, reset, budget refill or provider fallback.
   exceeds the history bound, its digest and charged call remain recorded, but
   no checkpoint is created. The host must treat the operation as failed.
 
-History is sensitive and exists only in memory here. `close()` drops its retained
+Session history is sensitive and remains in memory unless raw model traces are opted in. `close()` drops its retained
 references; this is not a guarantee of cryptographic memory erasure. Events contain
 opaque scope/checkpoint identifiers, request/response digests, sequence and status,
 without prompts, responses, system text or exception text. They are host audit
-records, **not** signed evidence or security assessments. The broker's optional
-raw trace callback still obeys its configured retention policy.
+records. Suite execution binds them to the signed run and model-call ledger; they
+are not security assessments. Target outcomes still come from host-observed target
+evidence. The broker's optional raw trace callback obeys the run retention policy.
+
+## API 2 worker use
+
+Set `adapter_api: 2` in the manifest and use `serve(plugin, protocol=2)` in the
+container. A changed manifest/image requires fresh plugin acceptance and a new
+accepted suite plan/lock. Permissions are separate:
+
+| Scope | Grants |
+| --- | --- |
+| `broker.attacker` / `broker.evaluator` | Existing one-prompt calls only |
+| `broker.attacker.conversation` / `broker.evaluator.conversation` | Open, append user turns, close |
+| `broker.attacker.branch` / `broker.evaluator.branch` | Send from an earlier checkpoint; requires the corresponding conversation grant |
+
+The worker chooses an initial system message only for its explicitly granted
+attacker/evaluator model. It cannot change the target system message, model endpoint,
+credentials or settings, import assistant history, or invoke a target checkpoint.
+For example, inside `execute`:
+
+```python
+opened = broker.conversation("attacker", {
+    "operation": "open", "system_message": "Propose controlled test prompts.",
+    "branching": True,
+})
+reply = broker.conversation("attacker", {
+    "operation": "send", "conversation": opened["conversation"],
+    "parent": opened["checkpoint"], "prompt": "Generate the first test.",
+    "max_tokens": 512,
+})
+broker.conversation("attacker", {
+    "operation": "close", "conversation": opened["conversation"],
+})
+```
+
+The route accepts exactly these fields. Handles are bound to the current worker
+reset, case, run and model channel. A worker reset invalidates previous handles;
+close/reset cannot refund calls or session allocations. Routes allow four sessions
+cumulatively, with 32 attempts and 64 KiB history each. Opening reserves 4096
+artifact bytes and each send reserves 2048 for bounded audit metadata. Every wire
+operation consumes the worker call/message budgets; model dispatches also consume
+the shared case/global model ledger. Suite API 2 workers allow at most
+`min(1000, 3 * case_model_calls + 8)` wire calls, within the same wall-clock cap.
+
+Signed envelopes retain only scope hashes, graph edges, checkpoints, status and
+request/response hashes. Each observed model call names its conversation scope and
+sequence. Offline verification checks the graph, accepted branching, run/case/model
+binding, closure and corresponding model records in both directions. Missing
+conversation events or calls reject verification, including on re-signed records.
+Raw text remains opt-in and expirable. Schema 1 runs remain readable; schema 2 is
+required for these audits. This does not assert independent replay of an LLM's
+behavior or rollback of real external effects.
 
 ## Remaining 4B work and acceptance gates
 
-1. Add an explicitly versioned worker conversation route and separately reviewed
-   access scopes. Old single-prompt grants cannot silently gain history editing.
-   Reject forged/cross-case handles and unsupported messages before dispatch;
-   enforce the same worker, case and suite budgets.
-2. Add a persistent controlled Agent fixture with host-owned checkpoints. Fork
+1. Add a persistent controlled Agent fixture with host-owned checkpoints. Fork
    only state that can be faithfully snapshotted in the controlled fixture.
    Preserve all observed actions, including abandoned branches. Never rerun a
    prefix to simulate rollback or claim support for external irreversible effects.
-3. Bind conversation/checkpoint metadata to durable attempt evidence and replay.
-   Missing or altered history must prevent verified success. Keep raw conversation
-   inputs opt-in and expirable; stopping must close the fixture and worker.
-4. Adapt pinned PyRIT Crescendo to those routes. Compare actual upstream and
+2. Extend the signed model-conversation audit to Agent fixture checkpoints and
+   target attempt evidence. Preserve observations from abandoned target branches.
+3. Adapt pinned PyRIT Crescendo to those routes. Compare actual upstream and
    adapted histories, refusal/backtrack behavior and model calls using recording
    models before the separate bounded live gate. Review any required upstream
    templates independently; the static image deliberately excludes bundled data.
 
-The foundation tests cover exact history, mutable transport input, foreign
+Foundation and route tests cover exact history, mutable transport input, foreign
 checkpoints, changed bindings/ledgers, branching, shared budgets, failed dispatch,
 concurrent sends, active cancellation, history overflow and unsupported target
 sessions. Passing them is not a claim that the remaining integration is complete.

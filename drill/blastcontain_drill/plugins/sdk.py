@@ -17,29 +17,40 @@ class Plugin(Protocol):
 
 
 class Broker:
-    def __init__(self, reader, writer):
+    def __init__(self, reader, writer, *, protocol=1):
         self.reader, self.writer = reader, writer
+        self.protocol = protocol
         self.request_id = 0
         self.call_id = 0
 
     def call(self, channel: str, injection: Injection) -> dict:
+        return self._call("call", channel, injection.to_dict())
+
+    def conversation(self, channel: str, payload: dict) -> dict:
+        """API 2 open/send/close; histories and credentials remain in the host."""
+        if self.protocol != 2:
+            raise ProtocolError("Conversations require worker protocol 2")
+        return self._call("conversation", channel, payload)
+
+    def _call(self, kind, channel, payload):
         self.call_id += 1
         self.writer.write(
             encode(
                 {
-                    "protocol": 1,
-                    "type": "call",
+                    "protocol": self.protocol,
+                    "type": kind,
                     "id": self.request_id,
                     "call_id": self.call_id,
                     "channel": channel,
-                    "payload": injection.to_dict(),
+                    "payload": payload,
                 }
             )
         )
         self.writer.flush()
         reply = decode(self.reader.readline(MAX_FRAME + 1))
         if (
-            reply["type"] != "reply"
+            reply["protocol"] != self.protocol
+            or reply["type"] != "reply"
             or reply["id"] != self.request_id
             or reply["call_id"] != self.call_id
         ):
@@ -47,11 +58,11 @@ class Broker:
         return reply["result"]
 
 
-def serve(plugin: Plugin, reader=None, writer=None):
+def serve(plugin: Plugin, reader=None, writer=None, *, protocol=1):
     """A well-behaved plugin helper, not the security boundary; the host rechecks everything."""
     reader = reader or sys.stdin.buffer
     writer = writer or sys.stdout.buffer
-    broker = Broker(reader, writer)
+    broker = Broker(reader, writer, protocol=protocol)
     last_id = 0
     prepared = reset = False
     while True:
@@ -59,7 +70,11 @@ def serve(plugin: Plugin, reader=None, writer=None):
         if not line:
             return
         request = decode(line)
-        if request["type"] != "request" or request["id"] != last_id + 1:
+        if (
+            request["protocol"] != protocol
+            or request["type"] != "request"
+            or request["id"] != last_id + 1
+        ):
             raise ProtocolError("Lifecycle request out of order")
         last_id = broker.request_id = request["id"]
         method, params = request["method"], request["params"]
@@ -77,10 +92,10 @@ def serve(plugin: Plugin, reader=None, writer=None):
                 plugin.close()
             else:
                 raise ProtocolError("Invalid lifecycle transition")
-            response = {"protocol": 1, "type": "result", "id": last_id, "result": result}
+            response = {"protocol": protocol, "type": "result", "id": last_id, "result": result}
         except Exception as exc:
             response = {
-                "protocol": 1,
+                "protocol": protocol,
                 "type": "error",
                 "id": last_id,
                 "error": str(exc)[:500] or type(exc).__name__,

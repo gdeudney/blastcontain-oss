@@ -8,6 +8,7 @@ from ..contracts.wire import ContractError, _json_data
 from .catalog import parse_json
 
 PROTOCOL = 1
+SUPPORTED_PROTOCOLS = (1, 2)
 MAX_FRAME = 65536
 METHODS = frozenset({"prepare", "reset", "execute", "close"})
 CHANNELS = frozenset({"target", "attacker", "evaluator"})
@@ -16,6 +17,7 @@ _FIELDS = {
     "result": {"protocol", "type", "id", "result"},
     "error": {"protocol", "type", "id", "error"},
     "call": {"protocol", "type", "id", "call_id", "channel", "payload"},
+    "conversation": {"protocol", "type", "id", "call_id", "channel", "payload"},
     "reply": {"protocol", "type", "id", "call_id", "result"},
 }
 
@@ -33,8 +35,10 @@ def validate(message):
         raise ProtocolError("Unknown message type")
     if set(message) != _FIELDS[message["type"]]:
         raise ProtocolError("Missing or unknown message fields")
-    if type(message["protocol"]) is not int or message["protocol"] != PROTOCOL:
+    if type(message["protocol"]) is not int or message["protocol"] not in SUPPORTED_PROTOCOLS:
         raise ProtocolError("Unsupported worker protocol")
+    if message["type"] == "conversation" and message["protocol"] != 2:
+        raise ProtocolError("Conversations require worker protocol 2")
     for key in ("id", "call_id"):
         if key in message and (type(message[key]) is not int or message[key] < 1):
             raise ProtocolError("Message IDs must be positive integers")
@@ -42,7 +46,7 @@ def validate(message):
         type(message["method"]) is not str or message["method"] not in METHODS
     ):
         raise ProtocolError("Unsupported method")
-    if message["type"] == "call" and (
+    if message["type"] in ("call", "conversation") and (
         type(message["channel"]) is not str or message["channel"] not in CHANNELS
     ):
         raise ProtocolError("Unsupported broker channel")
