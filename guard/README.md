@@ -28,6 +28,7 @@ Start with the [runnable usage guide](docs/usage.md) and the shared
 ```bash
 pip install -e ./core -e ./guard          # from the blastcontain-oss workspace
 # optional: pip install -e "./guard[otel]"  # export decisions to OpenTelemetry
+# optional: pip install -e "./guard[agt]"   # Microsoft Agent Governance Toolkit backend (>=4.1)
 ```
 
 ## Embed it

@@ -43,7 +43,8 @@ Documentation = "https://github.com/blastcontain/guard/blob/main/docs/architectu
 [project.optional-dependencies]
 # Optional, availability-flagged augmentation (used-if-present, never required).
 otel = ["opentelemetry-sdk>=1.20"]    # export decisions as OTel logs/spans if installed
-full = ["opentelemetry-sdk>=1.20"]
+agt  = ["agent-governance-toolkit>=4.1"]  # out-of-process AGT backend (import: agent_compliance)
+full = ["opentelemetry-sdk>=1.20", "agent-governance-toolkit>=4.1"]
 
 dev = [
     "pytest>=8.0",
