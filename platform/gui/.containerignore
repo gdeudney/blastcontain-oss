@@ -1,0 +1,13 @@
+# Keep the image build context tiny and free of anything sensitive.
+web/
+node_modules
+.next
+out
+dist
+build
+.git
+.env
+.env.*
+*.log
+npm-debug.log*
+yarn-error.log*

@@ -1,0 +1,58 @@
+# BlastContain GUI — hardened Node toolbox (the cage for npm)
+# =============================================================================
+# A locked-down Node LTS runtime used to install dependencies and run the dev
+# server ENTIRELY inside Podman. Malicious npm packages (lifecycle-script
+# payloads, credential stealers, the Shai-Hulud-class worms active in 2026)
+# never touch the Windows host, your credentials, or your npm publish token.
+#
+# This image bakes in NO source and NO secrets. Drive everything via gui/dev.ps1
+# — never run host npm.
+#
+#   pwsh gui/dev.ps1 build         # build this image (prints the digest to pin)
+#   pwsh gui/dev.ps1 verify-cage   # prove the lockdown BEFORE installing anything
+#   pwsh gui/dev.ps1 install       # install deps: network on, no creds, no scripts
+#   pwsh gui/dev.ps1 dev           # hot-reload dev server on 127.0.0.1:3000
+# =============================================================================
+
+# Official Node 22 LTS, pinned by digest for integrity (so the base cannot be
+# silently swapped). To update deliberately, re-pull the tag and replace the
+# digest below; `pwsh gui/dev.ps1 build` prints the current one.
+FROM docker.io/library/node:22-bookworm-slim@sha256:32b9e321f262db540d55ac10dc529667cf4737546e097cdd36a843c62bcbf423
+
+# ── npm + tooling hardening (every container from this image inherits these) ──
+#  - ignore-scripts: kill pre/install/postinstall — the #1 supply-chain payload
+#    trigger. We run real tools via node_modules/.bin/* (NOT `npm run`), so this
+#    global safety net does not block development. To allow a script for ONE
+#    trusted package:  npm rebuild <pkg> --ignore-scripts=false
+#  - cache + HOME are redirected to a writable volume so the rootfs stays
+#    read-only at runtime.
+#  - telemetry off; file-watch polling on (required over a Windows<->Podman mount).
+ENV NPM_CONFIG_IGNORE_SCRIPTS=true \
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_AUDIT=true \
+    NPM_CONFIG_UPDATE_NOTIFIER=false \
+    NPM_CONFIG_CACHE=/cache/npm \
+    HOME=/cache/home \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=development \
+    WATCHPACK_POLLING=true \
+    CHOKIDAR_USEPOLLING=true \
+    CHOKIDAR_INTERVAL=400
+
+# Cage self-test + entrypoint, baked in so the checks exercise the real runtime.
+COPY cage-check.sh /usr/local/bin/cage-check
+COPY cage-entry.sh /usr/local/bin/cage-entry
+RUN chmod 0555 /usr/local/bin/cage-check /usr/local/bin/cage-entry
+
+WORKDIR /app
+
+# Unprivileged 'node' user (uid 1000) ships in the base image.
+USER node
+
+# cage-entry ensures the writable mount dirs exist, then exec's the command.
+ENTRYPOINT ["/usr/local/bin/cage-entry"]
+CMD ["node", "--version"]
+
+LABEL org.opencontainers.image.title="blastcontain-gui-toolbox" \
+      org.opencontainers.image.description="Hardened, credential-free Node cage for BlastContain GUI development" \
+      org.opencontainers.image.licenses="Apache-2.0"
