@@ -1,0 +1,41 @@
+name: platform-server baseline
+
+on:
+  pull_request:
+    paths:
+      - "core/**"
+      - "guard/**"
+      - "platform/server/**"
+      - "platform/tests/**"
+      - ".github/workflows/platform-server.yml"
+  push:
+    branches: [main]
+    paths:
+      - "core/**"
+      - "guard/**"
+      - "platform/server/**"
+      - "platform/tests/**"
+      - ".github/workflows/platform-server.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install ./core ./guard "./platform/server[dev]" ruff
+      - name: Baseline unit tests and lint
+        run: |
+          python -m pytest platform/tests/server -q
+          ruff check platform/server platform/tests
