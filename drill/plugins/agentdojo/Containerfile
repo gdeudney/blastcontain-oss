@@ -1,0 +1,13 @@
+# Same reviewed Python 3.12.14 base used by the PyRIT worker.
+FROM docker.io/library/python@sha256:2f17fc044b579bab302c2e8054d3a686e2cb9a83de48e70534b94cd8ebbe06a9
+WORKDIR /opt/plugin
+COPY drill/plugins/agentdojo/requirements.lock ./requirements.lock
+RUN python -m pip install --no-cache-dir --require-hashes -r requirements.lock
+COPY drill/plugins/agentdojo/upstream.json drill/plugins/agentdojo/verify_upstream.py ./
+RUN python verify_upstream.py
+COPY drill/blastcontain_drill/__init__.py blastcontain_drill/__init__.py
+COPY drill/blastcontain_drill/contracts/ blastcontain_drill/contracts/
+COPY drill/blastcontain_drill/plugins/ blastcontain_drill/plugins/
+COPY drill/plugins/agentdojo/worker.py drill/plugins/agentdojo/validate.py ./
+COPY drill/LICENSE drill/NOTICE drill/plugins/agentdojo/LICENSE.agentdojo ./
+ENTRYPOINT ["/usr/local/bin/python", "-u", "/opt/plugin/worker.py"]

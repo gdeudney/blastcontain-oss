@@ -4,7 +4,19 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 
 ## [Unreleased]
 
+### Changed
+- Regenerate the full and MCP validation dependency constraints together
+  (2026-09-24), retaining compatible Pydantic/Core and spaCy/Thinc pairs and
+  Presidio Anonymizer 2.2.362 with patched cryptography.
+- Exclude the incompatible Anonymizer 2.2.364 update from Dependabot and remove
+  obsolete Cisco dependency exclusions; document validation of both closures.
+
 ### Added
+- Opt-in Linux agent sandbox validation (`agent-sandbox-v1`): positive/negative
+  filesystem and credential probes, privilege evidence and controlled TCP containment.
+- Signed schema 1.3 agent packets with sandbox evidence; Markdown/SARIF support.
+- Hardened/broken rootless Podman demonstration with verified resource cleanup,
+  integrated into the container CI job.
 - Practical `mcp-scenarios-v1` adapter: negotiated MCP tool calls, operator-authored
   cases and exact external state comparisons, with explicit gaps and bounded cleanup.
 - Official MCP SDK reference server with signed JWT validation and positive/negative

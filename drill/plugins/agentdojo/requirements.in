@@ -1,0 +1,3 @@
+# Official AgentDojo release v0.1.35 (a75aba7631d3ca5fb7ab938965c97ead2f9ff84b).
+# Entire runtime closure is locked for the isolated Linux Python 3.12 worker.
+agentdojo==0.1.35

@@ -1,0 +1,5 @@
+# BASE_IMAGE must be the immutable local ID built from the adjacent Containerfile.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+COPY drill/plugins/pyrit/crescendo.py drill/plugins/pyrit/crescendo_templates.py drill/plugins/pyrit/validate_crescendo.py ./
+ENTRYPOINT ["/usr/local/bin/python", "-u", "/opt/plugin/crescendo.py"]

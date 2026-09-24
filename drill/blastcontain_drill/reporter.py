@@ -155,6 +155,17 @@ def write_markdown_report(report: DrillReport, path: str) -> None:
             lines.append(f"- `{f.scenario_id}` {f.scenario_name}{extra}")
         lines.append("")
 
+    mcp_findings = [f for f in report.findings if f.action_verdict and f.action_verdict.get('mcp')]
+    if mcp_findings:
+        lines += ['## MCP delivery evidence', '',
+                  'These cases use controlled loopback fixtures. BYPASS records an agent action attempt; the cage still blocks the effect.',
+                  'Verify control references are follow-up guidance, not results from a Verify scan.', '',
+                  '| Attack | Surface | Delivered | Outcome | Verify follow-up |', '|---|---|---|---|---|']
+        for finding in mcp_findings:
+            evidence = finding.action_verdict['mcp']
+            lines.append(f"| {finding.attack_id} | {evidence.get('surface')} | {evidence.get('payload_delivered')} | {finding.outcome.value} | {', '.join(evidence.get('verify_controls', []))} |")
+        lines += ['', 'Payload hashes and MCP exchange hashes are retained in the signed JSON packet.', '']
+
     # ATLAS coverage
     cov: dict[str, dict] = defaultdict(lambda: {"name": "", "run": 0, "bypass": 0})
     for f in report.findings:

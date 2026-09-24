@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, 'codex/**']
   schedule:
     # Weekly — re-audit dependencies so newly-disclosed CVEs are caught even when
     # no code changes.

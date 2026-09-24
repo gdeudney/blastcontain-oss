@@ -52,14 +52,11 @@ updates:
     groups:
       verify:
         patterns: ["*"]
-    # The opt-in [cisco] scanners pull litellm, which exact-pins vulnerable
-    # aiohttp / python-dotenv with no upstream fix (see verify/pyproject.toml +
-    # SECURITY.md). Don't let Dependabot churn un-mergeable PRs on that known,
-    # documented, opt-in trade-off; the default install excludes them.
+    # This release excludes patched cryptography. Allow newer releases to be
+    # proposed when upstream relaxes the bound; retain the audited 2.2.362 pin.
     ignore:
-      - dependency-name: litellm
-      - dependency-name: aiohttp
-      - dependency-name: python-dotenv
+      - dependency-name: presidio-anonymizer
+        versions: ["2.2.364"]
     labels: ["dependencies", "verify"]
     commit-message:
       prefix: "deps(verify)"

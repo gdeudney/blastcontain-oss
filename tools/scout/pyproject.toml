@@ -32,6 +32,7 @@ dependencies = [
 
 [project.scripts]
 blastcontain-scout = "blastcontain_scout.cli:main"
+blastcontain-scout-track = "blastcontain_scout.tracking_cli:main"
 
 [project.urls]
 Homepage      = "https://github.com/gdeudney/blastcontain-oss/tree/main/tools/scout"

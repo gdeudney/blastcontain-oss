@@ -1,0 +1,2 @@
+# Isolated Linux/Python 3.12 plugin image only; not a Drill host dependency.
+pyrit==1.1.0

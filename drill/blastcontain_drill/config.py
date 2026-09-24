@@ -46,6 +46,8 @@ class DrillConfig:
     enable_systemcard: bool = False            # add the system-card-derived agent-safety checks
     enable_multiturn: bool = False             # add the multi-turn checks (long-context, decomposition)
 
+    enable_mcp_poisoning: bool = False        # explicit MCP metadata/response fixtures
+
     # Generative layer — an abliterated/Heretic attacker model in a refinement loop
     generative: bool = False
     generative_only: bool = False              # skip the static corpus; run only the loop
@@ -80,7 +82,7 @@ _FIELDS = (
     "target_model", "target_temperature", "agent_url", "judge_base_url", "judge_model",
     "judge_kind", "guard_model",
     "corpus", "scenarios", "limit", "enable_aig", "enable_operators", "enable_jbb",
-    "enable_systemcard", "enable_multiturn",
+    "enable_systemcard", "enable_multiturn", "enable_mcp_poisoning",
     "charter", "output", "report",
     "generative", "generative_only", "attacker_model", "attacker_base_url",
     "generative_iters", "generative_corpus",

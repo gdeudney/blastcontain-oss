@@ -78,6 +78,10 @@ class CageObservation:
     error: Optional[str] = None
     turn_responses: list[str] = field(default_factory=list)  # agent text per user turn (multi-turn)
 
+    mcp: dict = field(default_factory=dict)  # transport/exposure evidence, no raw payloads
+    # None is a legacy observation without completion evidence.
+    termination_reason: Optional[str] = None
+
     def transcript_text(self) -> str:
         """The agent's content to score: the assistant turns joined (multi-turn) or the
         single final response. *Agent output only* — never the attacker's turns, so harm
@@ -92,6 +96,8 @@ class CageObservation:
             "steps": self.steps,
             "error": self.error,
             "turn_responses": self.turn_responses,
+            "mcp": self.mcp,
+            "termination_reason": self.termination_reason,
         }
 
 

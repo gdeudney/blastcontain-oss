@@ -31,3 +31,9 @@ Thumbs.db
 # Sensitive — discovered jailbreak corpora (drill-spec §8): treat like secrets
 discovered-jailbreaks*.json
 *.jailbreaks.json
+
+# Local Scout research database; export JSON for review/backups.
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm

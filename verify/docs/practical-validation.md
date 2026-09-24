@@ -129,9 +129,9 @@ coverage of all six groups still means only the cases supplied were evaluated.
 
 ## Remaining boundaries
 
-This does not finish agent sandbox validation, stdio/stateful/SSE support, OAuth
+For live agent runtime checks, use the [sandbox profile](agent-sandbox-validation.md).
+This MCP adapter does not provide stdio/stateful/SSE support, OAuth
 conformance, queued/in-flight revocation, concurrency, delegation or egress testing.
-Use existing Verify runtime assessment for containment configuration. The next
-agent-specific step needs a real agent runtime and its filesystem/network policy;
+Use existing Verify runtime assessment for containment configuration. Live agent validation needs the actual agent runtime and its filesystem/network policy;
 MCP control results cannot substitute for that evidence. Drill adversarial research
 and Charter governance remain separate later stages.
