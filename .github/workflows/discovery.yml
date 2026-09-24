@@ -1,0 +1,37 @@
+name: discovery baseline
+
+on:
+  pull_request:
+    paths:
+      - "core/**"
+      - "discovery/**"
+      - ".github/workflows/discovery.yml"
+  push:
+    branches: [main]
+    paths:
+      - "core/**"
+      - "discovery/**"
+      - ".github/workflows/discovery.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install ./core "./discovery[dev]"
+      - name: Baseline unit tests and lint
+        run: |
+          python -m pytest discovery/tests -q
+          ruff check discovery
