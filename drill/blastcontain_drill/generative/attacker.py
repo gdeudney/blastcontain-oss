@@ -3,7 +3,8 @@ Generative attacker — crafts and refines jailbreaks (drill-spec §4.1/§4.2).
 
 The attacker is a no-refusal model (an abliterated / "Heretic" model) prompted as
 a red-team prompt engineer: given a goal and the target's previous refusals, it
-writes a fresh attack prompt that tries to get past them — PAIR/TAP-style. A
+writes a fresh attack prompt using PAIR-style sequential refinement. TAP tree
+search is not implemented. A
 deterministic StubAttacker stands in for tests so the loop is verifiable without
 a model.
 """
@@ -77,6 +78,14 @@ def _clean(text: str) -> str:
     return t
 
 
+def attack_messages(goal, history: list[Attempt]) -> list[dict]:
+    """Shared by the legacy attacker and the budgeted asynchronous suite bridge."""
+    return [
+        {"role": "system", "content": _SYSTEM.format(objective=goal.objective)},
+        {"role": "user", "content": _history_text(history)},
+    ]
+
+
 class LLMAttacker(Attacker):
     name = "llm-attacker"
 
@@ -94,10 +103,7 @@ class LLMAttacker(Attacker):
         return True
 
     def craft(self, goal, history: list[Attempt]) -> str:
-        messages = [
-            {"role": "system", "content": _SYSTEM.format(objective=goal.objective)},
-            {"role": "user", "content": _history_text(history)},
-        ]
+        messages = attack_messages(goal, history)
         try:
             # High temperature for diversity; a large token budget so reasoning
             # models (which spend tokens "thinking" before emitting any content)

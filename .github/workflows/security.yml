@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, 'codex/**']
   schedule:
     # Weekly — re-audit dependencies so newly-disclosed CVEs are caught even when
     # no code changes.
@@ -13,10 +13,6 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
-# Opt JS actions into the Node 24 runtime — Node 20 is deprecated.
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   pip-audit:
@@ -35,6 +31,9 @@ jobs:
       # the constraints file (recipe in each file's header).
       - name: Audit verify pinned image dependencies
         run: pip-audit --no-deps -r verify/constraints-full.txt
+
+      - name: Audit MCP validation reference dependencies
+        run: pip-audit --no-deps -r verify/constraints-validation.txt
 
       - name: Audit drill pinned runtime closure (core + drill)
         run: pip-audit --no-deps -r drill/constraints.txt
@@ -63,8 +62,10 @@ jobs:
         run: |
           python -m venv .optin
           . .optin/bin/activate
+          python -m pip install --upgrade pip
           pip install -q ./core "./verify[full,cisco]" pip-audit
-          pip-audit 2>&1 | tee optin-extras-audit.txt || true
+          set -o pipefail
+          pip-audit 2>&1 | tee optin-extras-audit.txt
       - uses: actions/upload-artifact@v7
         if: always()
         with:

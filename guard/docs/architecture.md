@@ -1,8 +1,7 @@
 # blastcontain-guard — Architecture
 
 > How the package is structured and *why*. Companion to the
-> [guard spec](../../blastcontain/docs/BlastContain-guard-spec.md) (what it does)
-> and the [README](README.md) (how to use it). This doc is the *why-it's-shaped-this-way*.
+> [usage guide](usage.md) and the [README](../README.md) (how to use it). This doc is the *why-it's-shaped-this-way*.
 
 ## The one idea everything follows
 
@@ -24,8 +23,8 @@ consequence of that.
 | `concerns.py` | the named-concern catalog (risk tags: MIT · OWASP) | policy |
 | `constants.py` | action taxonomy + `infer_action_type` | policy |
 | `evaluator.py` | `evaluate()` — the **pure** decision (first-match, default-deny, delegation) | ① decide |
-| `backends/native.py` | `NativeBackend` — always-on in-process primary | ① decide |
-| `backends/agt.py` | `AgtBackend` — optional out-of-process 2nd front (HTTP endpoint / `sole` mode) | ① decide |
+| `backends/native.py` | `NativeBackend` — local evaluator (AGT sole mode can override its verdict) | ① decide |
+| `backends/agt.py` | `AgtBackend` — optional HTTP decision consultation (`dual` / `sole`) | ① decide |
 | `backends/__init__.py` | `combine_with_agt` — stricter-wins + fail-closed in one place | ① decide |
 | `ask.py` | `AskResolver` — interactive vs autonomous; the honesty line | ② resolve |
 | `learning.py` | `LearningStore` — allow-always → a *proposal* (derive-then-ratify) | ③ record |
@@ -53,7 +52,7 @@ consequence of that.
 ┌─ FACADE ──────▼──────────────────────────────────────────────────────────┐
 │  Guard       the ONE object the host holds; wires + runs the pipeline     │
 └──┬─────────────────────────┬────────────────────────────┬────────────────┘
-   │ ① DECIDE (pure)          │ ② RESOLVE (ask)            │ ③ RECORD (effects)
+   │ ① DECIDE          │ ② RESOLVE (ask)            │ ③ RECORD (effects)
    ▼                          ▼                            ▼
  evaluator.evaluate()       AskResolver                  Emitter → Sinks
  NativeBackend              on_ask (human) /             (memory/jsonl/ledger/otel)
@@ -176,7 +175,7 @@ classDiagram
 ```
 guard.check("delete_invoice", action_type="delete")
    ① build EvalInput  (the question)
-   ② DECIDE — NativeBackend.evaluate(ruleset, input)            ← pure, sub-ms, no I/O
+   ② DECIDE — NativeBackend.evaluate(ruleset, input)            ← local, no I/O
         first Rule whose CompiledCondition matches → Decision
         (+ AgtBackend via combine_with_agt, if enabled)
         → Decision(action=ASK, approvers=[self], reason, risk)
@@ -197,11 +196,12 @@ You import `Guard`, call `check()` or add `@guard.tool`, done. The wiring (polic
 the AGT second front, telemetry threads) is assembled once and tucked away.
 *Like a thermostat: you set a temperature; you don't wire the furnace.*
 
-**2. The verdict is a pure function, walled off from side-effects.**
-`evaluate()` takes a question and returns allow/ask/deny — no network, no files,
-no prompts. That's why it's sub-millisecond, why it's exhaustively unit-tested
-(feed inputs, assert verdicts), and why a telemetry outage or a slow Ledger can
-never change a security decision. *The judge decides; the bailiff enforces; the
+**2. Native evaluation is separate from approval and recording.**
+The native evaluator takes a question and returns allow/ask/deny without network,
+files or prompts. `Guard.evaluate()` and `Guard.explain()` may consult AGT over
+HTTP when configured; they omit approval resolution and telemetry. Native logic
+is tested with inputs and expected verdicts. Telemetry failures do not change
+the enforcement decision. *The judge decides; the bailiff enforces; the
 court reporter writes it down — three different people. If the reporter's pen
 breaks, the verdict still stands.*
 
@@ -220,8 +220,11 @@ rulebook do arithmetic and comparisons, but never pick up a chainsaw.* Bonus: a
 broken rule fails when you load the file, not at 3am mid-request.
 
 **5. The two fronts are pluggable, and combining them lives in one place.**
-Native always works in-process; AGT is an optional out-of-process second opinion.
-The merge rule — *stricter wins, and if AGT is unreachable, fail closed* — sits
+Native works in-process; AGT is an optional HTTP second opinion, not an
+independent resource enforcement boundary. Running enforcement services are planned.
+The dual-mode merge uses the stricter verdict. On an outage, a native ALLOW
+becomes DENY by default; native ASK/DENY remains. `degrade_to_native` explicitly
+permits native fallback. This logic sits
 in a single function (`combine_with_agt`), so it can't go inconsistent. `dual` vs
 `sole` is just config of this same machinery. *A lock on your door (always there)
 plus an optional lobby guard; if the guard's asleep, you keep the door locked.*
@@ -278,6 +281,6 @@ tanker; the engine runs the same.*
 ---
 
 ## See also
-- [BlastContain-guard-spec.md](../../blastcontain/docs/BlastContain-guard-spec.md) — the specification
-- [README.md](README.md) — usage, the three config-driven modes
-- [examples/](examples/) — `agent.py` + `mode-*.yaml` + `demo_agt_server.py`
+- [Usage guide](usage.md) — runnable setup and operational limitations
+- [README.md](../README.md) — usage, the three config-driven modes
+- [examples/](../examples/) — `agent.py` + `mode-*.yaml` + `demo_agt_server.py`

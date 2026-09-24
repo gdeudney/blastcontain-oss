@@ -9,7 +9,7 @@ on:
       - "drill/**"
       - ".github/workflows/integration.yml"
   pull_request:
-    branches: [main]
+    branches: [main, 'codex/**']
     paths:
       - "core/**"
       - "verify/**"
@@ -19,11 +19,6 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
-# Opt JS actions into the Node 24 runtime — Node 20 is deprecated (forced 2026-06-02,
-# removed from runners 2026-09-16). Version-agnostic; avoids guessing action majors.
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   verify-container:
@@ -73,6 +68,18 @@ jobs:
           python -m pytest test_fail.py -v --timeout=120 --tb=short
           python -m pytest test_pass.py -v --timeout=120 --tb=short
 
+      - name: Live agent sandbox validation
+        run: >
+          python verify/examples/agent-sandbox/run_demo.py
+          --base-image blastcontain-verify:test
+          --output-dir "${{ runner.temp }}/agent-sandbox-demo"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: agent-sandbox-evidence
+          path: ${{ runner.temp }}/agent-sandbox-demo
+
       - name: Upload service logs on failure
         if: failure()
         run: |
@@ -104,4 +111,6 @@ jobs:
       - run: pip install -e "./drill[dev]"
       - name: Podman cage-containment tests
         working-directory: drill
+        env:
+          DRILL_REQUIRE_WORKER_TESTS: "1"
         run: pytest tests/integration -m podman -v

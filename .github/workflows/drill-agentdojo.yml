@@ -1,0 +1,51 @@
+name: Drill AgentDojo adapter
+
+on:
+  pull_request:
+    paths:
+      - 'core/**'
+      - 'drill/blastcontain_drill/**'
+      - 'drill/plugins/agentdojo/**'
+      - '.github/workflows/drill-agentdojo.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'drill/blastcontain_drill/**'
+      - 'drill/plugins/agentdojo/**'
+      - '.github/workflows/drill-agentdojo.yml'
+  schedule:
+    - cron: '30 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agentdojo-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install host test tools
+        run: python -m pip install ./core './drill[dev]' pip-audit bandit
+      - name: Analyze adapter code
+        run: bandit -r drill/plugins/agentdojo --severity-level medium
+      - name: Audit isolated plugin dependencies
+        run: pip-audit --disable-pip --no-deps -r drill/plugins/agentdojo/requirements.lock
+      - name: Build pinned plugin image and verify upstream source
+        id: image
+        shell: python
+        run: |
+          import os, pathlib, subprocess
+          path = pathlib.Path(os.environ['RUNNER_TEMP']) / 'agentdojo-image-id'
+          subprocess.run(['podman', '--remote=false', 'build', '--iidfile', str(path), '-f', 'drill/plugins/agentdojo/Containerfile', '.'], check=True)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('image_id=' + path.read_text().strip() + '\n')
+      - name: Real native parity and host conformance
+        env:
+          DRILL_AGENTDOJO_IMAGE: ${{ steps.image.outputs.image_id }}
+        run: python -m pytest drill/plugins/agentdojo/tests -q

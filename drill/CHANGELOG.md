@@ -4,6 +4,61 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 
 ## [Unreleased]
 
+### Added
+- Host-owned attacker/evaluator conversation service with scoped checkpoints,
+  opt-in branching, bounded history, cumulative budgets and sanitized audit events.
+  Plugin routing, Agent/MCP checkpoints and Crescendo integration remain pending.
+- Optional pinned PyRIT 1.1.0 static container adapter using the existing target
+  broker, with real upstream parity, reset/budget/cancellation checks and isolated
+  hashed dependencies. Crescendo and other multi-turn strategies remain pending.
+- Suite CLI acceptance, key generation, run/inspect/verify/cancel/rerun, raw purge
+  and explicit legacy export, with resistant/vulnerable Agent/MCP examples and
+  clean-wheel lifecycle CI on Linux/Windows, Python 3.11/3.12.
+- Durable suite runs with private evidence storage, signed full-roster envelopes,
+  explicit trusted verification, opt-in raw retention, scoped cancellation, fresh
+  reruns and an unsigned legacy report projection. Interrupted or unverifiable runs
+  cannot pass; required signing never falls back to an advisory key.
+- Adaptive suite execution with host-owned target/attacker/evaluator model routing,
+  PAIR prompt/history compatibility, shared atomic budgets, bounded concurrency and
+  in-memory cancellation. The reference Podman strategy now runs through this path;
+  attempt evidence remains separate from untrusted plugin claims.
+- Development suite execution API for locked replay/materialized operator cases, with
+  fresh Agent/MCP fixture processes, current acceptance checks, global/per-case budgets,
+  streamed evidence, independent deadlines and explicit cleanup/terminal outcomes.
+- Host-owned evidence collection, scoped proof artifacts and deterministic offline reduction,
+  with explicit producer authority, completion/coverage gates and a conservative legacy cage
+  bridge. Plugin claims cannot establish observed effects or successful security checks.
+- Offline Agent/MCP suite planning and content-bound locks, with complete required/optional
+  coverage rosters, explicit model settings, reviewed external snapshots, current acceptance
+  checks, and `blastcontain-drill-suite plan` / `check-lock`. Planning readiness is distinct
+  from execution and security results.
+- Data-only plugin discovery and `blastcontain-drill-plugins` diagnostics, with acceptance
+  bound to the complete manifest and pinned local container image.
+- Rootless Podman workers with brokered target/model calls, bounded messages/resources,
+  session-wide budgets, cancellation and independent controller/engine deadlines.
+- A stdlib-only container SDK, reference plugin and real hostile-worker conformance tests.
+- Versioned scenario, plugin/acceptance and evidence/result contracts with legacy source,
+  cage, attacker and scorer bridges; existing CLI and schema-1.1 reports are unchanged.
+- Frozen compatibility fixtures for all 501 attacks and a 20-case signed report; adapter
+  checks preserve the local abliterated attacker path without requiring a live model.
+- Opt-in MCP description and response poisoning over controlled loopback protocol fixtures, with four original action-goal seeds.
+- Payload-delivery and protocol evidence in signed reports, Markdown, and Podman observations.
+- Deterministic resistant/vulnerable demos and live Podman regression tests, with Verify remediation mappings.
+
+### Fixed
+- Allow ten seconds for cold Podman host discovery and retain explicit bounded
+  readiness diagnostics. This resolves the observed three-second host-query
+  timeout in PyRIT CI without changing worker limits or isolation requirements.
+- Commit signed retention metadata before storing raw suite inputs, so interrupted
+  startup cannot orphan sensitive inputs without an expiry record. Expired private
+  partial raw writes can also be purged from interrupted runs.
+- Evidence reduction honors scenario-specific forbidden tools and rejects conflicting
+  assessments that would otherwise hide an earlier positive content finding.
+- Generative documentation now describes PAIR-style sequential refinement; TAP tree
+  search is not implemented.
+- Cage-reported failures and unexercised MCP response attacks cannot fall through to HELD.
+- MCP action scenarios use observed attempts, not content-judge claims, to establish BYPASS.
+
 ## [0.2.0] — 2026-07-05
 
 Corpus expansion + two-plane scoring hardening. Every source layer is now real, multi-turn attacks
@@ -29,7 +84,7 @@ existing flag was removed.
   tracking, decomposition/recompose, and a real multi-turn crescendo (a canary read on turn 1 and
   an exfil on turn N are one `CageObservation`).
 - **Generative layer** (`--generative`) — abliterated/no-refusal attacker model crafts and refines
-  attacks against the caged target in a PAIR/TAP loop. Discovered jailbreaks are written to a
+  attacks against the caged target in a PAIR-style sequential loop. Discovered jailbreaks are written to a
   separate, sensitive corpus (`--generative-corpus`), never into the signed report (which carries
   only an excerpt). Adds `--attacker-model`, `--attacker-base-url`, `--generative-only`,
   `--generative-iters`; records `attacker_model` in the DrillReport bench provenance.

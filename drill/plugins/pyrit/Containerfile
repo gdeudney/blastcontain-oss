@@ -1,0 +1,14 @@
+# Reviewed Python 3.12 slim image; runtime uses the resulting immutable local image ID.
+FROM docker.io/library/python@sha256:2f17fc044b579bab302c2e8054d3a686e2cb9a83de48e70534b94cd8ebbe06a9
+WORKDIR /opt/plugin
+COPY drill/plugins/pyrit/requirements.lock /opt/plugin/requirements.lock
+RUN python -m pip install --no-cache-dir --require-hashes -r requirements.lock
+# The static adapter uses original operator-selected prompts only. Remove bundled
+# upstream datasets/templates rather than implicitly approving their attack content.
+RUN python -c "import importlib.util, pathlib, shutil; shutil.rmtree(pathlib.Path(importlib.util.find_spec('pyrit').origin).parent / 'datasets')"
+COPY drill/blastcontain_drill/__init__.py blastcontain_drill/__init__.py
+COPY drill/blastcontain_drill/contracts/ blastcontain_drill/contracts/
+COPY drill/blastcontain_drill/plugins/ blastcontain_drill/plugins/
+COPY drill/plugins/pyrit/worker.py drill/plugins/pyrit/validate.py ./
+COPY drill/LICENSE drill/NOTICE drill/plugins/pyrit/LICENSE.pyrit ./
+ENTRYPOINT ["/usr/local/bin/python", "-u", "/opt/plugin/worker.py"]

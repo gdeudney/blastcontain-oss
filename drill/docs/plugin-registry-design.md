@@ -1,5 +1,10 @@
 # Plugin Registry — a design start, derived from what Drill needs
 
+> **Current implementation plan:** [integration-redesign-plan.md](integration-redesign-plan.md)
+> supersedes this historical sketch where it differs, including worker isolation,
+> explicit required-coverage handling, extension roles and the local acceptance UI.
+
+
 > **Approach:** design the registry from its *first real consumer* (Drill), then the dedicated
 > cross-cutting session reconciles these requirements with Guard's `backends` and Verify's `checks`
 > before building it in `blastcontain-core`. This doc is **input**, not the final design.

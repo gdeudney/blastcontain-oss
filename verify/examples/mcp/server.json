@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "billing": {
+      "url": "https://billing.example.invalid/mcp",
+      "headers": {"Authorization": "Bearer ${MCP_TOKEN}"},
+      "tools": [{"name": "get_invoice", "inputSchema": {"type": "object", "properties": {"invoice_id": {"type": "string"}}}}]
+    }
+  }
+}

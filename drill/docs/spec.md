@@ -51,7 +51,7 @@ flowchart LR
   AGENT -.->|tool calls / egress attempts / canary| PROBE["Action probes<br/>(cage ground truth)"]
   JUDGE --> REPORT["DrillReport (signed)"]
   PROBE --> REPORT
-  REPORT -.->|refine PAIR/TAP| ATT
+  REPORT -.->|sequential refinement| ATT
 ```
 
 The agent is driven black-box (over its API / chat loop). Observation is the **cage**: tool-call log,
@@ -71,7 +71,8 @@ effort:
 ### 4.1 The local adversarial loop (Generative layer)
 
 Heretic attacker → Qwen3 target in the cage → Qwen3Guard + DeepEval judge → attacker refines
-(PAIR/TAP-style) → repeat. A self-contained jailbreak-discovery engine, fully local. **Start with
+(PAIR-style sequential refinement) → repeat. TAP branching and pruning are not implemented.
+A self-contained jailbreak-discovery engine, fully local. **Start with
 Replay (ships in a day, a real regression suite); add the loop when you want discovery.**
 
 ### 4.2 Sources & leverage (all Apache 2.0 unless noted)
@@ -240,7 +241,7 @@ Build order (P1):
 | 4 | **Scoring glue** — DeepEval judge (local Qwen3) + Qwen3Guard → combine with action ground truth → HELD/BYPASS/latency | DeepEval, Qwen3Guard |
 | 5 | **DrillReport** — signed, corpus-versioned, ATLAS-tagged | — |
 | 6 | **Operators** — arXiv-technique transforms | AI-Infra-Guard / custom |
-| 7 | **Generative loop** — Heretic attacker + PAIR/TAP refine | Heretic |
+| 7 | **Generative loop** — Heretic attacker + PAIR-style sequential refinement | Heretic |
 | 8 | **Plugin registry + UI** — formalize sources as plugins | AI-Infra-Guard ref |
 
 > ✅ Steps 1–7 are **done** — plus a hardened container, **Granite Guardian + WildGuard** guards,

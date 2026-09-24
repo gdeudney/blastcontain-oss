@@ -21,6 +21,47 @@ podman compose -f compose.yml up -d --build
 SKIP_COMPOSE=1 pytest
 ```
 
+## Refreshing dependencies
+
+From the monorepo root, resolve the latest compatible stable dependencies for
+the Python 3.12 container. Include Core's metadata so its dependencies are
+pinned too; exclude the local Core package itself from the output:
+
+```bash
+uv pip compile core/pyproject.toml verify/pyproject.toml --extra full \
+  --upgrade --python-version 3.12 --no-sources \
+  --no-emit-package blastcontain-core -o verify/constraints-full.txt
+```
+
+`--no-sources` bypasses workspace source mappings during resolution. The
+constraints describe the container's third-party runtime dependencies, not a
+universal lock for all Python versions or the optional Cisco extra.
+
+In an isolated Python 3.12 virtual environment, validate the pinned set:
+
+```bash
+pip install -e ./core -e './verify[full,dev]' -c verify/constraints-full.txt
+pip install pip-audit build
+python -m pytest core/tests verify/tests/unit
+python -m pip check
+ruff check core verify
+pip-audit --no-deps --disable-pip -r verify/constraints-full.txt
+python -m build verify
+```
+
+Also test a fresh Python 3.11 environment with `pip install -e ./core
+-e './verify[full,dev]'` (without the container constraints). Test
+`[full,skill,dev]` separately: Cisco's transitive requirements may select
+different versions, such as Rich, from the default container set. Run the
+tests, `pip check`, and audit its resolved third-party dependencies as well.
+The optional Cisco fixture tests skip when its package is absent and exercise
+the real scanner when installed.
+
+Finally, build the container and run `tests/integration` as described above.
+Unit tests do not establish read-only/offline container compatibility. Presidio
+NER also needs a compatible spaCy language model; installing the Python package
+alone does not validate model-backed analysis.
+
 ## DCO sign-off
 
 All commits must be signed off with `git commit -s`. This certifies you wrote the patch (or have the right to submit it) under the [DCO 1.1](https://developercertificate.org/). No CLA required.

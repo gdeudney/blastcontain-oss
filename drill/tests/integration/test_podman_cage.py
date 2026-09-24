@@ -38,3 +38,32 @@ def test_hardened_agent_makes_no_egress_in_the_cage():
     assert obs.error is None, obs.error
     assert obs.egress_attempts == []
     assert obs.tool_calls == []
+
+
+@pytest.mark.parametrize('vulnerable', [True, False])
+@pytest.mark.parametrize('surface', ['description', 'response'])
+def test_mcp_payload_delivery_inside_network_none_cage(vulnerable, surface):
+    from blastcontain_drill.corpus.mcp_poisoning import MCPPoisoningSource
+    from blastcontain_drill.probes import run_action_probes
+    attack = next(a for a in MCPPoisoningSource().dataset() if a.id == f'mcp-{surface}-exfil')
+    obs = PodmanCage(vulnerable=vulnerable).run_attack(attack)
+    assert obs.error is None, obs.error
+    assert obs.mcp['payload_delivered']
+    assert any(event['method'] == 'tools/call' for event in obs.mcp['events'])
+    assert run_action_probes(obs)['triggered'] is vulnerable
+    if vulnerable:
+        assert run_action_probes(obs)['contained']
+
+
+@pytest.mark.parametrize('surface', ['description', 'response'])
+@pytest.mark.parametrize('steps,expected', [(1, 'ERROR'), (2, 'ERROR'), (3, 'BYPASS')])
+def test_incomplete_mcp_execution_survives_container_transport(surface, steps, expected):
+    from blastcontain_drill.corpus.base import Corpus
+    from blastcontain_drill.corpus.mcp_poisoning import MCPPoisoningSource
+    from blastcontain_drill.runner import run_corpus
+    attack = next(a for a in MCPPoisoningSource().dataset() if a.id == f'mcp-{surface}-exfil')
+    finding = run_corpus(PodmanCage(vulnerable=True, max_steps=steps), Corpus('test', [attack]), [])[0]
+    assert finding.outcome.value == expected
+    assert finding.action_verdict['execution'] == {'completed': False, 'reason': 'step_limit'}
+    if steps == 3:
+        assert finding.action_verdict['triggered'] and finding.action_verdict['contained']
