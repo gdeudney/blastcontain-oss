@@ -47,7 +47,7 @@ cymem==2.0.13
     #   preshed
     #   spacy
     #   thinc
-filelock==3.32.5
+filelock==4.0.3
     # via tldextract
 h11==0.16.0
     # via httpcore
@@ -57,7 +57,7 @@ httpx==0.28.1
     # via
     #   blastcontain-verify (verify/pyproject.toml)
     #   weasel
-idna==3.19
+idna==3.20
     # via
     #   anyio
     #   httpx
@@ -87,7 +87,7 @@ packaging==26.3
     #   spacy
     #   thinc
     #   weasel
-phonenumbers==9.0.38
+phonenumbers==9.0.40
     # via presidio-analyzer
 preshed==3.0.13
     # via
@@ -117,7 +117,7 @@ pyyaml==6.0.3
     #   agent-governance-toolkit
     #   blastcontain-core
     #   presidio-analyzer
-regex==2026.9.3
+regex==2026.9.10
     # via presidio-analyzer
 requests==2.34.2
     # via
@@ -151,7 +151,7 @@ thinc==8.3.13
     # via spacy
 tldextract==5.3.2
     # via presidio-analyzer
-tqdm==4.70.0
+tqdm==4.70.1
     # via spacy
 typer==0.27.2
     # via
@@ -165,7 +165,7 @@ typing-extensions==4.16.0
     #   typing-inspection
 typing-inspection==0.4.4
     # via pydantic
-urllib3==2.7.0
+urllib3==2.8.0
     # via requests
 wasabi==1.1.3
     # via
@@ -174,7 +174,7 @@ wasabi==1.1.3
     #   weasel
 weasel==1.0.0
     # via spacy
-wrapt==2.4.0
+wrapt==2.4.1
     # via smart-open
 
 # The following packages were excluded from the output:

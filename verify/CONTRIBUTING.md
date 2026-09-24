@@ -31,21 +31,33 @@ pinned too; exclude the local Core package itself from the output:
 uv pip compile core/pyproject.toml verify/pyproject.toml --extra full \
   --upgrade --python-version 3.12 --no-sources \
   --no-emit-package blastcontain-core -o verify/constraints-full.txt
+uv pip compile core/pyproject.toml verify/pyproject.toml --extra validation-test \
+  --upgrade --python-version 3.12 --no-sources \
+  --no-emit-package blastcontain-core -o verify/constraints-validation.txt
 ```
 
 `--no-sources` bypasses workspace source mappings during resolution. The
 constraints describe the container's third-party runtime dependencies, not a
 universal lock for all Python versions or the optional Cisco extra.
 
-In an isolated Python 3.12 virtual environment, validate the pinned set:
+Regenerate each complete set instead of accepting independent transitive pin
+bumps. Pydantic requires an exact `pydantic-core` version, and spaCy bounds Thinc;
+newer versions of either dependency can make the set impossible to install.
+Keep the Presidio Anonymizer exception documented in SECURITY.md until upstream
+permits patched cryptography. Dependabot excludes only the known incompatible
+2.2.364 release; later releases remain eligible for review.
+
+In an isolated Python 3.12 virtual environment, validate both sets together:
 
 ```bash
-pip install -e ./core -e './verify[full,dev]' -c verify/constraints-full.txt
+pip install -e ./core -e './verify[full,validation-test,dev]' \
+  -c verify/constraints-full.txt -c verify/constraints-validation.txt
 pip install pip-audit build
 python -m pytest core/tests verify/tests/unit
 python -m pip check
 ruff check core verify
 pip-audit --no-deps --disable-pip -r verify/constraints-full.txt
+pip-audit --no-deps --disable-pip -r verify/constraints-validation.txt
 python -m build verify
 ```
 
