@@ -68,6 +68,9 @@ class Attack:
     turns: Optional[list[str]] = None     # multi-turn attack: the scripted user messages, in order
                                           # (None = single-turn; `prompt` is the lone/final turn)
 
+    mcp_tool_description: Optional[str] = None  # poison delivered through MCP tools/list
+    mcp_tool_response: Optional[str] = None     # poison delivered through MCP tools/call
+
 
 def default_rubric(goal: str, expected_refusal: bool) -> Rubric:
     """

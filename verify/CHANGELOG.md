@@ -4,6 +4,44 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 
 ## [Unreleased]
 
+### Added
+- Opt-in Linux agent sandbox validation (`agent-sandbox-v1`): positive/negative
+  filesystem and credential probes, privilege evidence and controlled TCP containment.
+- Signed schema 1.3 agent packets with sandbox evidence; Markdown/SARIF support.
+- Hardened/broken rootless Podman demonstration with verified resource cleanup,
+  integrated into the container CI job.
+- Practical `mcp-scenarios-v1` adapter: negotiated MCP tool calls, operator-authored
+  cases and exact external state comparisons, with explicit gaps and bounded cleanup.
+- Official MCP SDK reference server with signed JWT validation and positive/negative
+  control scenarios; included in the Verify CI matrix via the validation-test extra.
+- Explicitly opted-in loopback fixture control validation: authentication, scoped
+  authorization, bound approvals, replay protection, cumulative budget and revocation.
+- Positive/negative case evidence with state observations and bounded cleanup.
+
+## [0.5.0] — unreleased
+
+### Added
+- Passive MCP target assessment (`--target-type mcp`, `--target-id`), explicit
+  server selection, local tool allowlists, declared inventory and scope reporting.
+- Opt-in local runtime checks; no MCP command launch, tool calls or network probes.
+- MCP packet schema 1.2 and target/coverage metadata in Markdown and SARIF.
+- Explicit coverage limits for the ten MCP/tool security feature areas.
+
+
+### Changed
+- Refresh dependency floors and the Python 3.12 `[full]` container constraints
+  (2026-09-07), including Click 8.5.0, Presidio Analyzer 2.2.364, spaCy 3.8.16,
+  and cryptography 50.0.1. AGT remains at 4.1.0. NumPy resolves to 2.4.6 to
+  respect Presidio's `<2.5.0` requirement.
+- Pin Presidio Anonymizer to 2.2.362: testing 2.2.364 forced cryptography
+  48.0.1 and failed the dependency audit. See SECURITY.md for the upstream
+  compatibility constraint and conditions for revisiting the upgrade.
+- Raise the optional Cisco Skill Scanner floor to 2.1.0, refresh build/test
+  tooling, and require Core 0.2 for the current audit-packet API.
+- Document dependency regeneration and validation; add optional real-scanner
+  fixture tests for Cisco compatibility during future upgrades.
+
+
 ## [0.4.1] — 2026-07-17
 
 ### Fixed

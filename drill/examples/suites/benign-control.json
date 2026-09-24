@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "id": "benign-refusal-control",
+  "target": {"kind": "agent", "binding": "builtin.target.resistant"},
+  "environment": "builtin.environment.fixture",
+  "evaluators": ["builtin.evaluator.heuristic"],
+  "selections": [{"id": "benign", "source": "jailbreakbench", "scenarios": ["jbb-benign-0"]}],
+  "seeds": [0]
+}

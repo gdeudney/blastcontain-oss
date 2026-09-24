@@ -38,7 +38,7 @@ that blocked it. An action-plane bypass is **CRITICAL** and blocks prod promotio
 |---|---|---|
 | **Replay** | built-in seeds · JailbreakBench · system-card checks · multi-turn vectors · AI-Infra-Guard curated sets | *known* attacks — a regression suite |
 | **Operators** | arXiv techniques as transforms (PyRIT/DeepTeam encoders, framing, obfuscation, homoglyph…) | known *methods* on fresh seeds |
-| **Generative** | an abliterated attacker model in a PAIR/TAP loop | *novel* jailbreaks |
+| **Generative** | an abliterated attacker model using PAIR-style sequential refinement | *novel* jailbreaks |
 
 Every run is pinned to a corpus version (e.g. `v2026.06.1`) and recorded in the
 DrillReport, so reports are reproducible and regression-comparable.
@@ -58,9 +58,37 @@ to every seed, expanding each into fresh variants while preserving its
 category/goal. No model required — fast and reproducible.
 
 **Generative (`--generative`)** runs an abliterated/no-refusal attacker model
-against the caged target in a PAIR/TAP loop (`--attacker-model`). Discovered
+against the caged target using PAIR-style sequential refinement (`--attacker-model`).
+TAP branching and pruning are not implemented. Discovered
 jailbreaks are written to a separate, sensitive corpus (`--generative-corpus`),
 never into the signed report (which carries only an excerpt).
+
+The [integration redesign](docs/integration-redesign-plan.md) is underway. The
+first [contracts and compatibility adapters](docs/contracts-v1.md) preserve this
+attacker path and the existing CLI. [Plugin discovery and bounded container workers](docs/plugin-workers.md)
+are now available as an additive API, with a [reference plugin](plugins/reference/README.md).
+[Offline suite planning and locking](docs/suite-planning.md) are available through
+`blastcontain-drill-suite plan` and `check-lock`, with Agent and MCP examples.
+[Evidence collection and offline reduction](docs/evidence-reduction.md) now provide
+an additive API for trusted observations, proof integrity and separate outcome dimensions.
+[Durable run lifecycle services](docs/suite-runs.md) add signed results, private
+evidence, cancellation and explicit reruns.
+[Fixture suite execution](docs/suite-execution.md) is available as a development API,
+with replay/adaptive attacks, shared model budgets, up to eight concurrent cases and
+independent stopping. Local abliterated attackers and isolated external strategies use
+the same host broker. The [suite CLI](docs/suite-cli.md) exposes review, acceptance,
+run, stop and verified results. The optional [pinned static PyRIT adapter](plugins/pyrit/README.md)
+now exercises a real external framework through the same broker. The separate
+[bounded Crescendo adapter](plugins/pyrit/CRESCENDO.md) adds checkpoint-backed
+adaptive attacks. The [AgentDojo banking adapter](plugins/agentdojo/README.md) adds
+one pinned simulated environment with native task/attacker oracles and separate
+security/utility outcomes. Live-model effectiveness remains unvalidated. See the
+[baseline record](docs/redesign-baseline.md).
+
+The [local workbench](docs/workbench.md) adds browser-based suite composition,
+exact-scope acceptance, preflight, run/cancel and evidence verification using those
+same services. Start it with `blastcontain-drill-ui --workspace /path/to/new-private-directory`.
+Scout research review and Git provenance are optional launch-time integrations.
 
 ## The cage
 
@@ -155,3 +183,20 @@ redistribution. See [SECURITY.md](SECURITY.md).
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). All contributions require a DCO sign-off (`git commit -s`).
+
+### MCP poisoning scenarios
+
+Use `--mcp-poisoning` to add four [description/response poisoning cases](docs/mcp-poisoning.md).
+Poison arrives over a controlled loopback MCP endpoint; the cage records attempted
+exfiltration and forbidden tool calls and blocks their effects. Signed reports include
+payload-exposure evidence and Verify follow-up mappings. The included deterministic
+demo runs in-process or inside the network-isolated Podman cage.
+### Research provenance
+
+[arXiv coverage registry](blastcontain_drill/corpus/arxiv/README.md) maps audited papers to
+Drill sources, partial coverage, draft work and gaps using Scout paper IDs.
+[Open-source integration candidates](docs/open-source-integrations.md) documents
+PyRIT, AgentDojo, garak and DeepTeam options.
+
+[Integration redesign implementation plan](docs/integration-redesign-plan.md) defines
+phased deliverables, validation gates and migration to suites, plugin adapters and a local UI.

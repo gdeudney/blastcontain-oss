@@ -7,7 +7,7 @@ keep working without code changes.
 """
 from __future__ import annotations
 
-# noqa-imports — public re-exports
+# Public re-exports
 from blastcontain_core.models import (   # noqa: F401
     InfraFinding,
     ScanResult,

@@ -4,6 +4,18 @@ All notable changes to `blastcontain-scout` are documented here. Format based on
 
 ## [Unreleased]
 
+### Added
+- Optional Git-bound research mappings, explicit refresh and bidirectional suite/run
+  tracing through Drill's existing contracts and evidence verifier.
+- Transactional database version 3 migrations, actor/revision-bound implementation
+  annotations and stale concurrent-edit rejection through `--expected-revision`.
+- Consistent SQLite backup, restore to a new path, and complete audit-history export.
+  Legacy implementation claims remain explicitly unverified.
+
+### Fixed
+- Include Apache-2.0 license and notice files in built wheels.
+- Run Scout's CI tests when the shared Drill arXiv registry changes.
+
 ## [0.1.0] — 2026-07-05
 
 Initial release. Corpus scout for [BlastContain Drill](https://pypi.org/project/blastcontain-drill/) — scans arXiv for new jailbreak / prompt-injection / agent-attack research and opens draft pull requests proposing additions to the Drill corpus. Embodies the derive-then-ratify tenet: Scout *derives* candidate attacks; a human *ratifies* by reviewing the PR.

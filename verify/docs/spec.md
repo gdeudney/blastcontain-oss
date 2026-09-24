@@ -1,6 +1,6 @@
 # BlastContain Verify — Engineering Specification
 
-**Pre-Deployment Environmental Compliance Scanner**  
+**Pre-Deployment Technical Security Scanner**
 Version 1.2 — 2026 | Audience: Engineering, Security, DevOps
 
 ```
@@ -24,11 +24,22 @@ pip install blastcontain-verify
 
 ---
 
+For the separate MCP target profile, configuration schema, checks MCP-04/05/06
+and target-aware packet schema 1.2, see [MCP assessment](mcp.md). This reference
+describes the existing agent profile unless stated otherwise.
+
 ## 1. Purpose
 
-BlastContain Verify runs inside the agent's environment before it is allowed to register. It probes 27 security checks across 14 check groups, produces a cryptographically signed Audit Packet, and writes a Markdown compliance report.
+BlastContain Verify runs inside the agent's environment to collect pre-deployment evidence. It probes 27 security checks across 14 check groups, produces a cryptographically signed Audit Packet, and writes a Markdown compliance report.
 
-Checks that require external inputs (`--api-spec`, `--mcp-config`, `--context-file`, `--model-dir`, `--skills-dir`) are recorded as **SKIP** when those inputs are not provided. All other checks always run.
+Runtime results apply only to the process identity and environment running Verify.
+A separate hardened scanner container assesses its own runtime, even when it mounts
+an agent's source. `--env` selects context; it does not enter the target runtime.
+APPROVED means no findings under configured checks, not complete coverage or
+organizational approval. Review SKIPs and exceptions. See the
+[technical checklist](../../docs/technical-security-checklist.md).
+
+Checks that require external inputs (`--api-spec`, `--mcp-config`, `--context-file`, `--model-dir`, `--skills-dir`) are recorded as **SKIP** when those inputs are not provided. Platform, dependency and policy limitations can also cause SKIPs.
 
 | Status | Condition | Exit code |
 |---|---|---|
@@ -37,7 +48,9 @@ Checks that require external inputs (`--api-spec`, `--mcp-config`, `--context-fi
 | QUARANTINED | At least one CRITICAL finding | 2 |
 | ERROR | One or more check groups raised an unhandled exception, or a required flag is missing | 3 |
 
-When a check group raises, the orchestrator emits a synthetic finding with `check_id=SCAN-<GROUP>` (e.g. `SCAN-CREDENTIALS`), `finding_type=blastcontain.scanner.check_group_failed`, and `severity=HIGH`, then continues to the next group. The overall status is set to ERROR. The audit packet is always written so the failure is auditable.
+When a check group raises, the orchestrator emits a synthetic finding with `check_id=SCAN-<GROUP>` (e.g. `SCAN-CREDENTIALS`), `finding_type=blastcontain.scanner.check_group_failed`, and `severity=HIGH`, then continues to the next group. The overall status is set to ERROR. When `--output` is configured and writable, the packet records that failure.
+`--acknowledge-risk` overrides the final scan ERROR exit, but not early configuration,
+signing, output-write or Ledger-post failures.
 
 Verify is standalone — it works without a BlastContain server (local mode). When `--blastcontain-url` is set it posts findings to the Ledger (server mode). All inputs — skills, API specs, MCP server configs — are provided locally at scan time.
 
@@ -52,17 +65,17 @@ pip install blastcontain-verify
 # Add Presidio PII detection (requires spaCy model)
 pip install "blastcontain-verify[pii]"
 
-# Add Cisco AI Skill Scanner — opt-in, CVE-clean as of 2.0.12 (SKILL-02)
+# Add Cisco AI Skill Scanner — opt-in; audit resolved dependencies (SKILL-02)
 pip install "blastcontain-verify[skill]"   # alias: [cisco]
 
 # Add AGT PromptDefenseEvaluator and SupplyChainGuard
 pip install "blastcontain-verify[agt]"
 
-# Everything
+# Presidio + AGT (Cisco is separate)
 pip install "blastcontain-verify[full]"
 ```
 
-### Container (recommended)
+### Isolated source/configuration scan
 
 The official container image bundles `[full]` with the spaCy `en_core_web_lg` model pre-baked. The image copies both `verify/` and the sibling `core/`, so **the build context is the `blastcontain-oss` repo root** (not `verify/`):
 
@@ -521,7 +534,7 @@ All three MCP checks are SKIP-ped when `--mcp-config` is not provided.
 |---|---|
 | **Severity** | HIGH |
 | **MIT** | MIT-ID-05 — MCP Server Without Authentication |
-| **What it checks** | Inspects each `mcpServers` entry. Flags servers with `http://` URLs (plaintext) or no auth configuration. |
+| **What it checks** | Inspects each `mcpServers` entry. Flags plaintext URLs and network servers without recognized auth configuration. Local stdio servers do not require network auth. These are configuration hints, not live authentication or authorization tests. |
 
 ---
 
@@ -714,7 +727,7 @@ This produces a deterministic byte string that any verifier in any language can 
 
 ### 7.2 Algorithm selection (priority order)
 
-1. **Ed25519 (preferred)** — asymmetric. The public key is embedded in the packet so anyone can verify without sharing secrets. Used when `BLASTCONTAIN_SIGNING_KEY_PATH` or `BLASTCONTAIN_SIGNING_KEY_PEM` is set and the `cryptography` package is installed.
+1. **Ed25519 (preferred)** — asymmetric. The embedded public key permits signature consistency checks; consumers must match it to a separately trusted signer to establish provenance. Used when `BLASTCONTAIN_SIGNING_KEY_PATH` or `BLASTCONTAIN_SIGNING_KEY_PEM` is set and the `cryptography` package is installed.
 2. **SHA-256 HMAC (fallback)** — symmetric. The verifier needs the same `BLASTCONTAIN_SIGNING_KEY` to verify. Used when no Ed25519 source is configured. Default key `local-verify-default` produces a stderr warning every run.
 
 ### 7.3 Ed25519 packet (schema_version 1.1)
@@ -775,9 +788,9 @@ This produces a deterministic byte string that any verifier in any language can 
 
 `advisory: true` is an **additive** signature-block field present only when the
 packet was signed with the built-in default key (`local-verify-default`). The
-default key is public knowledge, so such a signature proves *integrity*
-(payload unmodified since signing) but **not provenance** — anyone can produce
-one. Downstream tooling should treat advisory packets as unattested; CI
+default key is public knowledge, so such a signature only detects accidental changes
+but provides **no protection against malicious changes or false provenance** —
+anyone can modify the payload and re-sign it. Downstream tooling should treat advisory packets as unattested; CI
 pipelines that must never emit one can pass `--require-signing`, which exits 3
 before scanning when no real key source is configured. Packets signed with
 Ed25519 or a real HMAC key omit the field.
@@ -975,7 +988,7 @@ result = guard.verify(model_path)
 
 | Item | Decision |
 |---|---|
-| Check skip vs always-run | Checks requiring external inputs (api-spec, mcp-config, context-file, model-dir, skills-dir) emit SKIP when inputs not provided. All other checks always run. SKIP does not affect compliance status. |
+| Check skip vs always-run | Checks requiring external inputs (api-spec, mcp-config, context-file, model-dir, skills-dir) emit SKIP when inputs not provided. Platform, dependency and policy limitations can also cause SKIPs. SKIP does not affect compliance status. |
 | `cisco_sdk` removed | There is no `cisco_aidefense` PyPI package. The two Cisco packages are `cisco-ai-mcp-scanner` (import: `mcpscanner`) and `cisco-ai-skill-scanner` (import: `skill_scanner`). AUGMENTATION_FLAGS still has four keys — `presidio`, `cisco_mcp`, `cisco_skill`, `agt` — but only `cisco-ai-skill-scanner` is packaged (opt-in `[skill]`/`[cisco]`); `cisco-ai-mcp-scanner` is unpackaged (CVE-bearing `litellm` pin; MCP-01 dormant), so `cisco_mcp` is always `false`. |
 | AGT import name | `agent-governance-toolkit` exposes the module `agent_compliance`, not `agent_governance_toolkit`. Exports used: `PromptDefenseEvaluator`, `SupplyChainGuard`. |
 | CODE-01 self-detection | `CODE_SKIP_DIRS` excludes `blastcontain_verify`, `blastcontain_drill`, `blastcontain_discovery` (scanner's own packages) and `tests`, `test`, `__tests__`, `spec` (test fixtures intentionally contain dangerous patterns). |
@@ -995,7 +1008,7 @@ result = guard.verify(model_path)
 | API-01 live probe opt-in | `--api-live-probe` (default OFF) gates the `httpx.options()` call. Off-by-default rationale: (1) preserves the offline guarantee the rest of the tool advertises; (2) a malicious OpenAPI spec listing `http://attacker.com/...` as a server URL would otherwise coax the scanner into sending outbound HTTP — a confused-deputy primitive. Severity escalates HIGH → CRITICAL when the live probe confirms reachability. |
 | API-01 destructive POST detection | Destructive keyword match was extended from operationId + summary to also include the path itself (`/admin/destroy` now fires even when operationId is bland). Keyword list extended with `wipe`, `reset`, `flush`, `erase`. |
 | SARIF output | New `--sarif <path>` flag and `reporter_sarif.py` module. SARIF 2.1.0 with `security-severity` properties so GitHub Code Scanning ranks findings correctly. Each unique check_id becomes one `reportingDescriptor` (rule); each finding becomes one `result` referencing its rule by index. MIT mapping serialised as properties and tags so downstream tooling can filter by MIT-AI risk taxonomy. Findings use `logicalLocations` (not physical) since most are environmental. |
-| Ed25519 signing | `reporter.py` now selects between Ed25519 (preferred) and SHA-256 HMAC (fallback). Ed25519 keys come from `BLASTCONTAIN_SIGNING_KEY_PATH` (PEM file) or `BLASTCONTAIN_SIGNING_KEY_PEM` (PEM string). The 32-byte raw public key is embedded in `signature.public_key` (base64) so verification needs nothing else. `cryptography` is now a core dependency. HMAC remains for offline development and CI artifact integrity, but the default key `local-verify-default` now emits a stderr warning on every use. Schema bumped to 1.1 (additive — algorithm field tells the verifier which path to take). |
+| Ed25519 signing | `reporter.py` now selects between Ed25519 (preferred) and SHA-256 HMAC (fallback). Ed25519 keys come from `BLASTCONTAIN_SIGNING_KEY_PATH` (PEM file) or `BLASTCONTAIN_SIGNING_KEY_PEM` (PEM string). The 32-byte raw public key is embedded in `signature.public_key` (base64) for signature consistency checks; signer identity requires a separately trusted key. `cryptography` is now a core dependency. HMAC remains for offline development and CI artifact integrity, but the default key `local-verify-default` now emits a stderr warning on every use. Schema bumped to 1.1 (additive — algorithm field tells the verifier which path to take). |
 | Canonical signing encoding | Changed from `sort_keys=True` only to `sort_keys=True, separators=(",", ":")`. The old format left default Python json whitespace, producing different bytes than what a Go/Rust/JS verifier would generate from the same logical payload. Tightening the separators makes the canonical form trivially reproducible in any language. The `signature.canonical` field records `"json-sort-keys-tight"` so verifiers know exactly which encoding to apply. |
 | Lazy Presidio init | `augmentation.py` no longer calls `AnalyzerEngine()` at import time. Initialisation is deferred to the first call to `presidio_analyze()`. Scans that never run MEM-01 (the common case for CI smoke tests) save the multi-second spaCy model load. `PRESIDIO_AVAILABLE` is optimistic before first use (`True` if the package imports) and flips to `False` if the lazy init fails. |
 | NET-02 false-pass bug fixed | `checks/network.py` previously had `if "0.0.0.0:" in line or ":::":` — the literal `":::"` is truthy so every LISTEN line passed the gate. The regex on the next line was the real filter, so detection worked, but the intended fast-path was a no-op. One-line fix to `or ":::" in line`. No spec-level behaviour change, but worth recording as the kind of bug that hides in plain sight. |
@@ -1006,5 +1019,5 @@ result = guard.verify(model_path)
 | Advisory signatures are machine-readable | Packets signed with the default HMAC key carry `signature.advisory: true` (additive field, no schema bump — three packages share the 1.1 writer) so the Ledger and CI gates can refuse unattested packets mechanically instead of parsing a stderr warning. `--require-signing` fails fast (exit 3, before scanning) when no real key is configured. See §7.4. |
 | Augmentation acceptance checklist | Every candidate augmentation must pass the checklist in [CONTRIBUTING.md](../CONTRIBUTING.md#adding-an-augmentation) (pip-audit-clean tree, no exact-pins of shared libs, offline/read-only import safety, tree-size budget, graceful degradation) before landing in any extra. CVE-bearing packages that clear the other gates go in opt-in extras only, with accepted CVEs documented in SECURITY.md; the Security workflow audits opt-in trees weekly, non-gating. Codifies the litellm/tldextract lessons. |
 | Doc-drift tests | `tests/unit/test_doc_consistency.py` pins prose facts to code: spec.md §5 sections ↔ `constants.ALL_CHECK_IDS` (the canonical inventory), the README check/category counts, pyproject ↔ `__version__` ↔ CHANGELOG, and the generator_version regression. Duplicated facts rot silently otherwise — the hardcoded generator_version bug was this failure mode. |
-| Cisco scanners are opt-in | The Cisco AI Skill Scanner (`cisco-ai-skill-scanner` → SKILL-02) is **excluded from `[full]`** and installed via `[skill]` / `[cisco]`. It was CVE-bearing until 2.0.12 raised its `litellm` floor to `>=1.84` (current `litellm` relaxed its `aiohttp`/`python-dotenv` pins to ranges), so this tree is **now CVE-clean** — both `[full]` and the opt-in are clean (the former gated by `pip-audit`, the latter watched weekly, both in the Security workflow). The Cisco **MCP** scanner (`cisco-ai-mcp-scanner` → the MCP-01 backend) is **deliberately not packaged**: every release still exact-pins the vulnerable `litellm==1.83.7` (CVE-2026-34993/-47265/-40217/-28684), it now conflicts with `skill>=2.0.12`'s `litellm`, and MCP-01 is dormant (SKIPs without a Charter). Re-add when upstream relaxes the pin AND Charter activates MCP-01. See SECURITY.md. |
+| Cisco scanners are opt-in | `[skill]` / `[cisco]` installs the skill scanner separately from `[full]`. Dependency audits are point-in-time evidence; see [SECURITY.md](../SECURITY.md) for the dated audit and MCP scanner exclusion. MCP-01 currently SKIPs without Charter integration. |
 | Output write is fail-safe | The `--report` / `--output` / `--sarif` writes in `cli.py` are wrapped: a non-writable output path prints a clear, actionable error and exits 3 (ERROR) rather than raising an uncaught `OSError`. This was the actual cause of the red "Verify hardened-container integration" job — the non-root scan UID (10001) could not write the host-mounted `/reports` volume in CI's rootless podman, so every output-writing scan crashed on the audit-packet write (after the scan and signing had succeeded). The integration conftest now `chmod`s the mounted `/reports` (and writable `/models`) so uid 10001 can write them. |

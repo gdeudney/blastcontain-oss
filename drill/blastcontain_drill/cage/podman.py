@@ -33,6 +33,9 @@ def _obs_from_json(d: dict) -> CageObservation:
         response_text=d.get("response_text", ""),
         steps=d.get("steps", 0),
         error=d.get("error"),
+        turn_responses=d.get("turn_responses", []),
+        mcp=d.get("mcp", {}),
+        termination_reason=d.get("termination_reason"),
     )
     obs.tool_calls = [ToolCall(**tc) for tc in d.get("tool_calls", [])]
     obs.egress_attempts = [EgressAttempt(**e) for e in d.get("egress_attempts", [])]

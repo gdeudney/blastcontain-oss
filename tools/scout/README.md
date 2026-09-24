@@ -90,3 +90,137 @@ schtasks /Create /TN "BlastContain arXiv Scout" /SC WEEKLY /D MON /ST 09:00 `
 ```
 
 The task only ever opens a **draft PR** — nothing reaches the corpus without your review.
+
+## Research database: processed, reviewed, implemented
+
+Scout can keep a local SQLite database at `tools/scout/state/scout.sqlite3`.
+SQLite ships with Python; no database service or new dependency is required.
+The existing scan command and JSON ledger remain compatible. Plain scans remain
+read-only; `--record` explicitly saves paper metadata and classifier results:
+
+```bash
+blastcontain-scout --max 200 --record
+blastcontain-scout-track report
+```
+
+Once a database exists, scans reuse unchanged papers' recorded classifications.
+Classification does not consume proposal eligibility: recorded previews and imported
+analyses can still be published with `--apply` or `--open-pr`. Successful publication
+marks only the exact paper revision as proposed, without changing its review or
+implementation status. Existing version-1 databases are read without modification
+by previews and upgraded additively on the next write; old publication state is
+unknown and is not inferred from classification or the legacy seen ledger.
+
+Publishing saves an exact pending draft in the database before Git changes. A failed
+commit, push or PR creation can be retried with the same command, including on a later
+day or while arXiv is unavailable. Retry reuses the original branch and any completed
+commit; it refuses unrelated changes or edits to the proposal files. Keep the same
+checkout and database for retries. `--apply` and `--open-pr` also record classifications
+and publication state; ordinary previews remain read-only. A pending draft is retried
+before fetching newer papers. Once complete, the next scan resumes normal discovery.
+Successful `--apply` means committed locally; `--open-pr` requires a PR URL before
+marking the draft published. External pushes and PR creation still require those flags.
+
+Discovery alone does not count as processing. Changed paper metadata is reprocessed;
+prior analyses, review decisions and implementation links remain available. A changed
+paper marks an existing review stale until it is reviewed again. This tracks observed
+metadata revisions, not a complete arXiv version history. The normal scan still fetches
+only `--max` newest results; it does not provide historical pagination.
+
+Import saved research, including the catch-up artifacts:
+
+```bash
+blastcontain-scout-track import docs/demos/scout-catchup-2026-09-20/papers.json \
+  --analyses docs/demos/scout-catchup-2026-09-20/analyses.json
+blastcontain-scout-track import-ledger tools/scout/state/seen-arxiv.json
+```
+
+Both imports are repeatable. Legacy seen dates do not imply classification or human
+review. Import the legacy ledger first when preserving its original first-seen dates
+is important. Without a database, the original JSON ledger still controls deduplication.
+
+Record review decisions separately from implementation progress:
+
+```bash
+blastcontain-scout-track review 2609.18217 --status selected \
+  --note "Abstract reviewed; reproduce fragmented-channel attacks before adoption"
+blastcontain-scout-track link 2609.18217 \
+  --source drill/blastcontain_drill/corpus/example.py --status planned \
+  --note "Proposed scenario; no implementation yet"
+blastcontain-scout-track report --paper-id 2609.18217
+```
+
+Review states: `unreviewed`, `reviewed`, `selected`, `deferred`, `rejected`.
+Implementation states: `planned`, `in_progress`, `implemented`, `validated`, `retired`.
+One paper can link to multiple sources, and a source can cite multiple papers.
+`implemented` and `validated` require `--reference` (PR or commit); `validated` also
+requires `--tests` describing test evidence. References are recorded attestations:
+the tracker does not check GitHub merge state, inspect referenced files, run tests,
+verify licenses, or enable any corpus. Use `in_progress` for an unmerged draft PR.
+An implementation link never changes the paper's review state automatically.
+
+Use `blastcontain-scout-track --database /path/to/scout.sqlite3 ...` for a shared
+location across local checkouts. Scout scanning accepts the same `--database` option.
+Binary databases and journal files are gitignored. Keep the database on local disk.
+Use the recovery commands for a consistent SQLite backup, including committed WAL
+pages while the database is open:
+
+```bash
+blastcontain-scout-track backup scout-backup.sqlite3
+blastcontain-scout-track restore scout-backup.sqlite3 scout-restored.sqlite3
+blastcontain-scout-track --database scout-restored.sqlite3 report
+blastcontain-scout-track export-audit scout-history.json
+```
+
+Outputs must be new paths. Restore does not replace an active database; select the
+restored copy explicitly. New database/backup/export files use private permissions
+on Unix. Backups retain pending publication retries as well as paper metadata,
+analyses, review events and implementation annotations. The JSON audit snapshot is
+portable history, not a restore format or an execution acceptance file. Pending
+publication data can include local paths and unpublished draft text.
+
+Version 3 migrations commit their DDL and version change in one transaction, roll
+back together on failure, and preserve old versions for read-only previews. Old
+implementation rows keep their original claims but have unknown actor/revision;
+those fields are not inferred. New `review` and `link` commands accept `--actor`.
+Omitting it preserves compatibility and records `legacy-unattributed`. Implementation
+annotations bind the current paper fingerprint and become stale when metadata
+changes. `evidence_status: recorded_only` remains explicit even when the supplied
+status is `validated`; this does not independently verify a test or PR.
+
+For concurrent editing, read `revision` from `report --json-output`, then supply
+`--expected-revision N` to `review` or `link`. A changed database refuses the edit
+and asks you to reload. Without that option, legacy commands apply to the latest
+state. Snapshot schema 2 adds `database_version`, `revision`, implementation
+staleness/actor fields and pending publication history. No cloud sync or
+scheduled monitoring is enabled. `--record` only records processing; it does not publish
+the generated proposal. Review/import/link commands do not commit or push anything.
+
+### Map Scout papers to Drill coverage
+
+Drill now has a data-only paper registry at
+`drill/blastcontain_drill/corpus/arxiv/registry.json`, seeded from the 20-paper
+implementation audit. Inspect it alongside the local database:
+
+```bash
+blastcontain-scout-track coverage
+blastcontain-scout-track coverage --paper-id 2404.01318 --json-output
+```
+
+`--registry PATH` selects another checkout's mapping. This lookup is read-only:
+it keeps checked-in audit claims and local implementation records separate.
+A missing registry entry means **not audited**, not **not implemented**.
+Scout proposals still go to `corpus/contrib/arxiv/<YYYY-MM>/`; reviewed dedicated
+implementations can live under `corpus/arxiv/`. Existing working modules are linked
+in place. Registry entries never enable attacks or import code automatically.
+
+### Exact artifact and run provenance
+
+The optional [Git-bound provenance commands](docs/provenance.md) join paper
+fingerprints to exact source/scenario/plugin identities, committed code/test/license
+artifacts and review records. `inspect-mapping` is read-only; `refresh-mapping`
+explicitly appends a database snapshot after review or merge. `trace` rechecks Git
+and uses Drill's signature/replay verifier for saved runs. Git/database divergence,
+revoked or stale reviews and incomplete provenance stay visible. This integration
+requires Core and Drill from the same supported checkout; ordinary Scout remains
+independently usable.

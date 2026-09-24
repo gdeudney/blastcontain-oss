@@ -1,0 +1,10 @@
+ARG BASE_IMAGE=localhost/blastcontain-verify:mcp-target
+FROM ${BASE_IMAGE}
+USER 0
+COPY verify/blastcontain_verify /opt/sandbox-source/blastcontain_verify
+COPY core/blastcontain_core /opt/sandbox-source/blastcontain_core
+RUN mkdir -p /private-canary /scan /input /protected /work /reports && \
+    printf 'verify-dummy-credential-not-a-real-secret' > /private-canary/token && \
+    chmod 700 /private-canary && chmod 600 /private-canary/token
+ENV PYTHONPATH=/opt/sandbox-source
+USER 10001

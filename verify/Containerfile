@@ -27,12 +27,10 @@ WORKDIR /build
 # Copy verify source (always required). If core/ exists in the build context,
 # it gets copied too — the install step prefers local core when present.
 # constraints-full.txt pins every third-party dependency (incl. transitives like
-# tldextract / litellm / onnxruntime) to the exact tested-good versions, so the
+# tldextract / spaCy) to the exact tested-good versions, so the
 # published image is reproducible and can't silently pull a version that breaks
-# the hardened-container offline path. Regenerate from a known-good image via:
-#   podman run --rm --entrypoint pip <img> freeze \
-#     | grep -viE '^blastcontain-|^en[-_]core[-_]web|^pip==|^setuptools==|^wheel==|@' \
-#     | sort > verify/constraints-full.txt
+# the hardened-container offline path. See CONTRIBUTING.md for the dependency
+# refresh command and validation steps (including container integration tests).
 COPY verify/pyproject.toml verify/README.md verify/constraints-full.txt ./
 COPY verify/blastcontain_verify/ ./blastcontain_verify/
 
@@ -101,8 +99,8 @@ ENV XDG_CACHE_HOME=/tmp/.cache \
 USER verify
 
 LABEL org.opencontainers.image.title="blastcontain-verify" \
-      org.opencontainers.image.description="Pre-deployment compliance scanner for AI agents" \
-      org.opencontainers.image.version="0.3.1" \
+      org.opencontainers.image.description="Technical security assessment for AI agents and MCP servers" \
+      org.opencontainers.image.version="0.5.0" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.source="https://github.com/gdeudney/blastcontain-oss"
 

@@ -131,6 +131,18 @@ def run_scan(cfg: VerifyConfig) -> ScanResult:
     before their consumers (environment before memory — MEM-05 reads ENV-02
     from ScanState.fired). Plugins run after all built-ins.
     """
+    if cfg.control_manifest or cfg.allow_live_tests:
+        from .mcp_target import validate_target_config
+        validate_target_config(cfg)
+
+    if cfg.target_type == "mcp":
+        from .mcp_target import run_mcp_scan
+        result = run_mcp_scan(cfg)
+        if cfg.control_manifest:
+            from .control_validation import attach_validation
+            return attach_validation(cfg, result)
+        return result
+
     result = ScanResult(
         agent_id=cfg.agent_id,
         environment=cfg.environment,
@@ -178,5 +190,9 @@ def run_scan(cfg: VerifyConfig) -> ScanResult:
         result.status = ScanStatus.ERROR
     else:
         result.status = result.derive_status()
+
+    if cfg.control_manifest:
+        from .agent_sandbox import attach_sandbox
+        return attach_sandbox(cfg, result)
 
     return result
