@@ -24,8 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Install host and pinned browser test tools
@@ -36,7 +36,7 @@ jobs:
         run: python -m pytest drill/tests/browser drill/tests/unit/workbench -q --basetemp=ui-test-results
       - name: Preserve browser screenshots
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: workbench-browser-evidence
           path: ui-test-results/**/*.png

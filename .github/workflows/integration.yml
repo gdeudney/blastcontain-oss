@@ -20,18 +20,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Opt JS actions into the Node 24 runtime — Node 20 is deprecated (forced 2026-06-02,
-# removed from runners 2026-09-16). Version-agnostic; avoids guessing action majors.
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
 jobs:
   verify-container:
     name: Verify hardened-container integration
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build verify image (context = repo root)
         # Build with podman: the scenario tests invoke podman, which has its own
@@ -54,7 +49,7 @@ jobs:
           timeout 90 bash -c 'until curl -sf http://localhost:18080/health; do sleep 2; done'
           timeout 90 bash -c 'until curl -sf http://localhost:18081/health; do sleep 2; done'
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -79,7 +74,7 @@ jobs:
           --base-image blastcontain-verify:test
           --output-dir "${{ runner.temp }}/agent-sandbox-demo"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: agent-sandbox-evidence
@@ -91,7 +86,7 @@ jobs:
           podman logs mcp-server  > /tmp/service-logs.txt 2>&1 || true
           podman logs api-server >> /tmp/service-logs.txt 2>&1 || true
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: verify-service-logs
@@ -108,8 +103,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install -e "./core"
