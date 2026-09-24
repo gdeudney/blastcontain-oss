@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/* BlastContain "Dossier" design system — mirrored from the website
+   (BlastContainWebsite/styles.css): warm paper, hairline rules, mono
+   annotations, stamped statuses. Light ("dossier") is the default;
+   [data-theme="dark"] is the ops-room variant. Artifact blocks (.terminal)
+   are ALWAYS dark in both themes. */
+
+:root {
+  --bg: #faf8f4;
+  --bg-soft: #f3f0e9;
+  --panel: #ffffff;
+  --line: rgba(22, 20, 15, 0.1);
+  --line-2: rgba(22, 20, 15, 0.18);
+  --ink: #16140f;
+  --ink-2: #4a453c;
+  --ink-3: #6b655b;
+  --blast: #2b5ce6;   /* signal: dossier blue */
+  --amber: #8a5800;   /* caution */
+  --contain: #0b7064; /* contained / pass */
+  --danger: #b91c30;
+  --btn-ink: #ffffff;
+}
+
+:root[data-theme="dark"] {
+  --bg: #161310;
+  --bg-soft: #1a1713;
+  --panel: #1e1a15;
+  --line: rgba(236, 233, 226, 0.08);
+  --line-2: rgba(236, 233, 226, 0.17);
+  --ink: #ece9e2;
+  --ink-2: #b5afa4;
+  --ink-3: #8e887d;
+  --blast: #7da2ff;
+  --amber: #f5b04a;
+  --contain: #45d0bc;
+  --danger: #ff5560;
+  --btn-ink: #1b0e06;
+}
+
+@theme inline {
+  --color-paper: var(--bg);
+  --color-paper-soft: var(--bg-soft);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-blast: var(--blast);
+  --color-amber: var(--amber);
+  --color-contain: var(--contain);
+  --color-danger: var(--danger);
+  --color-btn-ink: var(--btn-ink);
+  --font-sans: var(--font-inter), -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-jbmono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: var(--font-sgrotesk), var(--font-inter), sans-serif;
+  --radius-md: 2px; /* the dossier radius */
+  --radius-lg: 4px; /* terminal blocks */
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: rgba(43, 92, 230, 0.16);
+}
+:root[data-theme="dark"] ::selection {
+  background: rgba(125, 162, 255, 0.25);
+}
+
+/* Artifact blocks (compiled policy, rule annotations): pinned warm-dark with
+   bright accents so artifacts read identically in both page themes. Tailwind
+   token utilities used inside re-resolve against these scoped vars. */
+.terminal {
+  --bg: #14110d;
+  --bg-soft: #16130f;
+  --panel: #1c1813;
+  --line: rgba(236, 233, 226, 0.09);
+  --line-2: rgba(236, 233, 226, 0.18);
+  --ink: #ece9e2;
+  --ink-2: #b3aca1;
+  --ink-3: #847d72;
+  --blast: #7da2ff;
+  --amber: #f5b04a;
+  --contain: #45d0bc;
+  --danger: #ff5560;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+/* Theme-toggle icon swap — pure CSS, no client state (site pattern). */
+.t-sun {
+  display: none;
+}
+:root[data-theme="dark"] .t-sun {
+  display: block;
+}
+:root[data-theme="dark"] .t-moon {
+  display: none;
+}
