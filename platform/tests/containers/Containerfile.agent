@@ -1,0 +1,13 @@
+FROM python:3.12-slim
+
+RUN useradd -r -s /sbin/nologin agent
+
+WORKDIR /app
+COPY tests/scenarios/agent.py .
+
+RUN pip install --no-cache-dir fastapi uvicorn httpx
+
+USER agent
+
+EXPOSE 8081
+CMD ["uvicorn", "agent:app", "--host", "0.0.0.0", "--port", "8081"]

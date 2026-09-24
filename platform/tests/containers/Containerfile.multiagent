@@ -1,0 +1,12 @@
+FROM python:3.12-slim
+
+RUN useradd -r -s /sbin/nologin agent
+
+WORKDIR /app
+COPY tests/scenarios/multiagent_scenario.py .
+
+RUN pip install --no-cache-dir httpx
+
+USER agent
+
+CMD ["python", "multiagent_scenario.py"]
