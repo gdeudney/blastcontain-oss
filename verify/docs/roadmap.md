@@ -1,5 +1,17 @@
 # BlastContain Verify — Design Roadmap
 
+## Current addition — OpenShell and Ubuntu agent hosts (2026-10-02)
+
+The next practical containment track is the
+[OpenShell validation plan](../../docs/openshell-validation-plan.md): qualify one
+Ubuntu MacBook/VM deployment, assess its effective policy, then test allowed and
+denied behavior before Drill or Charter integration. OS-2 includes the reported
+custom-credential detection gap and layered host/VM/container evidence. Existing
+`agent-sandbox-v1` probes are a starting point, not complete OpenShell coverage.
+This is planned work; the earlier design phases below remain their own backlog.
+
+## Earlier design sequence
+
 A sequenced plan for the seven design gaps identified in the 2026-06 review.
 Companion to [`architecture.md`](architecture.md) (how it's built) and
 [`spec.md`](spec.md) (what each check does). Each item below has a concrete
