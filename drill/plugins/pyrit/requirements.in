@@ -1,2 +1,5 @@
 # Isolated Linux/Python 3.12 plugin image only; not a Drill host dependency.
 pyrit==1.1.0
+
+# PYSEC-2026-4141: reject the vulnerable pre-verification JWT payload parser.
+pyjwt>=2.15.0

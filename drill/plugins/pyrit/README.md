@@ -129,6 +129,12 @@ license/data changes, update the version assertion/provenance, and rebuild. Comp
 parity again, record the new image ID, and obtain new explicit acceptance. Do not
 change only a model/framework name in an existing lock.
 
+The October 5, 2026 security refresh updates only PyJWT from 2.14.0 to 2.15.1
+for [PYSEC-2026-4141](https://osv.dev/vulnerability/PYSEC-2026-4141). The input
+requirements enforce the fixed-version floor (2.15.0); the remaining 108 package
+versions are retained. The static and Crescendo images share this dependency
+lock, so rebuild both and renew acceptance for their new immutable image IDs.
+
 The initial dependency audit on September 21, 2026 found no known vulnerabilities
 in the 109-package closure. That is a point-in-time result. Live-model validation
 is pending because no local model endpoint was available; the controlled tests do

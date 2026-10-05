@@ -4,6 +4,11 @@ All notable changes to `blastcontain-drill` are documented here. Format based on
 
 ## [Unreleased]
 
+### Security
+- Update the isolated PyRIT/Crescendo dependency lock from PyJWT 2.14.0 to
+  2.15.1 for PYSEC-2026-4141 (CVE-2026-101918), retaining the other runtime
+  pins and artifact hashes. Require PyJWT >=2.15.0 when regenerating the lock.
+
 ### Added
 - Host-owned attacker/evaluator conversation service with scoped checkpoints,
   opt-in branching, bounded history, cumulative budgets and sanitized audit events.
