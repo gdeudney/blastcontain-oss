@@ -10,7 +10,7 @@ cffi==2.1.1
     # via cryptography
 click==8.5.0
     # via blastcontain-drill (drill/pyproject.toml)
-cryptography==50.0.1
+cryptography==50.0.2
     # via
     #   blastcontain-core (core/pyproject.toml)
     #   blastcontain-core
