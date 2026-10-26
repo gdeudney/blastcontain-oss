@@ -16,6 +16,13 @@ phases 5–7 remain pending.
 
 ## Outcome
 
+**2026-10-02 addition:** the cross-tool
+[OpenShell / Ubuntu agent-host plan](../../docs/openshell-validation-plan.md)
+starts with Verify and practical control validation. Drill gains a runtime/target
+adapter only after that gate, followed by Guard/Charter reconciliation. It does
+not replace third-party attack-worker isolation or imply current OpenShell support.
+This practical track takes priority over expanding unrelated adapter breadth.
+
 Make it possible to add an independently packaged attack tool without changing Drill's
 runner or adding tool-specific CLI flags. Users should be able to review plugins and
 attack content, select a reproducible suite, and run the same suite through the CLI,
@@ -381,12 +388,26 @@ from required release suites.
 
 ## Test and validation matrix
 
+### OpenShell target deployment track
+
+OS-0 through OS-2 in the linked plan qualify the actual Ubuntu host/VM, external
+logging and Verify controls. OS-3 then adds accepted, versioned target deployment
+bindings and deterministic positive/negative scenarios for poisoned repositories,
+MCP inputs, allowed-destination misuse, credential binding, approval/replay and
+agent handoffs. Preserve suite locks, broker limits, independent effect evidence,
+cleanup and the current Podman boundary around attack plugins. Local abliterated
+attackers remain brokered options. Hardware validation and live-model evidence
+are separate gates; missing evidence cannot be promoted from a simulated pass.
+
+### Shared matrix
+
 | Level | Execution | Required evidence |
 |---|---|---|
 | Unit/schema | Every relevant PR | Deterministic schema, reducer, planner, provenance and migration checks |
 | Regression | Core/Drill/Scout changes | Existing CLI/source/scoring/report behavior; intentional changes documented |
 | Adapter contracts | SDK or adapter changes | Lifecycle, capabilities, protocol, cancellation, errors and reset correctness |
 | Container integration | Supported Linux CI runner | Sentinel file/network isolation, real fixtures, cleanup and bounded calls |
+| OpenShell host/VM qualification | Opt-in pilot after Verify validation | Pinned runtime/policy, actual Ubuntu deployment, independent observations, utility, revocation and cleanup; explicit unsupported/skip states |
 | Packaging | Release and dependency changes | Install wheels into clean environments; manifests/data/notices present; inactive proposals absent |
 | Real upstream smoke | Adapter PRs/releases | Actual pinned package with deterministic target, no paid-service requirement |
 | Live model | Explicit bounded release validation | Model/config/seed/repetition details, security and utility outcomes, observation limitations |
@@ -415,7 +436,10 @@ Use small PRs with their own evidence and rollback point:
 5. First pinned PyRIT adapter and bounded suite (phase 4).
 6. Scout/acceptance lifecycle and migrations (phase 5).
 7. Local service and UI in separate changes (phase 6).
-8. AgentDojo, then garak, independently; release/migration validation (phase 7).
+8. AgentDojo breadth and garak remain independently releasable phase-7 work;
+   prioritize the OpenShell target pilot after its Verify/control-validation gate.
+9. OpenShell-specific Guard/Charter reconciliation follows the validated Drill
+   adapter; the cross-tool plan defines its separate acceptance and rollout gates.
 
 No calendar dates are committed until the first adapter spike establishes the actual
 upstream fit. Re-estimate after phase 4. If PyRIT cannot operate within the broker contract,

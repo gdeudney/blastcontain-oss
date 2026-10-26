@@ -6,6 +6,15 @@ result is bounded evidence, not certification. Verify runs in the tested runtime
 Drill exercises authorized external attack scenarios; Guard enforces configured
 policy where calls pass through its adapters.
 
+The [OpenShell / Ubuntu agent-host plan](openshell-validation-plan.md) adds a
+concrete deployment-validation track for these requirements: qualify the actual
+host/VM, run Verify in the workload boundary, validate controls, then exercise
+Drill scenarios and reconcile Charter. It records the distinction between an
+agent's sandbox and a separate MCP server's runtime, plus external evidence and
+agent-to-agent relationships. OpenShell support remains planned until those
+gates pass; installing a containment product is not evidence that its controls
+are effective for the workload.
+
 | Requirement | Verify today | Guard today | Drill validation / remaining work |
 |---|---|---|---|
 | Limit runtime privileges and filesystem access | ENV, DISK, PROC and PERSIST probes of the scanner's runtime | No OS sandbox | Cage tests exercise containment; repeat against representative deployments |
