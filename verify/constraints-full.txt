@@ -15,7 +15,7 @@ catalogue==2.0.10
     #   spacy
     #   srsly
     #   thinc
-certifi==2026.7.22
+certifi==2026.10.23
     # via
     #   httpcore
     #   httpx
@@ -47,7 +47,7 @@ cymem==2.0.13
     #   preshed
     #   spacy
     #   thinc
-filelock==4.0.3
+filelock==4.2.4
     # via tldextract
 h11==0.16.0
     # via httpcore
@@ -128,7 +128,7 @@ requests-file==3.0.1
     # via tldextract
 rich==15.0.0
     # via typer
-setuptools==84.0.0
+setuptools==84.2.1
     # via
     #   spacy
     #   thinc
