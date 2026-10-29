@@ -44,8 +44,8 @@ Regenerate each complete set instead of accepting independent transitive pin
 bumps. Pydantic requires an exact `pydantic-core` version, and spaCy bounds Thinc;
 newer versions of either dependency can make the set impossible to install.
 Keep the Presidio Anonymizer exception documented in SECURITY.md until upstream
-permits patched cryptography. Dependabot excludes only the known incompatible
-2.2.364 release; later releases remain eligible for review.
+permits patched cryptography. Dependabot excludes the known incompatible
+2.2.363 and 2.2.364 releases; later releases remain eligible for review.
 
 In an isolated Python 3.12 virtual environment, validate both sets together:
 
