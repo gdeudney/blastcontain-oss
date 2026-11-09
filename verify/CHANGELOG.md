@@ -8,8 +8,9 @@ All notable changes to `blastcontain-verify` are documented here. Format based o
 - Regenerate the full and MCP validation dependency constraints together
   (2026-09-24), retaining compatible Pydantic/Core and spaCy/Thinc pairs and
   Presidio Anonymizer 2.2.362 with patched cryptography.
-- Exclude the incompatible Anonymizer 2.2.364 update from Dependabot and remove
-  obsolete Cisco dependency exclusions; document validation of both closures.
+- Exclude the incompatible Anonymizer 2.2.363 and 2.2.364 updates from
+  Dependabot and remove obsolete Cisco dependency exclusions; document
+  validation of both closures.
 
 ### Added
 - Opt-in Linux agent sandbox validation (`agent-sandbox-v1`): positive/negative

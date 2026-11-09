@@ -52,11 +52,11 @@ updates:
     groups:
       verify:
         patterns: ["*"]
-    # This release excludes patched cryptography. Allow newer releases to be
+    # These releases exclude patched cryptography. Allow newer releases to be
     # proposed when upstream relaxes the bound; retain the audited 2.2.362 pin.
     ignore:
       - dependency-name: presidio-anonymizer
-        versions: ["2.2.364"]
+        versions: ["2.2.363", "2.2.364"]
     labels: ["dependencies", "verify"]
     commit-message:
       prefix: "deps(verify)"

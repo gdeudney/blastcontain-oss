@@ -58,11 +58,13 @@ the signature is only as trustworthy as your key handling. Consumers must match
 an embedded public key against a separately trusted signer; signature consistency
 alone is not signer authentication.
 
-## Presidio Anonymizer compatibility hold (2026-09-07)
+## Presidio Anonymizer compatibility hold (2026-09-07; extended 2026-10-23)
 
 Analyzer is updated to 2.2.364, but Anonymizer is deliberately pinned to
-2.2.362 in both `[full]` and `[pii]`. Anonymizer 2.2.364 requires
-`cryptography>=48.0.1,<49.0.0`; resolving it selected cryptography 48.0.1.
+2.2.362 in both `[full]` and `[pii]`. Anonymizer 2.2.363 requires
+`cryptography>=46.0.4,<47.0.0`, and 2.2.364 requires
+`cryptography>=48.0.1,<49.0.0`; both exclude the fixes in cryptography 50.x.
+Resolving 2.2.364 selected cryptography 48.0.1.
 `pip-audit` reported PYSEC-2026-3553 and PYSEC-2026-3554 (fixed in 49.0.0),
 and PYSEC-2026-3552 (fixed in 50.0.0). Duplicate advisory rows were also
 reported; these represent three distinct advisory identifiers.
