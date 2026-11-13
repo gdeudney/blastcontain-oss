@@ -2,7 +2,7 @@
 #    uv pip compile core/pyproject.toml verify/pyproject.toml --extra full --python-version 3.12 --no-sources --no-emit-package blastcontain-core -o verify/constraints-full.txt
 agent-governance-toolkit==4.1.0
     # via blastcontain-verify (verify/pyproject.toml)
-annotated-doc==0.0.5
+annotated-doc==0.0.6
     # via typer
 annotated-types==0.8.0
     # via pydantic
@@ -24,7 +24,7 @@ cffi==2.1.1
     # via cryptography
 charset-normalizer==3.5.2
     # via requests
-click==8.5.0
+click==8.5.1
     # via
     #   blastcontain-verify (verify/pyproject.toml)
     #   agent-governance-toolkit
@@ -48,7 +48,7 @@ cymem==2.0.16
     #   preshed
     #   spacy
     #   thinc
-filelock==4.2.9
+filelock==4.2.10
     # via tldextract
 h11==0.16.0
     # via httpcore
@@ -66,7 +66,7 @@ idna==3.20
     #   tldextract
 jinja2==3.1.6
     # via spacy
-markdown-it-py==4.2.0
+markdown-it-py==4.3.0
     # via rich
 markupsafe==3.0.4
     # via jinja2
@@ -88,7 +88,7 @@ packaging==26.3
     #   spacy
     #   thinc
     #   weasel
-phonenumbers==9.0.42
+phonenumbers==9.0.43
     # via presidio-analyzer
 preshed==3.0.13
     # via
@@ -119,7 +119,7 @@ pyyaml==6.0.3
     #   agent-governance-toolkit
     #   blastcontain-core
     #   presidio-analyzer
-regex==2026.9.29
+regex==2026.11.9
     # via presidio-analyzer
 requests==2.34.2
     # via
@@ -137,7 +137,7 @@ setuptools==84.2.1
     #   thinc
 shellingham==1.5.4
     # via typer
-smart-open==9.0.2
+smart-open==9.0.3
     # via weasel
 spacy==3.8.18
     # via presidio-analyzer
@@ -156,7 +156,7 @@ tldextract==5.4.0
     # via presidio-analyzer
 tqdm==4.70.1
     # via spacy
-typer==0.27.3
+typer==0.29.0
     # via
     #   spacy
     #   weasel
