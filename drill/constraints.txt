@@ -2,13 +2,13 @@
 #    uv pip compile core/pyproject.toml drill/pyproject.toml --python-version 3.12 --no-sources --no-emit-package blastcontain-core -o drill/constraints.txt
 anyio==4.16.0
     # via httpx
-certifi==2026.10.23
+certifi==2026.11.20
     # via
     #   httpcore
     #   httpx
 cffi==2.1.1
     # via cryptography
-click==8.5.0
+click==8.5.1
     # via blastcontain-drill (drill/pyproject.toml)
 cryptography==50.0.2
     # via
@@ -26,7 +26,7 @@ idna==3.20
     #   httpx
 pycparser==3.12
     # via cffi
-pyyaml==6.0.3
+pyyaml==6.0.4
     # via
     #   blastcontain-core (core/pyproject.toml)
     #   blastcontain-drill (drill/pyproject.toml)
